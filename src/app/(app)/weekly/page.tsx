@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyWeekly } from "@/lib/weekly";
 import { jod, signedPct } from "@/lib/format";
+import { companyDataReadiness } from "@/lib/data-readiness";
+import { DataReadiness } from "@/components/data-readiness";
 
 export const metadata: Metadata = { title: "Weekly summary" };
 
@@ -32,7 +34,8 @@ export default async function WeeklyPage() {
   if (user.guest) {
     return <PageHeading eyebrow="Data & update routine" title="Weekly summary" sub="Please sign in with a company account to see this page. It shows what changed this week in the data you imported." />;
   }
-  const w = await companyWeekly(user.companyId, businessToday());
+  const today = businessToday();
+  const [w, readiness] = await Promise.all([companyWeekly(user.companyId, today), companyDataReadiness(user.companyId, today)]);
   const { thisFrom, thisTo, prevFrom, prevTo } = w.windows;
   const nothing = w.sales.now === 0 && w.sales.before === 0 && w.cash.now === 0 && w.cash.before === 0;
 
@@ -102,6 +105,7 @@ export default async function WeeklyPage() {
           </ul>
         )}
       </section>
+      <div className="mt-6"><DataReadiness report={readiness} canImport={user.role === "owner"} /></div>
       <Glossary page="weekly" />
     </div>
   );

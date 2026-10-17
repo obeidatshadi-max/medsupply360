@@ -23,6 +23,10 @@ Stock and unpaid snapshots now reject the whole replacement if any row fails. Ot
 
 ## First prediction slice
 
+The signed-in Accounts screen now reads company customers and imported records, with All/Tender/Private views and search by name, code, city or owner. It shows current-year sales after returns, gross profit only when all matching costs are present, and balances from the newest unpaid-invoice snapshot. Balances are aggregated separately from sales so multi-line invoices cannot multiply receivables. Missing files remain unknown; zero refers only to the records imported. Unclassified customers remain visible in All accounts.
+
+Import data and Weekly summary now show a source checklist for all eight import types. The latest attempted upload is separate from the most recent upload that loaded rows. A rejected snapshot cannot advance the last-loaded date. Classification gaps, missing product units, and first/last sales dates are shown as readiness indicators; they do not certify complete history, accounting reconciliation or model accuracy.
+
 Management actions now shows customer/product reorder estimates for Private consumables with four distinct order days. These use historical median gaps and median quantity per order day in original ERP units. Same-day invoices/lines are combined, and returns are not new orders. Tender, unclassified and non-consumable histories are withheld. Confirm that item codes keep the same unit/pack meaning over time.
 
 The existing customer-level opportunities remain as broader context and are labeled separately. Product estimates are not added to customer opportunities or collections totals. “More regular” describes historical spacing, not a calibrated probability. No trained AI model or validated accuracy is claimed.

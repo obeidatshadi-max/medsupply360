@@ -5,6 +5,9 @@ import { importBatches } from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { ImportForm } from "./import-form";
+import { companyDataReadiness } from "@/lib/data-readiness";
+import { DataReadiness } from "@/components/data-readiness";
+import { businessToday } from "@/lib/business-date";
 
 /** Same clock as the header strip: Jordan time. */
 const jordanTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Amman", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
@@ -22,7 +25,7 @@ export default async function ImportsPage() {
     );
   }
 
-  const history = await getDb()
+  const [readiness, history] = await Promise.all([companyDataReadiness(user.companyId, businessToday()), getDb()
     .select({
       id: importBatches.id,
       kind: importBatches.kind,
@@ -36,7 +39,7 @@ export default async function ImportsPage() {
     .from(importBatches)
     .where(eq(importBatches.companyId, user.companyId))
     .orderBy(desc(importBatches.createdAt))
-    .limit(15);
+    .limit(15)]);
 
   return (
     <div className="space-y-6">
@@ -46,6 +49,7 @@ export default async function ImportsPage() {
         sub={`Upload the accountant's Alpha ERP exports. Start with products and customers, then sales, receipts, unpaid invoices and stock: later files point at the codes in the earlier ones. Use "Check file" first. It validates everything and shows totals to compare with Alpha, without saving.`}
       />
       <ImportForm />
+      <DataReadiness report={readiness} />
       <section aria-label="Recent imports">
         <h2 className="text-sm font-semibold">Recent imports</h2>
         {history.length === 0 ? (
