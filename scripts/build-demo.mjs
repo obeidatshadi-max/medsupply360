@@ -1,7 +1,7 @@
 // Bundles the tested account calculations (src/demo/accounts.ts and the core it uses) into demo/index.html,
 // so the frozen promotional demo shows exactly what the app computes. Run after changing src/core or src/demo:
 //   npm run demo:build
-import { readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
@@ -36,11 +36,16 @@ export function embed(html, code) {
 if (process.argv[1]?.endsWith("build-demo.mjs")) {
   const path = root + "demo/index.html";
   const html = readFileSync(path, "utf8");
-  const status = JSON.parse(readFileSync(root + "src/lib/dashboard-status.json", "utf8"));
+  const status = JSON.parse(readFileSync(root + "demo/demo-status.json", "utf8"));
   const next = embed(html, await bundle()).replace(
     /\/\* BEGIN dashboard-status \*\/[\s\S]*?\/\* END dashboard-status \*\//,
     () => `/* BEGIN dashboard-status */\nconst dashboardStatus=${JSON.stringify(status)};\n/* END dashboard-status */`,
   );
   if (next !== html) writeFileSync(path, next);
+  const pdf = root + "demo/assets/pdfjs/";
+  mkdirSync(pdf, { recursive: true });
+  for (const name of ["pdf.mjs", "pdf.worker.mjs"]) cpSync(root + "node_modules/pdfjs-dist/build/" + name, pdf + name);
+  for (const name of ["cmaps", "standard_fonts"]) cpSync(root + "node_modules/pdfjs-dist/" + name, pdf + name, { recursive: true });
+  cpSync(root + "node_modules/pdfjs-dist/LICENSE", pdf + "LICENSE");
   console.log(next === html ? "demo bundle already up to date" : "demo bundle updated");
 }

@@ -16,3 +16,4 @@ next-env.d.ts
 # Historical copies and local review evidence are not application source.
 /archive/
 /docs/reviews/
+/demo/assets/pdfjs/

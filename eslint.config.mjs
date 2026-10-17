@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     // Historical snapshots and browser review evidence are not app source.
     "archive/**",
     "docs/reviews/**",
+    // Generated third-party PDF reader, copied from the locked npm dependency.
+    "demo/assets/pdfjs/**",
   ]),
 ]);
 

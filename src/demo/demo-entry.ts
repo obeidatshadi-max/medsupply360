@@ -7,3 +7,7 @@ export { demoLedger, demoPortfolio } from "./ledger";
 export { nextStep } from "@/core/portfolio";
 export { GLOSSARY, PAGE_TERMS } from "@/core/glossary";
 export { LEVEL_LABEL } from "@/core/opportunities";
+export { SADAF_PROFILE, customerProfileStore, demoActionKey, normalizeCustomerProfile, profileDraftFromText } from "./customer-profiles";
+export { demoProductReorders, demoReadiness, checkDemoImport, SNAPSHOT_SAMPLE, SNAPSHOT_BAD_SAMPLE } from "./prediction-demo";
+export { SPECS as IMPORT_SPECS } from "@/core/import/specs";
+export { createCustomerPresentation } from "./customer-presentation";
