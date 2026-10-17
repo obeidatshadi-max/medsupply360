@@ -207,14 +207,16 @@ export function createCustomerPresentation(hooks: Hooks) {
     };
     const extract = document.querySelector<HTMLButtonElement>("#profile-extract");
     if (extract) extract.onclick = () => fillDraft(profileDraftFromText(document.querySelector<HTMLTextAreaElement>("#profile-text")?.value ?? ""), "Presenter-pasted profile text");
-    const kind = document.querySelector<HTMLSelectElement>("#app-import-kind"); if (kind) kind.onchange = () => { checkKind = kind.value as ImportKind; checkResult = ""; hooks.render(); };
+    const kind = document.querySelector<HTMLSelectElement>("#app-import-kind"); if (kind) kind.onchange = () => { revision++; checkKind = kind.value as ImportKind; checkResult = ""; hooks.render(); };
     const template = document.querySelector<HTMLButtonElement>("#app-template"); if (template) template.onclick = () => download(`MedSupply360_${checkKind}_sample.csv`, currentAppTemplate(checkKind), "text/csv;charset=utf-8");
     const templateCheck = document.querySelector<HTMLButtonElement>("#app-template-check"); if (templateCheck) templateCheck.onclick = () => showCheck(currentAppTemplate(checkKind));
     const csv = document.querySelector<HTMLInputElement>("#app-import-file");
     if (csv) csv.onchange = async () => {
       const file = csv.files?.[0]; if (!file) return;
       if (file.size > 4_500_000) { hooks.toast("CSV limit is 4.5 MB. Export a smaller period."); return; }
-      try { showCheck(await file.text()); } catch { hooks.toast("The CSV could not be read."); }
+      const requestRevision = ++revision, requestKind = checkKind;
+      try { const raw = await file.text(); if (revision === requestRevision) showCheck(raw, requestKind); }
+      catch { if (revision === requestRevision) hooks.toast("The CSV could not be read."); }
     };
     const good = document.querySelector<HTMLButtonElement>("#snapshot-good"); if (good) good.onclick = () => showCheck(SNAPSHOT_SAMPLE.replace(",10,5", ",20,5"), "stock_snapshot", true);
     const bad = document.querySelector<HTMLButtonElement>("#snapshot-bad"); if (bad) bad.onclick = () => showCheck(SNAPSHOT_BAD_SAMPLE, "stock_snapshot", true);

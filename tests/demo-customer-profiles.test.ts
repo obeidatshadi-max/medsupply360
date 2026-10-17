@@ -28,6 +28,25 @@ function saveCustomer(w: JSDOM["window"], name: string, supplier = "Example supp
 const route = (w: JSDOM["window"], name: string) => w.eval(`state.mode='advanced';state.route=${JSON.stringify(name)};state.query='';render()`);
 
 describe("tailored customer demonstration", () => {
+  it("discards pending CSV checks when the presenter switches customers", async () => {
+    const { w, errors } = setup();
+    saveCustomer(w, "Atlas Medical");
+    route(w, "alpha");
+    const complete: ((value: string) => void)[] = [];
+    for (const selector of ["#app-import-file", "#csvFile"]) {
+      const input = w.document.querySelector(selector)!;
+      const text = new Promise<string>((resolve) => complete.push(resolve));
+      Object.defineProperty(input, "files", { value: [{ name: "Atlas-private.csv", size: 100, text: () => text }] });
+      input.dispatchEvent(new w.Event("change", { bubbles: true }));
+    }
+    saveCustomer(w, "Beacon Medical");
+    route(w, "alpha");
+    for (const resolve of complete) resolve("Atlas confidential header\nx");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(w.document.querySelector("#app-import-result")!.textContent).toBe("");
+    expect(w.document.querySelector("#validation")!.textContent).toBe("");
+    expect(errors).toEqual([]);
+  });
   it("personalizes the workspace and prevents the previous customer's supplier/product context leaking into a new one", () => {
     const { w, errors } = setup();
     saveCustomer(w, "Atlas Medical", "Atlas supplier");
