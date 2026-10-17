@@ -1,5 +1,13 @@
 # Sadaf 360 — one working project
 
+## Priority implementation — 17 October 2026
+
+Stock and unpaid-invoice snapshot replacements now require every row to pass parsing and reference checks. A failed replacement preserves the old snapshot and invoice headers; non-snapshot files still allow partial loads. Duplicate/ambiguous column matches now block the file, and import results show the exact source-to-field mapping.
+
+Management actions includes a separate customer/product reorder baseline for Private consumables, with at least four distinct order days, typical quantities in ERP units and historical-data coverage. Buying a different product does not reset an item's cycle. Tender, equipment and unclassified accounts are excluded from this first slice. These are unvalidated historical estimates, not trained AI probabilities.
+
+`npm run predictions:evaluate -- docs/prediction-pilot-example.json` runs the offline rolling-window benchmark. The included example is fictional. Real Alpha mapping confirmation, complete exports and accountant reconciliation are still needed; see [the acceptance checklist and pilot instructions](docs/ALPHA_RECONCILIATION.md). The earlier production build failure did not reproduce in the 17 October check: the build completed successfully. Publishing this release through the production Git branch updates the main site; the separate synthetic demo site has its own deployment.
+
 Consolidated 9 October 2026 from the main app project and the separate Desktop CEO dashboard folder.
 
 **Open this folder in Claude Code or Codex for all future Sadaf development:**

@@ -15,7 +15,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PgColumn, PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { reconcile, type SummaryLine } from "@/core/import/reconcile";
 import { validateImport, type Issue } from "@/core/import/validate";
-import type { ImportKind, RowRef } from "@/core/import/specs";
+import { SPECS, type ImportKind, type RowRef } from "@/core/import/specs";
 import * as schema from "./schema";
 import {
   customers,
@@ -64,6 +64,7 @@ export interface ImportOutcome {
   warnings: Issue[];
   summary: SummaryLine[];
   ignoredColumns: string[];
+  mappedColumns: { field: string; sourceColumn: string }[];
   snapshotDate: string | null;
 }
 
@@ -81,6 +82,7 @@ const blank = (input: RunImportInput, state: ImportOutcome["state"], message: st
   warnings: [],
   summary: [],
   ignoredColumns: [],
+  mappedColumns: [],
   snapshotDate: null,
 });
 
@@ -502,12 +504,19 @@ export async function runImport(db: Db, input: RunImportInput): Promise<ImportOu
     const res = await resolve(tx, input.companyId, input.kind, validation.accepted);
     const rejections = [...validation.rejected, ...res.rejected].sort((a, b) => a.row - b.row);
     const warnings = [...validation.warnings, ...res.warnings].sort((a, b) => a.row - b.row);
-    const rowsAccepted = res.rows.length;
+    // A snapshot is a complete point-in-time replacement. Never let a valid subset erase the old snapshot,
+    // or update invoice headers before discovering that the replacement is incomplete.
+    const snapshotBlocked = SPECS[input.kind].snapshot === true && rejections.length > 0;
+    if (snapshotBlocked) {
+      rejections.push(...res.rows.map((r) => ({ row: r.row, reason: "not loaded: another row failed; snapshots must pass in full" })));
+      rejections.sort((a, b) => a.row - b.row);
+    }
+    const rowsAccepted = snapshotBlocked ? 0 : res.rows.length;
     const rowsRejected = rejections.length;
     const status = rowsAccepted === 0 ? "rejected" : rowsRejected === 0 ? "accepted" : "partial";
     const outcome: ImportOutcome = {
       state: "done",
-      message: null,
+      message: snapshotBlocked ? "Snapshot blocked: fix all rejected rows and check the complete file again. Nothing was replaced; existing snapshot data and invoice details are unchanged." : null,
       dryRun: input.dryRun,
       wrote: false,
       batchId: null,
@@ -517,8 +526,9 @@ export async function runImport(db: Db, input: RunImportInput): Promise<ImportOu
       rowsRejected,
       rejections,
       warnings,
-      summary: reconcile(input.kind, res.rows, validation.snapshotDate),
+      summary: snapshotBlocked ? [] : reconcile(input.kind, res.rows, validation.snapshotDate),
       ignoredColumns: validation.ignoredColumns,
+      mappedColumns: validation.mappedColumns,
       snapshotDate: validation.snapshotDate,
     };
     if (input.dryRun) return outcome;

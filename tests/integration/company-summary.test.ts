@@ -122,6 +122,29 @@ describe("companyDataSummary", () => {
     expect(e.importsThisWeek).toEqual([]);
   });
 
+  it("keeps product reorder histories company-scoped and does not let another product hide a missed order", async () => {
+    const { companyProductReorders } = await import("@/lib/product-reorders");
+    const company = (await q<{ id: string }>(`insert into companies (slug, name) values ('product-pilot', 'Pilot') returning id`))[0]!.id;
+    const imp = (kind: Parameters<typeof runImport>[1]["kind"], text: string) =>
+      runImport(h.db as Db, { companyId: company, userId: null, kind, fileName: `${kind}.csv`, text, today: TODAY, dryRun: false });
+    await imp("products", "code,name,category,unit\nP1,Reagent,Consumables,pack\nP2,Tubes,Consumables,box\nP3,Analyzer,Equipment,unit");
+    await imp("customers", "code,name,segment\nC1,Private clinic,Private\nC2,Public hospital,Tender");
+    const dates = ["2026-04-01", "2026-05-01", "2026-05-31", "2026-06-30"];
+    const lines = dates.flatMap((date, i) => [
+      `I${i},1,${date},C1,P1,10,100`, `I${i},2,${date},C1,P3,1,500`,
+      `T${i},1,${date},C2,P1,10,100`,
+    ]);
+    await imp("sales", ["invoice no,line no,date,customer code,product code,qty,net sales", ...lines,
+      "RECENT,1,2026-10-08,C1,P2,20,50", "RETURN,1,2026-10-08,C1,P1,-1,-10",
+    ].join("\n"));
+    const r = await companyProductReorders(company, TODAY);
+    expect(r).toMatchObject({ eligiblePairs: 1, insufficientHistory: 1, partialImport: false });
+    expect(r.items[0]).toMatchObject({ customerCode: "C1", productCode: "P1", unit: "pack", typicalQuantity: 10,
+      forecast: { lastOrder: "2026-06-30", expectedNext: "2026-07-30", level: "Lapsed" } });
+    expect(r.latestImport).not.toBeNull();
+    expect(await companyProductReorders(empty, TODAY)).toMatchObject({ eligiblePairs: 0, items: [], latestImport: null });
+  });
+
   it("groups sales by therapeutic area, keeping products with no area apart", async () => {
     const { companyPortfolio } = await import("@/lib/portfolio");
     await client.exec(`update products set therapeutic_area = 'Respiratory' where company_id = '${a}' and code = 'P1'`);

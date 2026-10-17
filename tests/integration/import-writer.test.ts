@@ -158,6 +158,38 @@ describe("sales, returns and receipts", () => {
 });
 
 describe("snapshots", () => {
+  it.each(["open_invoices", "stock_snapshot"] as const)("preserves %s and invoice headers when any replacement row fails", async (kind) => {
+    const company = (await q<{ id: string }>(`insert into companies (slug, name) values ($1, 'Snapshot safety') returning id`, [`safe-${kind}`]))[0]!.id;
+    await imp(company, "products", PRODUCTS);
+    await imp(company, "customers", CUSTOMERS);
+    const snapshotDate = "2026-10-08";
+    const header = kind === "open_invoices" ? "invoice no,customer code,invoice date,due date,remaining" : "product code,warehouse,batch,qty,unit cost";
+    const original = kind === "open_invoices" ? "SAFE,C1,2026-09-01,2026-09-30,100" : "P1,Main,B1,10,2.5";
+    const changed = kind === "open_invoices" ? "SAFE,C1,2026-09-01,2026-12-31,5" : "P1,Main,B1,1,2.5";
+    const invalid = kind === "open_invoices" ? "NEW,C9,2026-09-01,2026-09-30,25" : "P9,Main,B2,5,2.5";
+    const table = kind === "open_invoices" ? "open_invoice_snapshots" : "stock_snapshots";
+    await imp(company, kind, `${header}\n${original}`, { snapshotDate });
+    const before = await q(`select * from ${table} where company_id = $1`, [company]);
+    const headersBefore = await q(`select * from invoices where company_id = $1`, [company]);
+    for (const dryRun of [true, false]) {
+      const r = await imp(company, kind, `${header}\n${changed}\n${invalid}`, { snapshotDate, dryRun });
+      expect(r).toMatchObject({ status: "rejected", rowsAccepted: 0, rowsRejected: 2, wrote: false, summary: [] });
+      expect(r.message).toContain("Snapshot blocked");
+      expect(r.rejections).toContainEqual({ row: 3, reason: expect.stringContaining("unknown") });
+      expect(await q(`select * from ${table} where company_id = $1`, [company])).toEqual(before);
+      expect(await q(`select * from invoices where company_id = $1`, [company])).toEqual(headersBefore);
+    }
+    // Parser errors must be atomic as well as database reference errors.
+    const parserFailure = await imp(company, kind, `${header}\n${changed}\nbad`, { snapshotDate });
+    expect(parserFailure).toMatchObject({ status: "rejected", wrote: false, rowsAccepted: 0 });
+    expect(await q(`select * from ${table} where company_id = $1`, [company])).toEqual(before);
+    const batches = await q<{ status: string; rows_accepted: number }>(`select status, rows_accepted from import_batches where company_id = $1 and status = 'rejected'`, [company]);
+    expect(batches).toHaveLength(2);
+    expect(batches.every((x) => x.rows_accepted === 0)).toBe(true);
+    // A clean replacement still succeeds.
+    expect(await imp(company, kind, `${header}\n${changed}`, { snapshotDate })).toMatchObject({ status: "accepted", wrote: true });
+  });
+
   const OPEN = "invoice no,customer code,invoice date,due date,remaining\nI1,C1,2026-09-01,2026-09-30,110\nI2,C2,2026-09-05,,-20";
 
   it("replaces a snapshot date on re-upload and keeps other dates", async () => {

@@ -7,6 +7,8 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyOpportunities } from "@/lib/opportunities";
 import { jod } from "@/lib/format";
+import { companyProductReorders } from "@/lib/product-reorders";
+import { ProductReorders } from "@/components/product-reorders";
 
 export const metadata: Metadata = { title: "Management actions" };
 
@@ -15,7 +17,10 @@ export default async function OpportunitiesPage() {
   if (user.guest) {
     return <PageHeading eyebrow="Management actions" title="Opportunities" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
-  const r = await companyOpportunities(user.companyId, businessToday());
+  const today = businessToday();
+  const [r, productReorders] = await Promise.all([
+    companyOpportunities(user.companyId, today), companyProductReorders(user.companyId, today),
+  ]);
   if (!r) {
     return (
       <div>
@@ -120,6 +125,7 @@ export default async function OpportunitiesPage() {
           </div>
         )}
       </section>
+      <ProductReorders report={productReorders} />
       <Glossary page="opportunities" />
     </div>
   );

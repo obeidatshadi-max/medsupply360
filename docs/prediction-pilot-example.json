@@ -1,0 +1,12 @@
+{
+  "observedThrough": "2026-05-15",
+  "cutoffs": ["2026-04-15"],
+  "horizonDays": 30,
+  "rows": [
+    { "customerCode": "DEMO", "customerName": "Fictional clinic", "productCode": "DEMO-P1", "productName": "Fictional reagent", "segment": "Private", "category": "Consumables", "unit": "pack", "date": "2026-01-01", "quantity": 10, "value": 100 },
+    { "customerCode": "DEMO", "customerName": "Fictional clinic", "productCode": "DEMO-P1", "productName": "Fictional reagent", "segment": "Private", "category": "Consumables", "unit": "pack", "date": "2026-01-31", "quantity": 10, "value": 100 },
+    { "customerCode": "DEMO", "customerName": "Fictional clinic", "productCode": "DEMO-P1", "productName": "Fictional reagent", "segment": "Private", "category": "Consumables", "unit": "pack", "date": "2026-03-02", "quantity": 10, "value": 100 },
+    { "customerCode": "DEMO", "customerName": "Fictional clinic", "productCode": "DEMO-P1", "productName": "Fictional reagent", "segment": "Private", "category": "Consumables", "unit": "pack", "date": "2026-04-01", "quantity": 10, "value": 100 },
+    { "customerCode": "DEMO", "customerName": "Fictional clinic", "productCode": "DEMO-P1", "productName": "Fictional reagent", "segment": "Private", "category": "Consumables", "unit": "pack", "date": "2026-05-02", "quantity": 10, "value": 100 }
+  ]
+}

@@ -53,7 +53,7 @@ export function ImportForm() {
             </label>
             <input id="snapshotDate" name="snapshotDate" type="date" className={field} />
             <p className="mt-1 text-xs text-muted">
-              Only needed if the file has no snapshot date column. A new file for a date replaces that date; other dates are kept and never added together.
+              Only needed if the file has no snapshot date column. A complete file replaces that date. If any row fails, nothing is replaced. Other dates are kept separately.
             </p>
           </div>
         ) : null}
@@ -98,6 +98,7 @@ function Result({ fileName, outcome }: { fileName: string; outcome: NonNullable<
       <div>
         <p className="text-xs text-muted">{fileName}</p>
         <p className="mt-1 text-sm font-semibold">{headline}</p>
+        {outcome.message ? <p role="alert" className="mt-2 text-sm text-bad">{outcome.message}</p> : null}
       </div>
 
       {outcome.summary.length > 0 ? (
@@ -114,6 +115,12 @@ function Result({ fileName, outcome }: { fileName: string; outcome: NonNullable<
         </div>
       ) : null}
 
+      {outcome.mappedColumns.length > 0 ? <details className="text-sm">
+        <summary className="cursor-pointer font-semibold">Check which Alpha columns were matched</summary>
+        <dl className="mt-2 grid grid-cols-2 gap-2">{outcome.mappedColumns.map((m) => <div key={m.field}>
+          <dt className="text-muted">{m.field}</dt><dd>{m.sourceColumn}</dd>
+        </div>)}</dl>
+      </details> : null}
       {outcome.ignoredColumns.length > 0 ? <p className="text-xs text-muted">Columns not used: {outcome.ignoredColumns.join(", ")}</p> : null}
 
       {outcome.rejections.length > 0 ? (

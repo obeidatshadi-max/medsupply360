@@ -7,6 +7,21 @@ const TODAY = "2026-10-09";
 const run = (kind: Parameters<typeof validateImport>[0], text: string, snapshotDate?: string) =>
   validateImport(kind, text, { today: TODAY, snapshotDate });
 
+describe("ambiguous source columns", () => {
+  it("shows the exact source columns used in a valid file", () => {
+    const r = run("products", "Item Code,Name,Category\nP1,Gloves,Consumables");
+    expect(r.fatal).toBeNull();
+    expect(r.mappedColumns).toContainEqual({ field: "code", sourceColumn: "Item Code" });
+  });
+  it("blocks aliases and duplicate normalized headers instead of choosing the first", () => {
+    for (const header of ["code,product code,name,category", "code,CODE,name,category"]) {
+      const r = run("products", `${header}\nP1,P2,Gloves,Consumables`);
+      expect(r.fatal).toMatch(/Ambiguous columns.*code/);
+      expect(r.accepted).toEqual([]);
+    }
+  });
+});
+
 describe("parseCsv", () => {
   it("reads quotes, embedded delimiters, quotes and line breaks, and CRLF", () => {
     const { records } = parseCsv('a,b,c\r\n"x, y","say ""hi""","line1\nline2"\r\n');

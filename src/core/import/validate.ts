@@ -33,6 +33,7 @@ export interface ValidationResult {
   warnings: Issue[];
   /** Columns in the file that the importer does not read. */
   ignoredColumns: string[];
+  mappedColumns: { field: string; sourceColumn: string }[];
   snapshotDate: string | null;
   /** Set when the whole file is unusable. */
   fatal: string | null;
@@ -56,11 +57,12 @@ const empty = (kind: ImportKind, fatal: string, delimiter: Delimiter | null = nu
   rejected: [],
   warnings: [],
   ignoredColumns: [],
+  mappedColumns: [],
   snapshotDate: null,
   fatal,
 });
 
-/** Maps each field to its column. The first matching column wins; any later one with the same meaning is ignored. */
+/** Refuse ambiguous mappings rather than silently choosing the first matching source column. */
 function mapColumns(spec: FileSpec, header: string[]) {
   const wanted = new Map<string, FieldSpec>();
   for (const field of spec.fields) {
@@ -69,12 +71,16 @@ function mapColumns(spec: FileSpec, header: string[]) {
   }
   const columnOf = new Map<string, number>();
   const ignored: string[] = [];
+  const ambiguous: string[] = [];
   header.forEach((h, i) => {
     const field = wanted.get(norm(h));
-    if (field && !columnOf.has(field.key)) columnOf.set(field.key, i);
+    if (field && columnOf.has(field.key)) {
+      ambiguous.push(`${field.key}: "${header[columnOf.get(field.key)!]}" (column ${columnOf.get(field.key)! + 1}) and "${h}" (column ${i + 1})`);
+    }
+    else if (field) columnOf.set(field.key, i);
     else if (h.trim() !== "") ignored.push(h.trim());
   });
-  return { columnOf, ignored };
+  return { columnOf, ignored, ambiguous };
 }
 
 export function validateImport(kind: ImportKind, text: string, options: ValidateOptions): ValidationResult {
@@ -95,7 +101,9 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
   const { delimiter, records } = parsed;
   if (records.length === 0 || records[0].every((c) => c.trim() === "")) return empty(kind, "The file is empty or has no header row.", delimiter);
 
-  const { columnOf, ignored } = mapColumns(spec, records[0]);
+  const { columnOf, ignored, ambiguous } = mapColumns(spec, records[0]);
+  if (ambiguous.length > 0) return empty(kind, `Ambiguous columns: ${ambiguous.join("; ")}. Keep one source column per field, then check the file again.`, delimiter);
+  const mappedColumns = [...columnOf].map(([field, col]) => ({ field, sourceColumn: records[0][col] }));
   const missing = spec.fields.filter((fld) => fld.required && !columnOf.has(fld.key));
   if (missing.length > 0) {
     const names = missing.map((fld) => `${fld.aliases[0] ?? fld.key} (also accepted: ${fld.aliases.slice(1, 3).join(", ") || fld.key})`);
@@ -205,6 +213,7 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
     rejected,
     warnings: warnings.filter((w) => !rejectedRows.has(w.row)).sort((a, b) => a.row - b.row),
     ignoredColumns: ignored,
+    mappedColumns,
     snapshotDate: fileDate,
     fatal: null,
   };
