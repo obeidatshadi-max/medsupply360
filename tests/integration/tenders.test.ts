@@ -180,4 +180,15 @@ describe("field-level protection on moves", () => {
     expect(r.ok).toBe(true);
     expect((await getTender(db, a, id))!.tender).toMatchObject({ status: "collected", title: "Analyzer for central lab", authority: "MOH", bidValue: 90, awardAmount: 88, contractValue: 88, notes: null });
   });
+
+  it("keeps every stored value when finance steps a collected tender back", async () => {
+    const keep = { tenderNo: "SEC-2", estimatedValue: "100", deadline: "2026-12-01", bidValue: "90", awardAmount: "88", contractNo: "PO-2", contractValue: "88", deliveredOn: "2027-01-05" };
+    const id = await create(keep, "open");
+    for (const [to, seen] of [["preparing", "open"], ["submitted", "preparing"], ["technical_review", "submitted"], ["financial_review", "technical_review"], ["won", "financial_review"], ["contracted", "won"], ["delivered", "contracted"], ["collected", "delivered"]] as const) {
+      expect((await moveTender(db, { companyId: a, userId: userA, role: "owner", tenderId: id, to, seenStatus: seen, form: form(keep), note: "" })).ok).toBe(true);
+    }
+    const r = await moveTender(db, { companyId: a, userId: userA, role: "finance", tenderId: id, to: "delivered", seenStatus: "collected", form: form({ ...keep, deliveredOn: "2020-01-01", title: "Hijacked" }), note: "" });
+    expect(r.ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender).toMatchObject({ status: "delivered", deliveredOn: "2027-01-05", title: "Analyzer for central lab" });
+  });
 });

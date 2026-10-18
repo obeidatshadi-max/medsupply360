@@ -4,6 +4,7 @@ import {
   PRODUCT_LINES,
   STATUS_LABEL,
   isAuthority,
+  backMove,
   isLegalMove,
   missingFor,
   neededFor,
@@ -91,10 +92,12 @@ export function formOf(t: TenderRow): TenderForm {
 /**
  * What a move may save. The tender department and the owner may change any detail (they can already edit them). Any other
  * role (finance) saves only the details the target status asks for; every other field is kept as stored, whatever was posted.
+ * A step back asks for nothing, so for those roles it saves nothing.
  */
 export function formForMove(role: Role, stored: TenderRow, posted: TenderForm, to: TenderStatus): TenderForm {
   if (canEditTender(role)) return posted;
   const merged: TenderForm = formOf(stored);
+  if (backMove(stored.status) === to) return merged;
   for (const { key } of neededFor(to)) (merged as Record<string, string>)[key] = (posted as Record<string, string>)[key];
   return merged;
 }
