@@ -1,6 +1,10 @@
+import { canAccess, type Role } from "@/core/permissions";
+
 /**
- * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Alpha ERP data" and the unbuilt "Compare versions" is left out until Settings exists. An item without an `href` is a screen the demo shows that the
- * app has not built yet: it is listed, greyed out and marked "Soon", never linked to a page that does not exist.
+ * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Alpha ERP data" and the
+ * unbuilt "Compare versions" is left out until it has a home inside Settings. An item without an `href` is a screen the
+ * demo shows that the app has not built yet: it is listed, greyed out and marked "Soon", never linked to a page that
+ * does not exist. What each role sees comes from `canAccess` in core/permissions.
  */
 export type NavItem = {
   label: string;
@@ -12,7 +16,11 @@ export type NavItem = {
   note?: string;
 };
 
-export function navItems({ guest, owner }: { guest: boolean; owner: boolean }): { main: NavItem[]; explore: NavItem[] } {
+export function navItems({ guest, role }: { guest: boolean; role: Role }): { main: NavItem[]; explore: NavItem[] } {
+  const owner = role === "owner";
+  const tender: NavItem = { label: "Tenders", icon: "▣", href: "/tenders", match: ["/tenders"] };
+  // Department users (tender, finance) get the tender section and nothing else.
+  if (!canAccess(role, "business")) return { main: [tender], explore: [] };
   const main: NavItem[] = [
     { label: "Owner overview", icon: "◫", href: "/dashboard", match: ["/dashboard"] },
     { label: "Products & suppliers", icon: "▦", href: "/portfolio", match: ["/portfolio"] },
@@ -25,6 +33,8 @@ export function navItems({ guest, owner }: { guest: boolean; owner: boolean }): 
       ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports", "/weekly"] }
       : { label: "Alpha ERP data", icon: "⇄", href: "/weekly", match: ["/weekly"] },
   ];
+  if (canAccess(role, "tender") && !guest) main.push(tender);
+  if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });
   const explore: NavItem[] = guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"] }];
   return { main, explore };
 }
