@@ -24,6 +24,13 @@ export function dayText(iso: string): string {
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : iso;
 }
 
+/** An ISO date moved by whole days (UTC, so daylight saving cannot shift it). */
+export function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** "1 Jan – 18 Oct 2026": the year is shown once when both dates are in the same year. */
 export function dateRange(from: string, to: string): string {
   const end = dayText(to);

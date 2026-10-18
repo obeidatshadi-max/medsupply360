@@ -1,11 +1,15 @@
 import type { companyAccounts, CompanyAccountView } from "@/lib/company-accounts";
-import { jod } from "@/lib/format";
+import { PeriodTag } from "@/components/period-tag";
+import { dayText, jod } from "@/lib/format";
 
 const money = (v: number | null) => v === null ? "Data missing" : jod(v);
 
-export function CompanyAccounts({ report: r, view, canImport = false }: {
+export function CompanyAccounts({ report: r, view, canImport = false, salesThrough = null }: {
   report: Awaited<ReturnType<typeof companyAccounts>>; view: CompanyAccountView; canImport?: boolean;
+  /** Date of the newest invoice. The sales period ends there when it is earlier than the report date. */
+  salesThrough?: string | null;
 }) {
+  const to = salesThrough && salesThrough < r.to ? salesThrough : r.to;
   return <div className="space-y-5">
     <nav aria-label="Account segments" className="flex flex-wrap gap-3 text-sm">
       {([['all', 'All accounts'], ['tender', 'Tender accounts'], ['private', 'Private accounts']] as const).map(([key, label]) =>
@@ -18,8 +22,11 @@ export function CompanyAccounts({ report: r, view, canImport = false }: {
           className="mt-1 rounded-md border border-line px-3 py-2 text-sm" /></div>
       <button className="rounded-md bg-brand px-4 py-2 text-sm text-brand-ink" type="submit">Search</button>
     </form>
-    <p className="text-sm text-muted">Sales and gross profit: {r.from} to {r.to}, after returns. Unpaid and overdue: {r.snapshotDate ?? "no unpaid-invoice snapshot"}.
-      Values reflect imported records; complete exports still need reconciliation. Unclassified accounts appear only in All accounts.</p>
+    <div>
+      <PeriodTag from={r.from} to={to} label="Net sales and gross profit" />
+      <p className="mt-1 text-sm text-muted">Sales are after returns. Unpaid and overdue are as of {r.snapshotDate ? dayText(r.snapshotDate) : "no unpaid-invoice snapshot"}.</p>
+    </div>
+    <p className="text-sm text-muted">Values reflect imported records; complete exports still need reconciliation. Unclassified accounts appear only in All accounts.</p>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {([['Net sales', r.summary.sales], ['Gross profit', r.summary.grossProfit], ['Unpaid balance', r.summary.outstanding], ['Overdue', r.summary.overdue]] as const).map(([label, value]) =>
         <div key={label} className="rounded-lg border border-line bg-surface p-4"><p className="text-xs text-muted">{label}</p><p className="mt-2 text-lg tabular-nums">{money(value)}</p></div>)}

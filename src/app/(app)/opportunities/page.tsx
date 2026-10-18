@@ -100,7 +100,7 @@ export default async function OpportunitiesPage() {
                   <th className="px-3 py-2 text-right font-medium">Usual days between orders</th>
                   <th className="px-3 py-2 font-medium">Last order</th>
                   <th className="px-3 py-2 font-medium">Expected</th>
-                  <th className="px-3 py-2 text-right font-medium">Average order</th>
+                  <th className="px-3 py-2 text-right font-medium">Average order, last 12 months</th>
                   <th className="px-3 py-2 font-medium">How sure</th>
                 </tr>
               </thead>

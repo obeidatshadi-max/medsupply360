@@ -5,7 +5,7 @@ import type { Change } from "@/core/weekly";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyWeekly } from "@/lib/weekly";
-import { jod, signedPct } from "@/lib/format";
+import { dateRange, jod, signedPct } from "@/lib/format";
 import { companyDataReadiness } from "@/lib/data-readiness";
 import { DataReadiness } from "@/components/data-readiness";
 
@@ -14,15 +14,16 @@ export const metadata: Metadata = { title: "Weekly summary" };
 const jordanTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Amman", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 const sign = (v: number) => (v > 0 ? "+" : v < 0 ? "-" : "");
 
-function Tile({ label, c, money, note }: { label: string; c: Change; money: boolean; note: string }) {
+function Tile({ label, c, money, note, period }: { label: string; c: Change; money: boolean; note: string; period: string }) {
   const fmt = (v: number) => (money ? jod(v) : v.toLocaleString("en-US"));
   return (
     <div className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
       <p className="text-[11px] text-muted md:text-xs">{label}</p>
+      <p className="mt-1 inline-block rounded bg-brand-soft px-1.5 py-0.5 text-[10px] md:text-[11px]">{period}</p>
       <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{fmt(c.now)}</p>
       <p className="text-[10px] text-muted md:text-[11px]">
         {sign(c.delta)}
-        {fmt(Math.abs(c.delta))} ({signedPct(c.pct)}) vs {fmt(c.before)} the week before
+        {fmt(Math.abs(c.delta))} ({signedPct(c.pct)}) vs {fmt(c.before)} in the 7 days before
       </p>
       <p className="mt-1 text-[10px] text-muted md:text-[11px]">{note}</p>
     </div>
@@ -44,7 +45,7 @@ export default async function WeeklyPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Data & update routine`}
         title="Weekly summary"
-        sub={`What changed in the last 7 days (${thisFrom} to ${thisTo}) compared with the 7 days before (${prevFrom} to ${prevTo}). It uses the files you imported. It is only as new as your last import.`}
+        sub={`What changed in the last 7 days (${dateRange(thisFrom, thisTo)}) compared with the 7 days before (${dateRange(prevFrom, prevTo)}). It uses the files you imported. It is only as new as your last import.`}
       />
       {nothing ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
@@ -52,9 +53,9 @@ export default async function WeeklyPage() {
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-3">
-        <Tile label="Sales" c={w.sales} money note="Without tax, after taking off returns" />
-        <Tile label="Cash collected" c={w.cash} money note="Money received from customers" />
-        <Tile label="Invoices issued" c={w.orders} money={false} note="Invoices with sales above zero" />
+        <Tile label="Sales" period={dateRange(thisFrom, thisTo)} c={w.sales} money note="Without tax, after taking off returns" />
+        <Tile label="Cash collected" period={dateRange(thisFrom, thisTo)} c={w.cash} money note="Money received from customers" />
+        <Tile label="Invoices issued" period={dateRange(thisFrom, thisTo)} c={w.orders} money={false} note="Invoices with sales above zero" />
       </div>
 
       <section aria-label="Overdue receivables" className="mt-6">
@@ -70,7 +71,7 @@ export default async function WeeklyPage() {
       </section>
 
       <section aria-label="Top customers this week" className="mt-6">
-        <h2 className="text-sm font-semibold">Customers who bought the most this week</h2>
+        <h2 className="text-sm font-semibold">Customers who bought the most, {dateRange(thisFrom, thisTo)}</h2>
         {w.topCustomers.length === 0 ? (
           <p className="mt-1 text-sm text-muted">No sales in the last 7 days.</p>
         ) : (
