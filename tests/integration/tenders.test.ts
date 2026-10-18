@@ -158,3 +158,26 @@ describe("editing details", () => {
     expect(await updateTender(db, { companyId: b, tenderId: id, form: form() })).toEqual({ ok: false, error: "That tender was not found." });
   });
 });
+
+describe("field-level protection on moves", () => {
+  it("lets finance collect payment without being able to change the bid, award, contract or title", async () => {
+    const keep = { tenderNo: "SEC-1", estimatedValue: "100", deadline: "2026-12-01", bidValue: "90", awardAmount: "88", contractNo: "PO-1", contractValue: "88", deliveredOn: "2027-01-05" };
+    const id = await create(keep, "open");
+    const walk = async (to: Parameters<typeof moveTender>[1]["to"], seen: Parameters<typeof moveTender>[1]["seenStatus"]) => {
+      const r = await moveTender(db, { companyId: a, userId: userA, role: "owner", tenderId: id, to, seenStatus: seen, form: form(keep), note: "" });
+      expect(r.ok).toBe(true);
+    };
+    await walk("preparing", "open");
+    await walk("submitted", "preparing");
+    await walk("technical_review", "submitted");
+    await walk("financial_review", "technical_review");
+    await walk("won", "financial_review");
+    await walk("contracted", "won");
+    await walk("delivered", "contracted");
+
+    const tampered = form({ ...keep, title: "Hijacked", bidValue: "1", awardAmount: "999999", contractValue: "999999", authority: "KAUH", notes: "pwned" });
+    const r = await moveTender(db, { companyId: a, userId: userA, role: "finance", tenderId: id, to: "collected", seenStatus: "delivered", form: tampered, note: "paid" });
+    expect(r.ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender).toMatchObject({ status: "collected", title: "Analyzer for central lab", authority: "MOH", bidValue: 90, awardAmount: 88, contractValue: 88, notes: null });
+  });
+});

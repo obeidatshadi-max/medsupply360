@@ -6,12 +6,13 @@ import {
   isAuthority,
   isLegalMove,
   missingFor,
+  neededFor,
   type AuthorityCode,
   type TenderFields,
   type TenderLine,
   type TenderStatus,
 } from "@/core/tender-flow";
-import { canMoveTender, type Role } from "@/core/permissions";
+import { canEditTender, canMoveTender, type Role } from "@/core/permissions";
 import type { Db } from "@/db/import-writer";
 import { tenderStatusLog, tenders, users } from "@/db/schema";
 
@@ -65,6 +66,38 @@ const text = (v: string | null | undefined, max: number): string | null => {
   const t = (v ?? "").trim();
   return t === "" ? null : t.slice(0, max);
 };
+
+const amountText = (v: number | null) => (v === null ? "" : String(v));
+
+/** A stored tender as the form strings the screens post, so stored values can stand in for submitted ones. */
+export function formOf(t: TenderRow): TenderForm {
+  return {
+    authority: t.authority,
+    tenderNo: t.tenderNo ?? "",
+    title: t.title,
+    productLine: t.productLine,
+    estimatedValue: amountText(t.estimatedValue),
+    deadline: t.deadline ?? "",
+    bidValue: amountText(t.bidValue),
+    awardAmount: amountText(t.awardAmount),
+    closeReason: t.closeReason ?? "",
+    contractNo: t.contractNo ?? "",
+    contractValue: amountText(t.contractValue),
+    deliveredOn: t.deliveredOn ?? "",
+    notes: t.notes ?? "",
+  };
+}
+
+/**
+ * What a move may save. The tender department and the owner may change any detail (they can already edit them). Any other
+ * role (finance) saves only the details the target status asks for; every other field is kept as stored, whatever was posted.
+ */
+export function formForMove(role: Role, stored: TenderRow, posted: TenderForm, to: TenderStatus): TenderForm {
+  if (canEditTender(role)) return posted;
+  const merged: TenderForm = formOf(stored);
+  for (const { key } of neededFor(to)) (merged as Record<string, string>)[key] = (posted as Record<string, string>)[key];
+  return merged;
+}
 
 /** Everything the tender screens may edit, as raw form strings. */
 export type TenderForm = {
@@ -246,7 +279,7 @@ export async function moveTender(
   if (!isLegalMove(from, input.to)) return { ok: false, error: `A tender cannot go from ${STATUS_LABEL[from]} to ${STATUS_LABEL[input.to]}.` };
   if (!canMoveTender(input.role, from, input.to)) return { ok: false, error: "Your role cannot make this change." };
 
-  const c = clean(input.form);
+  const c = clean(formForMove(input.role, found.tender, input.form, input.to));
   if (!c.ok) return c;
   const v = c.value;
   const missing = missingFor(input.to, v, from);
