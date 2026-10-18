@@ -200,7 +200,7 @@ function TenderSection() {
           </tbody>
         </table>
       </Panel>
-      <Panel title="Tender results this year" sub="Win rate = won ÷ (won + lost). Tenders still waiting for a decision are not counted either way.">
+      <Panel title={`Tender results, ${DEMO_PERIOD}`} sub="Win rate = won ÷ (won + lost). Tenders still waiting for a decision are not counted either way.">
         <table className="w-full whitespace-nowrap">
           <Head cols={["Submitted", "Won", "Lost", "Pending", "Win rate", "Value won", "Average won tender"]} />
           <tbody>
@@ -257,8 +257,8 @@ export function AccountsScreen({ view, basePath, banner }: { view: View; basePat
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Accounts" value={String(s.accounts)} note={`${s.atRisk} at risk · ${s.watch} watch · ${s.healthy} healthy`} />
-        <Tile label="Sales this year" value={jodShort(s.sales)} note={`${signedPct(s.salesYoy)} vs last year · ${pct(s.attainment)} of target`} />
-        <Tile label="Gross profit this year" value={jodShort(s.grossProfit)} note={`${pct(s.margin, 1)} margin · ${pct(s.gpShare, 1)} of company · ${signedPct(s.grossProfitYoy)} vs last year`} />
+        <Tile label={`Sales, ${DEMO_PERIOD}`} value={jodShort(s.sales)} note={`${signedPct(s.salesYoy)} vs last year · ${pct(s.attainment)} of target`} />
+        <Tile label={`Gross profit, ${DEMO_PERIOD}`} value={jodShort(s.grossProfit)} note={`${pct(s.margin, 1)} margin · ${pct(s.gpShare, 1)} of company · ${signedPct(s.grossProfitYoy)} vs last year`} />
         <Tile label="Unpaid invoices" value={jodShort(s.outstanding)} note={`${jodShort(s.overdue)} overdue · ${daysText(s.dso)} sales outstanding`} />
       </div>
 

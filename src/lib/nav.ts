@@ -12,6 +12,8 @@ export type NavItem = {
   href?: string;
   /** Path prefixes that make this item the current one. */
   match?: string[];
+  /** Path prefixes that belong to a different item even though they start with one of `match`. */
+  exclude?: string[];
   /** Small note shown instead of "Soon", e.g. "Owner". */
   note?: string;
 };
@@ -35,12 +37,21 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
   ];
   if (canAccess(role, "tender") && !guest) main.push(tender);
   if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });
-  const explore: NavItem[] = guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"] }];
+  // Sample screens use made-up numbers: everyone with business access may open them, guests included.
+  const explore: NavItem[] = [
+    ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),
+    { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders"] },
+  ];
   return { main, explore };
 }
 
 /** Breadcrumb text for the current path. */
+export function isCurrentItem(pathname: string, item: NavItem): boolean {
+  const under = (m: string) => pathname === m || pathname.startsWith(`${m}/`);
+  return (item.match?.some(under) ?? false) && !item.exclude?.some(under);
+}
+
 export function crumbFor(pathname: string, items: NavItem[]): string {
-  const hit = items.find((i) => i.match?.some((m) => pathname === m || pathname.startsWith(`${m}/`)));
+  const hit = items.find((i) => isCurrentItem(pathname, i));
   return hit?.label ?? "Overview";
 }

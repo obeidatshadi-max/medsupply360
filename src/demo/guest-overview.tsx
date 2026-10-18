@@ -125,10 +125,10 @@ export function GuestOverview() {
         <div className="space-y-5 pt-5">
           <Panel
             title="Sales and margin by line"
-            sub="Profit after costs = gross profit minus direct delivery costs. It does not include company running costs, tax or loan costs."
+            sub={`Period: ${DEMO_PERIOD}, year to date. Profit after costs = gross profit minus direct delivery costs. It does not include company running costs, tax or loan costs.`}
           >
             <table className="w-full whitespace-nowrap">
-              <Head cols={["Line", "Sales this year", "Gross profit", "Gross margin", "Direct costs", "Profit after costs", "Cash received"]} />
+              <Head cols={["Line", `Sales, ${DEMO_PERIOD}`, "Gross profit", "Gross margin", "Direct costs", "Profit after costs", "Cash received"]} />
               <tbody>
                 {lr.map((r) => (
                   <tr key={r.name} className="border-t border-line">
