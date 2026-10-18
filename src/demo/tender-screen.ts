@@ -1,0 +1,220 @@
+/**
+ * The promotional demo's Tenders screen, as HTML for demo/index.html. It shows the same made-up tenders as the in-app
+ * sample (/sample/tenders) and reads every figure from the same tested rules, so the two cannot disagree. The demo has
+ * no database and no sign-in: the forms the live app uses to move a tender or record money are described, not shown.
+ *
+ * The Sadaf preset names the real Jordanian authorities. Any other customer profile sees neutral "Authority A–E" labels,
+ * so one customer's buyers are never presented as another's.
+ */
+import { ROLE_LABEL } from "@/core/permissions";
+import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, type AuthorityCode } from "@/core/tender-flow";
+import { GUARANTEE_LABEL } from "@/core/tender-money";
+import { tenderValue } from "@/core/tender-overview";
+import { dayText, jod, pct } from "@/lib/format";
+import { DEMO_TENDERS, DEMO_TENDER_AS_OF, demoTenderDetail, demoTenderOverview, type DemoTender } from "./tender-demo";
+
+export interface TenderScreenOptions {
+  /** True for any profile other than the Sadaf preset: authority names become neutral labels. */
+  generic: boolean;
+  /** Search text from the demo's search box; it narrows the tender list, never the overview. */
+  query?: string;
+}
+
+const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const panel = (title: string, sub: string, body: string) =>
+  `<section class="panel"><div class="panelhead"><div><h2>${title}</h2><p class="sub">${sub}</p></div></div>${body}</section>`;
+const table = (headers: string[], rows: string[][], empty = "No matching tender. Change the search.") =>
+  `<div class="tablewrap"><table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${
+    rows.length
+      ? rows.map((r) => `<tr>${r.map((c, i) => `<td data-label="${esc(headers[i] ?? "")}">${c}</td>`).join("")}</tr>`).join("")
+      : `<tr><td colspan="${headers.length}" class="empty">${empty}</td></tr>`
+  }</tbody></table></div>`;
+const list = (items: string[], empty: string) => (items.length ? items.join("") : `<p class="mini">${empty}</p>`);
+const item = (left: string, right: string) => `<div class="kv"><span>${left}</span><b>${right}</b></div>`;
+
+/** "MOH", or "Authority A" for a non-Sadaf profile. */
+export function authorityLabel(code: AuthorityCode, generic: boolean): string {
+  if (!generic) return code;
+  return `Authority ${String.fromCharCode(65 + AUTHORITIES.findIndex((a) => a.code === code))}`;
+}
+
+function authorityName(code: AuthorityCode, generic: boolean): string {
+  return generic ? `${authorityLabel(code, true)} (sample public buyer)` : `${code} · ${AUTHORITIES.find((a) => a.code === code)!.name}`;
+}
+
+/** A reference with its authority code neutralised for other profiles: "MOH-26-118" becomes "A-26-118". */
+function neutral(ref: string | null, t: DemoTender, generic: boolean): string | null {
+  if (!ref || !generic) return ref;
+  return ref.replace(t.authority, authorityLabel(t.authority, true).slice(-1));
+}
+const tenderNo = (t: DemoTender, generic: boolean) => neutral(t.tenderNo, t, generic);
+
+function matchesQuery(t: DemoTender, query: string | undefined, generic: boolean): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return [t.title, authorityLabel(t.authority, generic), tenderNo(t, generic) ?? "", STATUS_LABEL[t.status], LINE_LABEL[t.productLine]].some((s) => s.toLowerCase().includes(q));
+}
+
+export function tenderScreenHtml({ generic, query }: TenderScreenOptions): string {
+  const o = demoTenderOverview();
+  const a = (code: AuthorityCode) => esc(authorityLabel(code, generic));
+  const open = o.phases.filter((p) => p.key !== "closed");
+  const closed = o.phases.find((p) => p.key === "closed")!;
+  const largest = Math.max(1, ...open.map((p) => p.value));
+  const ref = (id: string, title: string) => `<button class="linkbtn" data-tender="${esc(id)}">${esc(title)}</button>`;
+
+  const phaseCards = `<div class="stats">${open
+    .map(
+      (p) =>
+        `<div class="stat"><div class="label">${p.label}</div><div class="value">${plural(p.count, "tender")}</div><div class="note">${jod(p.value)}${
+          p.withoutValue > 0 ? ` · ${plural(p.withoutValue, "tender")} without a value` : ""
+        }</div><div class="bar" aria-hidden="true" style="margin-top:8px"><span style="width:${p.value === 0 ? 0 : Math.max(3, Math.round((p.value / largest) * 100))}%"></span></div></div>`,
+    )
+    .join("")}</div>`;
+  const winRate =
+    o.results.winRate === null
+      ? "not known yet (no tender has been decided)"
+      : `${pct(o.results.winRate)} (${o.results.won} won, ${o.results.lost} lost${o.results.wonValue > 0 ? `, ${jod(o.results.wonValue)} awarded` : ""})`;
+
+  const deadlines =
+    list(
+      o.deadlines.upcoming.map((d) => item(`${ref(d.id, d.title)} <span class="cellsub">${a(d.authority)} · ${STATUS_LABEL[d.status]}</span>`, `${dayText(d.deadline)} · ${d.daysLeft === 0 ? "today" : plural(d.daysLeft, "day") + " left"}`)),
+      "No tender is waiting to be submitted with a deadline ahead.",
+    ) +
+    (o.deadlines.passed.length
+      ? `<p class="mini" style="color:var(--red);font-weight:600;margin-top:12px">Deadline passed, not yet submitted</p>` +
+        o.deadlines.passed.map((d) => item(`${ref(d.id, d.title)} <span class="cellsub">${a(d.authority)}</span>`, `${dayText(d.deadline)} · ${plural(d.daysAgo, "day")} ago`)).join("")
+      : "");
+
+  const guarantees =
+    `<div class="value" style="font-size:26px">${jod(o.guarantees.active)}</div><p class="mini">Held by guarantees that are not returned and not expired.</p>` +
+    (o.guarantees.expiredNotReturned > 0 ? `<p class="mini" style="color:var(--red)">${jod(o.guarantees.expiredNotReturned)} is on guarantees that expired but were not returned. Ask the bank.</p>` : "") +
+    list(
+      o.guarantees.soonest.map((g) => item(`${ref(g.tenderId, g.title)} <span class="cellsub">${jod(g.amount)}</span>`, `expires ${dayText(g.expiresOn)} · ${g.daysLeft === 0 ? "today" : plural(g.daysLeft, "day") + " left"}`)),
+      o.guarantees.count === 0 ? "No guarantee recorded yet." : "No active guarantee.",
+    );
+
+  const owed = o.authorities.filter((x) => x.unpaid > 0).sort((x, y) => y.unpaid - x.unpaid);
+  const unpaid =
+    `<div class="value" style="font-size:26px">${jod(o.payments.unpaid)}</div><p class="mini">Invoiced ${jod(o.payments.invoiced)} · collected ${jod(o.payments.collected)}</p>` +
+    list(owed.map((x) => item(a(x.code), jod(x.unpaid))), "Nothing is waiting to be collected.");
+
+  const lost = list(
+    o.results.recentLost.map((l) => item(`${ref(l.id, l.title)} <span class="cellsub">${a(l.authority)} · ${esc(l.reason ?? "No reason recorded")}</span>`, "Lost")),
+    "No tender has been marked lost.",
+  );
+
+  const byAuthority = table(
+    ["Authority", "Active", "Active value", "Won", "Lost"],
+    o.authorities.map((x) => [`<b>${a(x.code)}</b>`, String(x.active), x.activeValue === 0 ? "—" : jod(x.activeValue), String(x.won), String(x.lost)]),
+  );
+  const longest = list(
+    o.longestInStage.map((t) => item(`${ref(t.id, t.title)} <span class="cellsub">${a(t.authority)} · ${STATUS_LABEL[t.status]}</span>`, plural(t.days, "day"))),
+    "No active tender.",
+  );
+
+  const rows = DEMO_TENDERS.filter((t) => matchesQuery(t, query, generic)).map((t) => {
+    const v = tenderValue(t);
+    const no = tenderNo(t, generic);
+    const d = demoTenderDetail(t.id)!;
+    return [
+      `<b>${a(t.authority)}</b>`,
+      `${ref(t.id, t.title)}${no ? `<span class="cellsub">${esc(no)}</span>` : ""}`,
+      LINE_LABEL[t.productLine],
+      `${STATUS_LABEL[t.status]}<span class="cellsub">Stage ${STAGE[t.status].no} of 10</span>`,
+      v === null ? "—" : jod(v),
+      t.deadline ? dayText(t.deadline) : "—",
+      String(d.daysInStage),
+    ];
+  });
+
+  const stages = STATUSES.filter((s) => s !== "lost" && s !== "cancelled")
+    .map(
+      (s) =>
+        `<div class="step"><span class="stepnum">${STAGE[s].no}</span><div><b>${STAGE[s].name}</b> <span class="mini">Status: ${s === "won" ? "Won, Lost or Cancelled" : STATUS_LABEL[s]}</span><p class="sub">${STAGE[s].action}</p></div></div>`,
+    )
+    .join("");
+  const roles = (["owner", "tender", "finance", "admin"] as const).map((r) => item(ROLE_LABEL[r].name, ROLE_LABEL[r].note)).join("");
+
+  return (
+    `<div class="info">Made-up tenders on ${dayText(DEMO_TENDER_AS_OF)}. ${
+      generic ? "Authority names are neutral placeholders for this customer." : "They use the real authority names, but the titles, numbers and amounts are invented."
+    } In the live app the tender department and finance enter these as each tender moves, and the owner follows them here.</div>` +
+    `<div class="ob-row">Where the tenders stand</div>` +
+    phaseCards +
+    `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. Win rate: ${winRate}.</p>` +
+    `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
+    `<div class="twocol" style="margin-top:20px">${panel("Still unpaid by the authorities", "Tender invoices not yet collected", unpaid)}${panel("Why bids were lost", "The reason recorded when a tender is marked lost", lost)}</div>` +
+    `<div class="twocol" style="margin-top:20px">${panel("By authority", "Active = not lost, cancelled or collected", byAuthority)}${panel("Longest in their current stage", "A plain count of days, not a deadline: some stages are slow by nature.", longest)}</div>` +
+    `<div style="margin-top:20px">${panel("All tenders", `${plural(rows.length, "tender")} · select one for its guarantees, invoices and history`, table(["Authority", "Tender", "Products", "Stage", "Value", "Deadline", "Days in stage"], rows))}</div>` +
+    `<div class="twocol" style="margin-top:20px">${panel("How a tender moves", "The department's ten stages. Each move asks only for the details that stage needs.", stages)}${panel(
+      "Who can do what",
+      "Access in the live app. The owner adds people and sets their access in Settings.",
+      roles,
+    )}</div>` +
+    `<div class="info">A tender's value is not sales until the contract is booked. A tender can be marked Collected only when it has invoices and they are paid in full. Days in stage are plain counts with no time limit.</div>`
+  );
+}
+
+/** The drawer for one tender: where it stands, its facts, guarantees, invoices and history. Null for an unknown id. */
+export function tenderDetailHtml(id: string, generic: boolean): string | null {
+  const d = demoTenderDetail(id);
+  if (!d) return null;
+  const { tender: t, guarantees, invoices, payments } = d;
+  const no = tenderNo(t, generic);
+  const facts: [string, string][] = [
+    ["Authority", authorityName(t.authority, generic)],
+    ["Tender number", no ?? "—"],
+    ["Products", LINE_LABEL[t.productLine]],
+    ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
+    ["Submission deadline", t.deadline ? dayText(t.deadline) : "—"],
+    ["Our bid", t.bidValue === null ? "—" : jod(t.bidValue)],
+    ["Award amount", t.awardAmount === null ? "—" : jod(t.awardAmount)],
+    ["Contract", t.contractNo ? `${neutral(t.contractNo, t, generic)}${t.contractValue === null ? "" : ` · ${jod(t.contractValue)}`}` : "—"],
+    ["Delivered", t.deliveredOn ? dayText(t.deliveredOn) : "—"],
+  ];
+  const gState = (s: (typeof guarantees)[number]["state"]) =>
+    s.state === "returned"
+      ? "Returned"
+      : s.state === "expired"
+        ? `<span style="color:var(--red)">Expired ${plural(s.daysAgo, "day")} ago, not yet returned</span>`
+        : s.daysLeft === 0
+          ? "Expires today"
+          : `${plural(s.daysLeft, "day")} left`;
+
+  return (
+    `<div class="eyebrow">TENDER · ${esc(authorityLabel(t.authority, generic))}${no ? ` · ${esc(no)}` : ""}</div><h1 id="drawerTitle">${esc(t.title)}</h1>` +
+    `<p class="sub">Stage ${STAGE[t.status].no} of 10 · ${STAGE[t.status].name}</p>` +
+    `<div class="detailstats"><div><small>Status</small><strong>${STATUS_LABEL[t.status]}</strong></div><div><small>Days in this stage</small><strong>${d.daysInStage}</strong></div></div>` +
+    (t.closeReason ? `<div class="info">Reason: ${esc(t.closeReason)}</div>` : "") +
+    facts.map(([k, v]) => item(k, esc(v))).join("") +
+    `<h3 style="margin-top:22px">Guarantees</h3>` +
+    list(
+      guarantees.map((g) => item(`${GUARANTEE_LABEL[g.kind]} · ${esc(g.reference)}<span class="cellsub">${g.issuedOn ? `Issued ${dayText(g.issuedOn)} · ` : ""}Expires ${dayText(g.expiresOn)}${g.returnedOn ? ` · Returned ${dayText(g.returnedOn)}` : ""}</span>`, `${jod(g.amount)} · ${gState(g.state)}`)),
+      "No guarantee recorded for this tender.",
+    ) +
+    `<h3 style="margin-top:22px">Invoices and payments</h3>` +
+    (invoices.length
+      ? invoices.map((i) => item(`${esc(i.invoiceNo)}<span class="cellsub">${dayText(i.invoiceDate)}${i.lastCollectedOn ? ` · last payment ${dayText(i.lastCollectedOn)}` : ""}</span>`, `${jod(i.collected)} of ${jod(i.amount)} collected`)).join("") +
+        `<p class="mini">Invoiced ${jod(payments.invoiced)} · collected ${jod(payments.collected)} · still unpaid ${jod(payments.outstanding)}</p>`
+      : `<p class="mini">${["contracted", "delivered", "collected"].includes(t.status) ? "No invoice recorded yet." : "Finance records invoices once the tender is contracted."}</p>`) +
+    `<h3 style="margin-top:22px">History</h3>` +
+    [...t.history]
+      .reverse()
+      .map((h) => item(`<b>${STATUS_LABEL[h.to]}</b>${h.note ? `<span class="cellsub">${esc(h.note)}</span>` : ""}`, `${dayText(h.on)} · ${esc(h.by)}`))
+      .join("") +
+    `<div class="info">In the live app the tender department moves the tender and enters its details; finance records guarantees, invoices and payments. This demo only shows the records.</div>`
+  );
+}
+
+/** Rows for the demo's Export button on the Tenders screen. */
+export function tenderCsvRows(generic: boolean, query?: string): (string | number)[][] {
+  return [
+    ["Authority", "Tender", "Tender number", "Products", "Stage", "Value JOD", "Submission deadline", "Days in stage", "Unpaid on invoices JOD"],
+    ...DEMO_TENDERS.filter((t) => matchesQuery(t, query, generic)).map((t) => {
+      const d = demoTenderDetail(t.id)!;
+      return [authorityLabel(t.authority, generic), t.title, tenderNo(t, generic) ?? "", LINE_LABEL[t.productLine], STATUS_LABEL[t.status], tenderValue(t) ?? "", t.deadline ?? "", d.daysInStage, d.payments.outstanding];
+    }),
+  ];
+}
