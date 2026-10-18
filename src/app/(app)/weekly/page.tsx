@@ -8,6 +8,7 @@ import { companyWeekly } from "@/lib/weekly";
 import { dateRange, jod, signedPct } from "@/lib/format";
 import { companyDataReadiness } from "@/lib/data-readiness";
 import { DataReadiness } from "@/components/data-readiness";
+import { DataTabs } from "@/components/data-tabs";
 
 export const metadata: Metadata = { title: "Weekly summary" };
 
@@ -33,7 +34,7 @@ function Tile({ label, c, money, note, period }: { label: string; c: Change; mon
 export default async function WeeklyPage() {
   const user = await requireUser();
   if (user.guest) {
-    return <PageHeading eyebrow="Data & update routine" title="Weekly summary" sub="Please sign in with a company account to see this page. It shows what changed this week in the data you imported." />;
+    return <PageHeading eyebrow="Alpha ERP data" title="Weekly summary" sub="Please sign in with a company account to see this page. It shows what changed this week in the data you imported." />;
   }
   const today = businessToday();
   const [w, readiness] = await Promise.all([companyWeekly(user.companyId, today), companyDataReadiness(user.companyId, today)]);
@@ -43,10 +44,11 @@ export default async function WeeklyPage() {
   return (
     <div>
       <PageHeading
-        eyebrow={`${user.companyName} · Data & update routine`}
+        eyebrow={`${user.companyName} · Alpha ERP data`}
         title="Weekly summary"
         sub={`What changed in the last 7 days (${dateRange(thisFrom, thisTo)}) compared with the 7 days before (${dateRange(prevFrom, prevTo)}). It uses the files you imported. It is only as new as your last import.`}
       />
+      <DataTabs current="weekly" owner={user.role === "owner" && !user.guest} />
       {nothing ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
           There are no sales or payments in these two weeks. Maybe nothing happened, or maybe you have not imported the latest files yet. Check the import dates below before you trust these zeros.

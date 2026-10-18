@@ -5,6 +5,7 @@ import { importBatches } from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { ImportForm } from "./import-form";
+import { DataTabs } from "@/components/data-tabs";
 import { companyDataReadiness } from "@/lib/data-readiness";
 import { DataReadiness } from "@/components/data-readiness";
 import { businessToday } from "@/lib/business-date";
@@ -48,6 +49,7 @@ export default async function ImportsPage() {
         title="Import data"
         sub={`Upload the accountant's Alpha ERP exports. Start with products and customers, then sales, receipts, unpaid invoices and stock: later files point at the codes in the earlier ones. Use "Check file" first. It validates everything and shows totals to compare with Alpha, without saving.`}
       />
+      <DataTabs current="imports" owner />
       <ImportForm />
       <DataReadiness report={readiness} />
       <section aria-label="Recent imports">
