@@ -50,6 +50,13 @@
       "when": 1792346887648,
       "tag": "0006_tenders",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792347833698,
+      "tag": "0007_tender_finance",
+      "breakpoints": true
     }
   ]
 }

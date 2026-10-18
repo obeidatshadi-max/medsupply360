@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASSIGNABLE_ROLES, ROLES, canAccess, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
+import { ASSIGNABLE_ROLES, ROLES, canAccess, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
 
 describe("permissions", () => {
   it("lets the owner open everything", () => {
@@ -50,5 +50,15 @@ describe("tender permissions", () => {
     expect(canMoveTender("owner", "delivered", "collected")).toBe(true);
     expect(canMoveTender("admin", "preparing", "submitted")).toBe(false);
     expect(canMoveTender("viewer", "delivered", "collected")).toBe(false);
+  });
+});
+
+describe("tender money permissions", () => {
+  it("lets the tender department, finance and the owner edit guarantees, but only finance and the owner edit payments", () => {
+    for (const role of ["owner", "tender", "finance"] as const) expect(canEditGuarantees(role)).toBe(true);
+    for (const role of ["admin", "viewer"] as const) expect(canEditGuarantees(role)).toBe(false);
+    expect(canEditPayments("owner")).toBe(true);
+    expect(canEditPayments("finance")).toBe(true);
+    for (const role of ["tender", "admin", "viewer"] as const) expect(canEditPayments(role)).toBe(false);
   });
 });

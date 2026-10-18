@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/page-heading";
-import { canEditTender, canMoveTender } from "@/core/permissions";
+import { canEditGuarantees, canEditPayments, canEditTender, canMoveTender } from "@/core/permissions";
 import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, backMove, daysInStage, forwardMoves } from "@/core/tender-flow";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod } from "@/lib/format";
+import { listGuarantees, listInvoices } from "@/server/services/tender-finance";
 import { getTender } from "@/server/services/tenders";
 import { valuesOf } from "../tender-fields";
 import { DetailsForm } from "./details-form";
+import { Guarantees } from "./guarantees";
 import { MovePanel } from "./move-panel";
+import { Payments } from "./payments";
 
 export const metadata: Metadata = { title: "Tender" };
 
@@ -23,6 +26,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
   const found = await getTender(getDb(), user.companyId, id);
   if (!found) notFound();
   const { tender: t, history } = found;
+  const [guarantees, invoices] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id)]);
 
   const today = businessToday();
   const authority = AUTHORITIES.find((a) => a.code === t.authority)!;
@@ -74,6 +78,9 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
 
       {moves.length > 0 || canEditTender(user.role) ? <MovePanel tenderId={t.id} status={t.status} values={valuesOf(t)} moves={moves} /> : null}
       {canEditTender(user.role) ? <DetailsForm tenderId={t.id} values={valuesOf(t)} /> : null}
+
+      <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
+      <Payments tenderId={t.id} rows={invoices} canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
 
       <section aria-label="History">
         <h2 className="text-sm font-semibold">History</h2>

@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
 import type { Db } from "@/db/import-writer";
+import { addInvoice, setCollected } from "@/server/services/tender-finance";
 import { createTender, getTender, listTenders, moveTender, parseJod, updateTender, type TenderForm } from "@/server/services/tenders";
 
 let client: PGlite;
@@ -38,6 +39,14 @@ const create = async (over: Partial<TenderForm> = {}, startAs: "pipeline" | "ope
   const r = await createTender(db, { companyId: a, userId: userA, form: form(over), startAs });
   if (!r.ok) throw new Error(r.error);
   return r.id;
+};
+
+/** Finance's side of a delivered tender: one invoice, paid in full, which Collected requires. */
+const settle = async (tenderId: string) => {
+  const inv = await addInvoice(db, { companyId: a, userId: userA, tenderId, form: { invoiceNo: `INV-${tenderId.slice(0, 8)}`, invoiceDate: "2027-02-02", amount: "100" } });
+  if (!inv.ok) throw new Error(inv.error);
+  const paid = await setCollected(db, { companyId: a, tenderId, invoiceId: inv.id, collected: "100", collectedOn: "2027-03-01" });
+  if (!paid.ok) throw new Error(paid.error);
 };
 
 describe("parseJod", () => {
@@ -102,6 +111,7 @@ describe("moving tenders", () => {
     const del = { ...con, deliveredOn: "2027-02-01" };
     expect((await move(id, "delivered", "contracted", del)).ok).toBe(true);
     expect(await move(id, "collected", "delivered", del, "tender")).toEqual({ ok: false, error: "Your role cannot make this change." });
+    await settle(id);
     expect((await move(id, "collected", "delivered", del, "finance")).ok).toBe(true);
 
     const got = await getTender(db, a, id);
@@ -174,6 +184,7 @@ describe("field-level protection on moves", () => {
     await walk("won", "financial_review");
     await walk("contracted", "won");
     await walk("delivered", "contracted");
+    await settle(id);
 
     const tampered = form({ ...keep, title: "Hijacked", bidValue: "1", awardAmount: "999999", contractValue: "999999", authority: "KAUH", notes: "pwned" });
     const r = await moveTender(db, { companyId: a, userId: userA, role: "finance", tenderId: id, to: "collected", seenStatus: "delivered", form: tampered, note: "paid" });
@@ -185,6 +196,7 @@ describe("field-level protection on moves", () => {
     const keep = { tenderNo: "SEC-2", estimatedValue: "100", deadline: "2026-12-01", bidValue: "90", awardAmount: "88", contractNo: "PO-2", contractValue: "88", deliveredOn: "2027-01-05" };
     const id = await create(keep, "open");
     for (const [to, seen] of [["preparing", "open"], ["submitted", "preparing"], ["technical_review", "submitted"], ["financial_review", "technical_review"], ["won", "financial_review"], ["contracted", "won"], ["delivered", "contracted"], ["collected", "delivered"]] as const) {
+      if (to === "collected") await settle(id);
       expect((await moveTender(db, { companyId: a, userId: userA, role: "owner", tenderId: id, to, seenStatus: seen, form: form(keep), note: "" })).ok).toBe(true);
     }
     const r = await moveTender(db, { companyId: a, userId: userA, role: "finance", tenderId: id, to: "delivered", seenStatus: "collected", form: form({ ...keep, deliveredOn: "2020-01-01", title: "Hijacked" }), note: "" });

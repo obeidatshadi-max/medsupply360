@@ -449,3 +449,53 @@ export const tenderStatusLog = pgTable(
     foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
   ],
 );
+
+export const guaranteeKind = pgEnum("guarantee_kind", ["bid", "performance"]);
+
+/** Bank guarantees posted for a tender. Money held by an active (unreturned, unexpired) guarantee is cash tied up. */
+export const tenderGuarantees = pgTable(
+  "tender_guarantees",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    tenderId: uuid("tender_id").notNull(),
+    kind: guaranteeKind("kind").notNull(),
+    amount: numeric("amount", { precision: 14, scale: 3 }).notNull(),
+    issuedOn: date("issued_on"),
+    expiresOn: date("expires_on").notNull(),
+    returnedOn: date("returned_on"),
+    reference: varchar("reference", { length: 80 }),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("tender_guarantees_tender_idx").on(t.companyId, t.tenderId),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
+
+/** Invoices raised to the authority for a delivered tender, with how much has been collected so far. */
+export const tenderInvoices = pgTable(
+  "tender_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    tenderId: uuid("tender_id").notNull(),
+    invoiceNo: varchar("invoice_no", { length: 80 }).notNull(),
+    invoiceDate: date("invoice_date").notNull(),
+    amount: numeric("amount", { precision: 14, scale: 3 }).notNull(),
+    collectedAmount: numeric("collected_amount", { precision: 14, scale: 3 }).notNull().default("0"),
+    /** Date of the latest payment received on this invoice. */
+    lastCollectedOn: date("last_collected_on"),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("tender_invoices_no_uniq").on(t.companyId, t.tenderId, t.invoiceNo),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
