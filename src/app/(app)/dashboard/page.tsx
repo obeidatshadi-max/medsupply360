@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { FreshnessBanner } from "@/components/freshness-banner";
 import { Glossary } from "@/components/glossary";
+import { assessFreshness, windowEnd } from "@/core/freshness";
 import { PageHeading } from "@/components/page-heading";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -23,15 +25,23 @@ export default async function DashboardPage() {
   if (user.guest) return <GuestOverview />;
 
   const today = businessToday();
-  const [d, sales, cash, ar, stock] = await Promise.all([
-    companyDataSummary(user.companyId),
-    companySalesByLine(user.companyId, today),
-    companyCash(user.companyId, today),
+  const d = await companyDataSummary(user.companyId);
+  // Year-to-date windows end at the newest invoice / receipt, so old imports are not compared against a longer last-year window.
+  const [sales, cash, ar, stock] = await Promise.all([
+    companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
+    companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
     companyReceivables(user.companyId),
     companyStockRisk(user.companyId),
   ]);
   const empty = d.products + d.customers + d.invoices + d.receipts + d.stockTransactions + d.installedUnits === 0 && !d.openInvoices && !d.stock;
   const t = sales.total;
+  const freshness = assessFreshness({
+    today,
+    latestInvoice: d.latestInvoice,
+    latestReceipt: d.latestReceipt,
+    openInvoicesAsOf: d.openInvoices?.asOf ?? null,
+    stockAsOf: d.stock?.asOf ?? null,
+  });
   const sig = briefSignals({
     salesGrowth: d.invoices > 0 ? t.growth : null,
     cashGrowth: cash ? cash.growth : null,
@@ -192,6 +202,7 @@ export default async function DashboardPage() {
             : "The four things an owner should check first. Click a card for detail. A dash (—) means a file is missing."
         }
       />
+      {empty ? null : <FreshnessBanner freshness={freshness} canImport={user.role === "owner"} />}
       {empty ? null : <OwnerBrief cards={cards} alerts={alerts} />}
       <details className="group rounded-[10px] border border-line bg-white p-4 md:p-5">
         <summary className="cursor-pointer text-sm font-semibold">More figures and the data you have loaded</summary>

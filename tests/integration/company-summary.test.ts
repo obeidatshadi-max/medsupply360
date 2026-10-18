@@ -52,7 +52,10 @@ describe("companyDataSummary", () => {
       installedUnits: 0,
       openInvoices: { asOf: "2026-10-08", rows: 1 },
       stock: null,
+      latestInvoice: "2026-09-01",
+      latestReceipt: null,
     });
+    expect(await companyDataSummary(empty)).toMatchObject({ latestInvoice: null, latestReceipt: null });
   });
 
   it("ages the newest unpaid-invoice snapshot, leaving invoices without a due date unaged", async () => {
