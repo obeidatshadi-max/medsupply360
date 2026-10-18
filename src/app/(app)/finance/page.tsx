@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { windowEnd } from "@/core/freshness";
 import { AGING_BUCKETS } from "@/core/receivables";
+import { companyDataSummary } from "@/lib/company-data-summary";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyReceivables } from "@/lib/receivables";
@@ -24,7 +26,12 @@ export default async function FinancePage() {
   }
 
   const today = businessToday();
-  const [r, sales, cash] = await Promise.all([companyReceivables(user.companyId), companySalesByLine(user.companyId, today), companyCash(user.companyId, today)]);
+  const d = await companyDataSummary(user.companyId);
+  const [r, sales, cash] = await Promise.all([
+    companyReceivables(user.companyId),
+    companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
+    companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
+  ]);
   const salesSection = (
     <>
       <SalesByLine sales={sales} />
