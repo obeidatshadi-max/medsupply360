@@ -371,3 +371,81 @@ export const installedUnits = pgTable(
     foreignKey({ columns: [t.companyId, t.importBatchId], foreignColumns: [importBatches.companyId, importBatches.id] }),
   ],
 );
+
+// ─── Tenders ────────────────────────────────────────────────────────────────
+// Entered by the tender department (and, in a later step, finance) as each tender moves through its stages.
+// Status values and the legal moves between them live in src/core/tender-flow.ts.
+
+export const tenderAuthority = pgEnum("tender_authority", ["MOH", "KHCC", "DRMS", "JUH", "KAUH"]);
+export const tenderLine = pgEnum("tender_line", ["equipment", "consumables", "mixed"]);
+export const tenderStatus = pgEnum("tender_status", [
+  "pipeline",
+  "open",
+  "preparing",
+  "submitted",
+  "technical_review",
+  "financial_review",
+  "won",
+  "lost",
+  "cancelled",
+  "contracted",
+  "delivered",
+  "collected",
+]);
+
+export const tenders = pgTable(
+  "tenders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    authority: tenderAuthority("authority").notNull(),
+    tenderNo: varchar("tender_no", { length: 80 }),
+    title: varchar("title", { length: 300 }).notNull(),
+    productLine: tenderLine("product_line").notNull(),
+    status: tenderStatus("status").notNull().default("pipeline"),
+    /** When the tender entered its current status; "days in stage" counts from here. */
+    statusChangedAt: timestamp("status_changed_at", { withTimezone: true }).notNull().defaultNow(),
+    estimatedValue: numeric("estimated_value", { precision: 14, scale: 3 }),
+    deadline: date("deadline"),
+    bidValue: numeric("bid_value", { precision: 14, scale: 3 }),
+    awardAmount: numeric("award_amount", { precision: 14, scale: 3 }),
+    /** Why a tender was lost or cancelled. */
+    closeReason: text("close_reason"),
+    contractNo: varchar("contract_no", { length: 80 }),
+    contractValue: numeric("contract_value", { precision: 14, scale: 3 }),
+    deliveredOn: date("delivered_on"),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("tenders_company_id_uniq").on(t.companyId, t.id),
+    // The same number may exist at two authorities; at one authority it identifies one tender. NULL numbers (pipeline) never clash.
+    uniqueIndex("tenders_authority_no_uniq").on(t.companyId, t.authority, t.tenderNo),
+    index("tenders_status_idx").on(t.companyId, t.status),
+  ],
+);
+
+/** Every status change: who moved the tender, from where to where, when, and the note they gave. */
+export const tenderStatusLog = pgTable(
+  "tender_status_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    tenderId: uuid("tender_id").notNull(),
+    fromStatus: tenderStatus("from_status"),
+    toStatus: tenderStatus("to_status").notNull(),
+    userId: uuid("user_id").references(() => users.id),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("tender_status_log_tender_idx").on(t.tenderId, t.createdAt),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);

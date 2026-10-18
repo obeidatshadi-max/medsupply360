@@ -8,6 +8,8 @@
  *   tender   the tender department: the tender section only.
  *   finance  the finance staff who fill guarantees and payments on tenders: the tender section only.
  */
+import type { TenderStatus } from "@/core/tender-flow";
+
 export const ROLES = ["owner", "admin", "viewer", "tender", "finance"] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -39,3 +41,18 @@ export const ROLE_LABEL: Record<Role, { name: string; note: string }> = {
   tender: { name: "Tender department", note: "Tender section only; updates tender stages" },
   finance: { name: "Finance", note: "Tender section only; updates guarantees and payments" },
 };
+
+/**
+ * Who may change tenders. The tender department enters and moves a tender through every stage up to delivery; finance
+ * takes over once goods are delivered (payment collection). The owner can do both. Everyone else with tender access
+ * (administrator) only reads.
+ */
+export const canEditTender = (role: Role): boolean => role === "owner" || role === "tender";
+
+export function canMoveTender(role: Role, from: TenderStatus, to: TenderStatus): boolean {
+  const collection = from === "collected" || to === "collected";
+  if (role === "owner") return true;
+  if (role === "tender") return !collection;
+  if (role === "finance") return collection;
+  return false;
+}
