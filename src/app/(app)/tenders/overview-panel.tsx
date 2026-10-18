@@ -7,12 +7,22 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const card = "rounded-lg border border-line bg-white p-4";
 const link = "underline decoration-line underline-offset-2 hover:decoration-brand";
 
+/** A link to the tender, or just its name when the panel shows demonstration tenders that have no page of their own. */
+function Ref({ base, id, children }: { base: string | null; id: string; children: React.ReactNode }) {
+  if (base === null) return <>{children}</>;
+  return (
+    <Link href={`${base}/${id}`} className={link}>
+      {children}
+    </Link>
+  );
+}
+
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="mt-2 text-sm text-muted">{children}</p>;
 }
 
 /** The owner's overview: what stands where, what is due, what cash is tied up, how bids fare and what is still unpaid. */
-export function OverviewPanel({ o }: { o: TenderOverview }) {
+export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; base?: string | null }) {
   if (o.total === 0) return null;
   const open = o.phases.filter((p) => p.key !== "closed");
   const closed = o.phases.find((p) => p.key === "closed")!;
@@ -52,9 +62,9 @@ export function OverviewPanel({ o }: { o: TenderOverview }) {
               {o.deadlines.upcoming.map((d) => (
                 <li key={d.id} className="flex flex-wrap justify-between gap-x-3">
                   <span>
-                    <Link href={`/tenders/${d.id}`} className={link}>
+                    <Ref base={base} id={d.id}>
                       {d.title}
-                    </Link>{" "}
+                    </Ref>{" "}
                     <span className="text-xs text-muted">
                       {d.authority} · {STATUS_LABEL[d.status]}
                     </span>
@@ -72,9 +82,9 @@ export function OverviewPanel({ o }: { o: TenderOverview }) {
               <ul className="mt-1 space-y-1 text-sm">
                 {o.deadlines.passed.map((d) => (
                   <li key={d.id} className="flex flex-wrap justify-between gap-x-3">
-                    <Link href={`/tenders/${d.id}`} className={link}>
+                    <Ref base={base} id={d.id}>
                       {d.title} <span className="text-xs text-muted">{d.authority}</span>
-                    </Link>
+                    </Ref>
                     <span className="text-xs tabular-nums text-muted">
                       {dayText(d.deadline)} · {plural(d.daysAgo, "day")} ago
                     </span>
@@ -99,9 +109,9 @@ export function OverviewPanel({ o }: { o: TenderOverview }) {
               {o.guarantees.soonest.map((g, i) => (
                 <li key={`${g.tenderId}-${i}`} className="flex flex-wrap justify-between gap-x-3">
                   <span>
-                    <Link href={`/tenders/${g.tenderId}`} className={link}>
+                    <Ref base={base} id={g.tenderId}>
                       {g.title}
-                    </Link>{" "}
+                    </Ref>{" "}
                     <span className="text-xs tabular-nums text-muted">{jod(g.amount)}</span>
                   </span>
                   <span className="text-xs tabular-nums text-muted">
@@ -141,9 +151,9 @@ export function OverviewPanel({ o }: { o: TenderOverview }) {
             <ul className="mt-2 space-y-1.5 text-sm">
               {o.results.recentLost.map((l) => (
                 <li key={l.id}>
-                  <Link href={`/tenders/${l.id}`} className={link}>
+                  <Ref base={base} id={l.id}>
                     {l.title}
-                  </Link>{" "}
+                  </Ref>{" "}
                   <span className="text-xs text-muted">{l.authority}</span>
                   <span className="block text-xs text-muted">{l.reason ?? "No reason recorded"}</span>
                 </li>
@@ -192,9 +202,9 @@ export function OverviewPanel({ o }: { o: TenderOverview }) {
               {o.longestInStage.map((t) => (
                 <li key={t.id} className="flex flex-wrap justify-between gap-x-3">
                   <span>
-                    <Link href={`/tenders/${t.id}`} className={link}>
+                    <Ref base={base} id={t.id}>
                       {t.title}
-                    </Link>{" "}
+                    </Ref>{" "}
                     <span className="text-xs text-muted">
                       {t.authority} · {STATUS_LABEL[t.status]}
                     </span>

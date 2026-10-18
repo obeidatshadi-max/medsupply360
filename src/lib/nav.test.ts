@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crumbFor, navItems } from "./nav";
+import { crumbFor, isCurrentItem, navItems } from "./nav";
 
 type O = Parameters<typeof navItems>[0];
 const labels = (o: O) => navItems(o).main.map((i) => i.label);
@@ -44,5 +44,22 @@ describe("navItems", () => {
     expect(labels({ guest: false, role: "admin" })).not.toContain("Settings");
     expect(labels({ guest: false, role: "viewer" })).not.toContain("Tenders");
     expect(labels({ guest: true, role: "viewer" })).not.toContain("Settings");
+  });
+});
+
+describe("sample entries", () => {
+  it("shows Sample tenders to guests and to business users, and Sample data to signed-in users only", () => {
+    const explore = (o: O) => navItems(o).explore.map((i) => i.label);
+    expect(explore({ guest: true, role: "viewer" })).toEqual(["Sample tenders"]);
+    expect(explore(OWNER)).toEqual(["Sample data", "Sample tenders"]);
+  });
+
+  it("highlights only one sample item at a time", () => {
+    const [data, tenders] = navItems(OWNER).explore;
+    expect(isCurrentItem("/sample/tenders", tenders!)).toBe(true);
+    expect(isCurrentItem("/sample/tenders", data!)).toBe(false);
+    expect(isCurrentItem("/sample", data!)).toBe(true);
+    expect(isCurrentItem("/sample/accounts/all", data!)).toBe(true);
+    expect(crumbFor("/sample/tenders", [...navItems(OWNER).main, ...navItems(OWNER).explore])).toBe("Sample tenders");
   });
 });

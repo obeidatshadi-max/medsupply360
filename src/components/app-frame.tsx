@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { crumbFor, type NavItem } from "@/lib/nav";
+import { crumbFor, isCurrentItem as isCurrent, type NavItem } from "@/lib/nav";
 
-const isCurrent = (pathname: string, item: NavItem) => item.match?.some((m) => pathname === m || pathname.startsWith(`${m}/`)) ?? false;
 
 /**
  * The demo's layout: dark sidebar with the MEDSUPPLY360 mark and the customer's name, white top bar with a breadcrumb, then the freshness strip
