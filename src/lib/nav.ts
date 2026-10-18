@@ -1,5 +1,5 @@
 /**
- * Sidebar navigation, in the demo's order and wording. An item without an `href` is a screen the demo shows that the
+ * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Alpha ERP data" and the unbuilt "Compare versions" is left out until Settings exists. An item without an `href` is a screen the demo shows that the
  * app has not built yet: it is listed, greyed out and marked "Soon", never linked to a page that does not exist.
  */
 export type NavItem = {
@@ -15,16 +15,15 @@ export type NavItem = {
 export function navItems({ guest, owner }: { guest: boolean; owner: boolean }): { main: NavItem[]; explore: NavItem[] } {
   const main: NavItem[] = [
     { label: "Owner overview", icon: "◫", href: "/dashboard", match: ["/dashboard"] },
-    { label: "Compare versions", icon: "◧" },
-    { label: "Data & update routine", icon: "⇅", href: "/weekly", match: ["/weekly"] },
     { label: "Products & suppliers", icon: "▦", href: "/portfolio", match: ["/portfolio"] },
     { label: "Sales & accounts", icon: "↗", href: "/accounts/all", match: ["/accounts"] },
     { label: "Inventory & supply", icon: "▦", href: "/inventory", match: ["/inventory"] },
     { label: "Finance & profitability", icon: "◉", href: "/finance", match: ["/finance"] },
     { label: "Management actions", icon: "✓", href: "/opportunities", match: ["/opportunities"] },
+    // One data group: the owner lands on Import files, everyone else on the Weekly update (see DataTabs).
     owner && !guest
-      ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports"] }
-      : { label: "Alpha ERP data", icon: "⇄", note: "Owner" },
+      ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports", "/weekly"] }
+      : { label: "Alpha ERP data", icon: "⇄", href: "/weekly", match: ["/weekly"] },
   ];
   const explore: NavItem[] = guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"] }];
   return { main, explore };
