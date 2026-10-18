@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { beforeAll, describe, expect, it } from "vitest";
 import * as c from "../src/core/calc";
+import { DEMO_TENDERS, demoTenderOverview } from "../src/demo/tender-demo";
+import { jod, pct } from "../src/lib/format";
 
 const ASOF = "2026-10-08";
 const html = readFileSync(fileURLToPath(new URL("../demo/index.html", import.meta.url)), "utf8");
@@ -127,6 +129,25 @@ describe("demo displays what the core calculates", () => {
     const l = data().lines.find((x) => x.name === "Consumables")!;
     expect(l.rev - l.rec).toBe(480_000);
     expect(mainText("advanced", "sales")).toContain("JOD 480.0K");
+  });
+  it("tenders show the app's sample tenders with the same overview figures", () => {
+    const o = demoTenderOverview();
+    const text = mainText("advanced", "tenders");
+    for (const k of [jod(o.payments.unpaid), jod(o.guarantees.active), `Win rate: ${pct(o.results.winRate!)}`, ...DEMO_TENDERS.map((t) => t.title)]) expect(text, k).toContain(k);
+    (w.document.querySelector('[data-tender="d8"]') as HTMLElement).click();
+    const drawer = (w.document.querySelector("#detail")?.textContent ?? "").replace(/\s+/g, " ");
+    expect(drawer).toContain("INV-2026-0433");
+    expect(drawer).toContain(`still unpaid ${jod(360000)}`);
+    w.eval("close()");
+    expect(jsErrors).toEqual([]);
+  });
+  it("names the period instead of 'this year' on every screen", () => {
+    const routes = w.eval("routes.map(r=>r[0])") as string[];
+    for (const route of routes) expect(mainText("advanced", route), route).not.toMatch(/this year/i);
+    for (const view of ["all", "tender", "private"]) {
+      w.eval(`state.acctView='${view}'`);
+      expect(mainText("advanced", "sales"), view).not.toMatch(/this year/i);
+    }
   });
   it("money formatter never prints 1000.0K", () => {
     expect(w.eval("short(999999)")).toBe("JOD 1.00M");

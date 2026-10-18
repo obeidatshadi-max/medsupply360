@@ -18,6 +18,8 @@ The profile does not provide revenue, costs, actual customer accounts, inventory
 
 - Basic and Advanced provide searchable sample accounts and Tender/Private views. Filtered account totals remain based on the shared account calculations.
 - Management actions demonstrates customer/product repeat ordering with the working app's median-cycle model, including a recent purchase of one product that does not clear an overdue different product. Minimum history and exclusions are shown. These are estimates, not trained AI probabilities.
+- Tenders (Advanced) shows the same made-up tenders, guarantees and invoices as the app's Sample tenders page, with the owner's overview, a details drawer per tender, the ten stages and who can do what. Every figure comes from the app's tender rules. The Sadaf preset uses the real Jordanian authority codes; any other profile sees neutral "Authority A–E" names and tender and contract numbers.
+- Sales, gross profit and cash figures name their period (Jan-Sep 2026), as on the app's sample screens.
 - Data & update routine includes an eight-source readiness scenario: missing inputs, a partial sales load and an unsuccessful snapshot replacement shown separately from the last successful sample load. It is a teaching scenario, not actual import history.
 - The ERP screen includes current MedSupply360 CSV format checks using the actual parser and source-column mapping, including ambiguity rejection. Complete and rejected snapshot examples demonstrate preservation of the retained sample quantity. Real uploaded CSVs are checked locally; they do not replace sample dashboard values. Database references and accountant totals still need validation in the working app.
 

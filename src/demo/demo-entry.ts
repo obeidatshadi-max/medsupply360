@@ -11,3 +11,4 @@ export { SADAF_PROFILE, customerProfileStore, demoActionKey, normalizeCustomerPr
 export { demoProductReorders, demoReadiness, checkDemoImport, SNAPSHOT_SAMPLE, SNAPSHOT_BAD_SAMPLE } from "./prediction-demo";
 export { SPECS as IMPORT_SPECS } from "@/core/import/specs";
 export { createCustomerPresentation } from "./customer-presentation";
+export { tenderCsvRows, tenderDetailHtml, tenderScreenHtml } from "./tender-screen";
