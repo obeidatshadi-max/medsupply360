@@ -36,6 +36,13 @@
       "when": 1791571572706,
       "tag": "0004_therapeutic_area",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792346416039,
+      "tag": "0005_department_roles",
+      "breakpoints": true
     }
   ]
 }

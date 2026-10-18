@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { companies, users } from "@/db/schema";
+import { canAccess, homePath, type Area, type Role } from "@/core/permissions";
 import { GUEST_COMPANY_ID, isOpenAccess } from "./open-access";
 import { readSession } from "./session";
 
-export type Role = "owner" | "admin" | "viewer";
+export type { Role };
 
 export type CurrentUser = {
   id: string;
@@ -66,8 +67,14 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   return { ...user, guest: false };
 });
 
-export async function requireUser(): Promise<CurrentUser> {
+/**
+ * The signed-in user, or a redirect. `area` is the part of the app the page belongs to (default: the business screens),
+ * so a tender or finance user who types a business URL is sent to the tender section instead. Pass "any" only from the
+ * shared layout, which wraps every page.
+ */
+export async function requireUser(area: Area | "any" = "business"): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (area !== "any" && !canAccess(user.role, area)) redirect(homePath(user.role));
   return user;
 }
