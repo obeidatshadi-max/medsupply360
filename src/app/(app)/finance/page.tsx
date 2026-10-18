@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { windowEnd } from "@/core/freshness";
+import { PeriodTag } from "@/components/period-tag";
 import { AGING_BUCKETS } from "@/core/receivables";
 import { companyDataSummary } from "@/lib/company-data-summary";
 import { requireUser } from "@/lib/auth/current-user";
@@ -9,7 +10,7 @@ import { businessToday } from "@/lib/business-date";
 import { companyReceivables } from "@/lib/receivables";
 import { companyCash } from "@/lib/cash";
 import { companySalesByLine } from "@/lib/sales-by-line";
-import { daysText, jod, pct, signedPct } from "@/lib/format";
+import { addDays, dateRange, daysText, jod, pct, signedPct } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Finance & receivables" };
 
@@ -144,9 +145,8 @@ function SalesByLine({ sales }: { sales: Sales }) {
   return (
     <section aria-label="Sales and margin by line" className="mb-2">
       <h2 className="text-sm font-semibold">Sales and margin by line, this year so far</h2>
-      <p className="mt-1 text-xs text-muted">
-        {sales.from} to {sales.to}, compared with {sales.priorFrom} to {sales.priorTo}. Sales without tax, after taking off returned goods. From the sales file.
-      </p>
+      <PeriodTag from={sales.from} to={sales.to} against={{ from: sales.priorFrom, to: sales.priorTo }} />
+      <p className="mt-1 text-xs text-muted">Sales without tax, after taking off returned goods. From the sales file.</p>
       <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-white">
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-muted">
@@ -197,13 +197,12 @@ function CashCollected({ cash }: { cash: Cash }) {
   return (
     <section aria-label="Cash collected" className="mt-6">
       <h2 className="text-sm font-semibold">Cash collected, year to date</h2>
-      <p className="mt-1 text-xs text-muted">
-        {cash.from} to {cash.to}, compared with {cash.priorFrom} to {cash.priorTo}. From the customer receipts file. Each payment line is counted one time.
-      </p>
+      <PeriodTag from={cash.from} to={cash.to} against={{ from: cash.priorFrom, to: cash.priorTo }} />
+      <p className="mt-1 text-xs text-muted">From the customer receipts file. Each payment line is counted one time.</p>
       <div className="mt-2 grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {[
-          { label: "Collected this year", value: jod(cash.ytd), note: `${signedPct(cash.growth)} vs last year (${jod(cash.priorYtd)})` },
-          { label: "Last 30 days", value: jod(cash.last30), note: "Up to today" },
+          { label: `Collected ${dateRange(cash.from, cash.to)}`, value: jod(cash.ytd), note: `${signedPct(cash.growth)} vs ${jod(cash.priorYtd)} in ${dateRange(cash.priorFrom, cash.priorTo)}` },
+          { label: "Last 30 days of data", value: jod(cash.last30), note: `${dateRange(addDays(cash.to, -29), cash.to)}` },
           { label: "Not linked to an invoice", value: jod(cash.unlinkedYtd), note: "Money received but not matched to an invoice. It is already in the total above" },
         ].map((x) => (
           <div key={x.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">

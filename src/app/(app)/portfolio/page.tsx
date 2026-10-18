@@ -4,6 +4,9 @@ import { PageHeading } from "@/components/page-heading";
 import { CONCENTRATION_LIMIT, GROWTH_THRESHOLD, MIN_SHARE, NOT_SET, THIN_PRODUCTS, nextStep, type AreaFigures } from "@/core/portfolio";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
+import { windowEnd } from "@/core/freshness";
+import { companyDataSummary } from "@/lib/company-data-summary";
+import { PeriodTag } from "@/components/period-tag";
 import { companyPortfolio } from "@/lib/portfolio";
 import { jod, pct, signedPct } from "@/lib/format";
 
@@ -16,7 +19,8 @@ export default async function PortfolioPage() {
   if (user.guest) {
     return <PageHeading eyebrow="Products & suppliers" title="Portfolio growth" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
-  const p = await companyPortfolio(user.companyId, businessToday());
+  const d = await companyDataSummary(user.companyId);
+  const p = await companyPortfolio(user.companyId, windowEnd(businessToday(), d.latestInvoice));
   if (!p) {
     return (
       <div>
@@ -35,8 +39,9 @@ export default async function PortfolioPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Products & suppliers`}
         title="Portfolio growth"
-        sub={`Where demand is growing, by therapeutic area and customer type. This year: ${p.from} to ${p.to}. Compared with: ${p.priorFrom} to ${p.priorTo}. Sales without tax, after taking off returns. This is a hint to look closer, not a forecast.`}
+        sub="Where demand is growing, by therapeutic area and customer type. Sales without tax, after taking off returns. This is a hint to look closer, not a forecast."
       />
+      <PeriodTag from={p.from} to={p.to} label="This year" against={{ from: p.priorFrom, to: p.priorTo }} />
       {p.unclassifiedShare > 0.2 ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
           {pct(p.unclassifiedShare)} of this year&rsquo;s sales are on products with no therapeutic area, so the picture below is not complete. Add an area to each product in the product list (column &ldquo;therapeutic area&rdquo;) and import the list again.

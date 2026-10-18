@@ -118,21 +118,21 @@ export default async function DashboardPage() {
     href: string;
   }[] = [
     {
-      label: "Sales this year so far",
+      label: `Net sales, ${dateRange(sales.from, sales.to)}`,
       value: d.invoices > 0 ? jod(t.sales) : "—",
-      note: d.invoices > 0 ? `${signedPct(t.growth)} compared with the same dates last year` : "No sales imported yet",
+      note: d.invoices > 0 ? `${signedPct(t.growth)} compared with ${dateRange(sales.priorFrom, sales.priorTo)}` : "No sales imported yet",
       href: "/finance",
     },
     {
-      label: "Gross margin",
+      label: `Gross margin, ${dateRange(sales.from, sales.to)}`,
       value: pct(t.margin, 1),
       note: typeof t.costCoverage === "number" ? `Product cost is known for ${pct(t.costCoverage)} of sales` : "Needs sales that include product cost",
       href: "/finance",
     },
     {
-      label: "Cash collected this year so far",
+      label: cash ? `Cash collected, ${dateRange(cash.from, cash.to)}` : "Cash collected",
       value: cash ? jod(cash.ytd) : "—",
-      note: cash ? `${signedPct(cash.growth)} compared with the same dates last year` : "No receipts imported yet",
+      note: cash ? `${signedPct(cash.growth)} compared with ${dateRange(cash.priorFrom, cash.priorTo)}` : "No receipts imported yet",
       href: "/finance",
     },
     {
