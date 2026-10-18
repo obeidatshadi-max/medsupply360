@@ -56,3 +56,9 @@ export function canMoveTender(role: Role, from: TenderStatus, to: TenderStatus):
   if (role === "finance") return collection;
   return false;
 }
+
+/** Guarantees are prepared with the bid (tender department) and issued and returned by finance. */
+export const canEditGuarantees = (role: Role): boolean => role === "owner" || role === "tender" || role === "finance";
+
+/** Invoices and the money collected on them belong to finance. */
+export const canEditPayments = (role: Role): boolean => role === "owner" || role === "finance";

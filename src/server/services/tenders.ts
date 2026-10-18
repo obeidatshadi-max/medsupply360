@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { isIsoDate } from "@/core/calc";
+import { parseJod } from "@/core/jod";
 import {
   PRODUCT_LINES,
   STATUS_LABEL,
@@ -15,7 +16,9 @@ import {
 } from "@/core/tender-flow";
 import { canEditTender, canMoveTender, type Role } from "@/core/permissions";
 import type { Db } from "@/db/import-writer";
+import { collectionBlocker } from "@/core/tender-money";
 import { tenderStatusLog, tenders, users } from "@/db/schema";
+import { listInvoices } from "@/server/services/tender-finance";
 
 export type TenderRow = TenderFields & {
   id: string;
@@ -55,13 +58,7 @@ const toRow = (r: Raw): TenderRow => ({
   createdAt: r.createdAt,
 });
 
-/** A form value as a JOD amount: blank is "not known yet", commas are thousands separators, anything else is an error. */
-export function parseJod(input: string | null | undefined): number | null | "invalid" {
-  const text = (input ?? "").trim().replace(/,/g, "");
-  if (text === "") return null;
-  if (!/^\d+(\.\d{1,3})?$/.test(text)) return "invalid";
-  return Number(text);
-}
+export { parseJod };
 
 const text = (v: string | null | undefined, max: number): string | null => {
   const t = (v ?? "").trim();
@@ -287,6 +284,11 @@ export async function moveTender(
   const v = c.value;
   const missing = missingFor(input.to, v, from);
   if (missing.length) return { ok: false, error: `Before moving to ${STATUS_LABEL[input.to]}, enter: ${missing.join(", ")}.` };
+
+  if (input.to === "collected") {
+    const blocker = collectionBlocker(await listInvoices(db, input.companyId, input.tenderId));
+    if (blocker) return { ok: false, error: `Before moving to Collected, ${blocker}.` };
+  }
 
   try {
     return await db.transaction(async (tx) => {
