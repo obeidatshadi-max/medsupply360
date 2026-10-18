@@ -18,5 +18,18 @@ export const pct = (v: number | string, digits = 0): string => (typeof v === "nu
 export const signedPct = (v: number | string, digits = 1): string =>
   typeof v === "number" ? `${v >= 0 ? "+" : "-"}${Math.abs(v * 100).toFixed(digits)}%` : "—";
 
+/** "18 Oct 2026" from an ISO date (YYYY-MM-DD). Anything else is returned unchanged. */
+export function dayText(iso: string): string {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00Z`) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : iso;
+}
+
+/** "1 Jan – 18 Oct 2026": the year is shown once when both dates are in the same year. */
+export function dateRange(from: string, to: string): string {
+  const end = dayText(to);
+  const start = dayText(from);
+  return from.slice(0, 4) === to.slice(0, 4) && start !== from ? `${start.replace(/ \d{4}$/, "")} – ${end}` : `${start} – ${end}`;
+}
+
 /** Whole days, for ageing columns. */
 export const daysText = (n: number | string): string => (typeof n === "number" ? `${Math.round(n)} d` : "—");
