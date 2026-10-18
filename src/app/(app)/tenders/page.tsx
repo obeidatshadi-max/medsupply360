@@ -7,7 +7,9 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod } from "@/lib/format";
+import { companyTenderOverview } from "@/server/services/tender-overview";
 import { listTenders } from "@/server/services/tenders";
+import { OverviewPanel } from "./overview-panel";
 
 export const metadata: Metadata = { title: "Tenders" };
 
@@ -21,7 +23,7 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
   const phase = PHASE_FILTERS.some((p) => p.key === one(sp.phase)) ? (one(sp.phase) as PhaseKey) : "";
 
   const today = businessToday();
-  const all = await listTenders(getDb(), user.companyId);
+  const [all, overview] = await Promise.all([listTenders(getDb(), user.companyId), companyTenderOverview(getDb(), user.companyId, today)]);
   const rows = all.filter((t) => (!authority || t.authority === authority) && (!phase || phaseOf(t.status) === phase));
   const href = (next: { authority?: string; phase?: string }) => {
     const q = new URLSearchParams();
@@ -39,7 +41,7 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
       <PageHeading
         eyebrow={`${user.companyName} · Tenders`}
         title="Tenders"
-        sub="Every tender from the first sign of a purchase to the money collected. Open a tender to see its stage, details and history. Days in stage is only a count, not a deadline."
+        sub="Every tender from the first sign of a purchase to the money collected, with the overview first and the full list below. Days in stage is only a count, not a deadline."
       />
       {canEditTender(user.role) ? (
         <Link href="/tenders/new" className="inline-block rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
@@ -47,6 +49,9 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
         </Link>
       ) : null}
 
+      <OverviewPanel o={overview} />
+
+      <h2 className="text-sm font-semibold">All tenders</h2>
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2" aria-label="Filter by authority">
           <a href={href({ authority: "" })} className={chip(!authority)}>
