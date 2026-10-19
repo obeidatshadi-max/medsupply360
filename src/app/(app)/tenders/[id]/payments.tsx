@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { addInvoiceAction, deleteInvoiceAction, setCollectedAction, type FinanceFormState } from "@/server/actions/tender-finance";
 import { SubmitterField } from "@/components/submitter-field";
+import { checkAgainstErp, type ErpCheck, type ErpInvoiceFacts } from "@/core/tender-erp";
 import { paymentSummary } from "@/core/tender-money";
 import type { InvoiceRow } from "@/server/services/tender-finance";
 import { dayText, jod } from "@/lib/format";
@@ -24,7 +25,18 @@ function Message({ state }: { state: FinanceFormState }) {
   return null;
 }
 
-function InvoiceItem({ tenderId, inv, canEdit }: { tenderId: string; inv: InvoiceRow; canEdit: boolean }) {
+function ErpNote({ check }: { check: ErpCheck }) {
+  if (check.kind === "not-found") return <p className="mt-1 text-xs text-muted">Not in the ERP files, so this payment status is your own record only.</p>;
+  if (check.kind === "no-snapshot") return <p className="mt-1 text-xs text-muted">In the ERP files, but no unpaid-invoice file has been imported to compare with.</p>;
+  if (check.kind === "agrees") return <p className="mt-1 text-xs text-muted">ERP agrees ({check.remaining === 0 ? "paid" : `${jod(check.remaining)} unpaid`} on {dayText(check.snapshotDate)}).</p>;
+  return (
+    <p className="mt-1 text-xs text-warn">
+      ERP differs: {check.remaining === 0 ? "it shows this invoice paid" : `it shows ${jod(check.remaining)} unpaid`} on {dayText(check.snapshotDate)}. Check which record is right.
+    </p>
+  );
+}
+
+function InvoiceItem({ tenderId, inv, erp, canEdit }: { tenderId: string; inv: InvoiceRow; erp: ErpInvoiceFacts | undefined; canEdit: boolean }) {
   const [state, action, pending] = useActionState<FinanceFormState, FormData>(setCollectedAction, {});
   const left = Math.max(0, Math.round((inv.amount - inv.collected) * 1000) / 1000);
   return (
@@ -40,6 +52,7 @@ function InvoiceItem({ tenderId, inv, canEdit }: { tenderId: string; inv: Invoic
         {inv.lastCollectedOn ? ` (latest payment ${dayText(inv.lastCollectedOn)})` : ""} ·{" "}
         <span className={left === 0 ? "text-brand" : "text-bad"}>{left === 0 ? "Paid in full" : `${jod(left)} still unpaid`}</span>
       </p>
+      <ErpNote check={checkAgainstErp(left, erp)} />
       {canEdit ? (
         <details className="mt-3">
           <summary className="cursor-pointer text-xs underline underline-offset-2">Record payment or remove</summary>
@@ -80,7 +93,7 @@ function InvoiceItem({ tenderId, inv, canEdit }: { tenderId: string; inv: Invoic
   );
 }
 
-export function Payments({ tenderId, rows, canEdit, canAdd }: { tenderId: string; rows: InvoiceRow[]; canEdit: boolean; canAdd: boolean }) {
+export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts>; canEdit: boolean; canAdd: boolean }) {
   const [state, action, pending] = useActionState<FinanceFormState, FormData>(addInvoiceAction, {});
   const sum = paymentSummary(rows.map((r) => ({ amount: r.amount, collected: r.collected })));
   return (
@@ -96,7 +109,7 @@ export function Payments({ tenderId, rows, canEdit, canAdd }: { tenderId: string
       )}
       <ul className="space-y-2">
         {rows.map((inv) => (
-          <InvoiceItem key={inv.id} tenderId={tenderId} inv={inv} canEdit={canEdit} />
+          <InvoiceItem key={inv.id} tenderId={tenderId} inv={inv} erp={erp[inv.invoiceNo]} canEdit={canEdit} />
         ))}
       </ul>
       {canEdit && canAdd ? (

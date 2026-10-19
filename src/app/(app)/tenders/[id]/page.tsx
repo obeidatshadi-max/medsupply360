@@ -8,7 +8,7 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod } from "@/lib/format";
-import { listGuarantees, listInvoices } from "@/server/services/tender-finance";
+import { erpFactsByInvoiceNo, listGuarantees, listInvoices } from "@/server/services/tender-finance";
 import { getTender } from "@/server/services/tenders";
 import { valuesOf } from "../tender-fields";
 import { listSalesPeople } from "@/server/services/sales-force";
@@ -29,6 +29,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
   if (!found) notFound();
   const { tender: t, history } = found;
   const [guarantees, invoices] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id)]);
+  const erp = Object.fromEntries(await erpFactsByInvoiceNo(getDb(), user.companyId, invoices.map((i) => i.invoiceNo)));
 
   const today = businessToday();
   const authority = AUTHORITIES.find((a) => a.code === t.authority)!;
@@ -84,7 +85,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
       {canEditTender(user.role) ? <DetailsForm tenderId={t.id} values={valuesOf(t)} /> : null}
 
       <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
-      <Payments tenderId={t.id} rows={invoices} canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
+      <Payments tenderId={t.id} rows={invoices} erp={erp}canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
 
       <section aria-label="History">
         <h2 className="text-sm font-semibold">History</h2>
