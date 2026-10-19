@@ -145,6 +145,6 @@ describe("demo cross-links", () => {
   it("lets a person's account names open that account on the Sales & accounts screen", async () => {
     const { salesPersonHtml } = await import("./sales-force-demo");
     const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: false })!;
-    expect(html).toContain('data-goto-account="Demo Public Hospital Group"');
+    expect(html).toContain('data-goto-account="Jordan Valley Public Hospitals Group"');
   });
 });

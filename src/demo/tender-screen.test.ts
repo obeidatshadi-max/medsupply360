@@ -41,7 +41,7 @@ describe("demo tender screen", () => {
     const html = tenderDetailHtml("d8", false)!;
     expect(html).toContain("INV-2026-0433");
     expect(html).toContain("PG-0017");
-    expect(html).toContain(`still unpaid ${jod(360000)}`);
+    expect(html).toContain(`still unpaid ${jod(355660)}`);
     expect(html).toContain("Installed and accepted");
     expect(tenderDetailHtml("d10", false)).toContain("Expired");
     expect(tenderDetailHtml("missing", false)).toBeNull();

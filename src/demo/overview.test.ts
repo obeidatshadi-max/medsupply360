@@ -8,12 +8,12 @@ import { jod, jodShort, pct } from "@/lib/format";
 describe("guest overview figures", () => {
   it("headline totals", () => {
     const t = totals();
-    expect(t.sales).toBe(4_530_000);
-    expect(t.grossProfit).toBe(1_495_100);
+    expect(t.sales).toBe(4_540_013);
+    expect(t.grossProfit).toBe(1_510_043);
     expect(t.margin).toBeCloseTo(0.33, 2);
-    expect(t.contribution).toBe(1_306_100);
-    expect(t.cashCollected).toBe(3_875_000);
-    expect(t.standaloneConsumables).toBe(480_000);
+    expect(t.contribution).toBe(1_321_680);
+    expect(t.cashCollected).toBe(3_864_857);
+    expect(t.standaloneConsumables).toBe(490_755);
   });
   it("line rows reconcile to the totals", () => {
     const rows = lineRows();
@@ -23,29 +23,29 @@ describe("guest overview figures", () => {
   });
   it("receivables: listed total, overdue and buckets agree", () => {
     const r = receivables();
-    expect(r.total).toBe(117_500);
-    expect(r.overdue).toBe(117_500);
+    expect(r.total).toBe(117_067);
+    expect(r.overdue).toBe(117_067);
     expect(r.buckets.reduce((a, b) => a + b.amount, 0)).toBe(r.total);
-    expect(r.buckets.find((b) => b.bucket === "90+")!.amount).toBe(73_500);
+    expect(r.buckets.find((b) => b.bucket === "90+")!.amount).toBe(73_926);
   });
   it("stock: exposure is the sum of lot estimates, equipment has none", () => {
     const s = stockRows();
-    expect(s.expiryExposure).toBe(21_810);
-    expect(s.rows.find((r) => r.id === "SKU-401")!.expiryLoss).toBe(14_250);
-    expect(s.rows.find((r) => r.id === "SKU-420")!.expiryLoss).toBe(7_560);
+    expect(s.expiryExposure).toBeCloseTo(21_759.85, 2);
+    expect(s.rows.find((r) => r.id === "SKU-401")!.expiryLoss).toBeCloseTo(14_354.55, 2);
+    expect(s.rows.find((r) => r.id === "SKU-420")!.expiryLoss).toBeCloseTo(7_405.3, 2);
     expect(s.rows.find((r) => r.id === "SKU-110")!.expiryLoss).toBe(0);
-    expect(s.totalValue).toBe(135_320);
+    expect(s.totalValue).toBeCloseTo(137_544.68, 2);
     expect(s.stockOutFlags).toBe(1);
   });
   it("recurring cohort", () => {
     const r = recurring();
-    expect(r.expected).toBe(18_100);
-    expect(r.actual).toBe(12_980);
-    expect(r.gap).toBe(5_120);
-    expect(r.capture).toBeCloseTo(0.717, 3);
+    expect(r.expected).toBe(18_184);
+    expect(r.actual).toBe(12_904);
+    expect(r.gap).toBe(5_280);
+    expect(r.capture).toBeCloseTo(0.7096, 3);
     expect(r.lowCapture).toBe(3);
-    expect(r.scenario.extraSales).toBe(24_576);
-    expect(r.scenario.extraProfit).toBeCloseTo(7_372.8, 3);
+    expect(r.scenario.extraSales).toBe(25_344);
+    expect(r.scenario.extraProfit).toBeCloseTo(7_603.2, 3);
   });
   it("service coverage follows the workbook rule: a contract in its renewal window is still covered", () => {
     const s = service();
@@ -59,8 +59,8 @@ describe("guest overview figures", () => {
   it("tenders: every cost split adds back to the value, weighted margin is 23.6%", () => {
     const t = tenderRows();
     for (const r of t.rows) expect(r.productCost + r.fulfillment + r.contribution).toBeCloseTo(r.value, 2);
-    expect(t.totalValue).toBe(1_005_000);
-    expect(t.weightedMargin).toBeCloseTo(0.2356, 3);
+    expect(t.totalValue).toBe(1_012_530);
+    expect(t.weightedMargin).toBeCloseTo(0.2357, 3);
   });
 });
 
