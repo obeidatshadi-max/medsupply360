@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crumbFor, isCurrentItem, navItems } from "./nav";
+import { accountHref, crumbFor, isCurrentItem, navItems } from "./nav";
 
 type O = Parameters<typeof navItems>[0];
 const labels = (o: O) => navItems(o).main.map((i) => i.label);
@@ -71,5 +71,12 @@ describe("sample entries", () => {
     expect(isCurrentItem("/sample", data!)).toBe(true);
     expect(isCurrentItem("/sample/accounts/all", data!)).toBe(true);
     expect(crumbFor("/sample/tenders", [...navItems(OWNER).main, ...navItems(OWNER).explore])).toBe("Sample tenders");
+  });
+});
+
+describe("accountHref", () => {
+  it("opens the Accounts page searched by customer code, escaping what needs it", () => {
+    expect(accountHref("C1")).toBe("/accounts/all?q=C1");
+    expect(accountHref("A&B 7/x")).toBe("/accounts/all?q=A%26B%207%2Fx");
   });
 });

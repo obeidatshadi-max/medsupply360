@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { windowEnd } from "@/core/freshness";
@@ -120,7 +121,7 @@ export default async function FinancePage() {
                 {r.topOverdue.map((c) => (
                   <tr key={c.customerCode} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {c.customerName} <span className="text-xs text-muted">{c.customerCode}</span>
+                      <CustomerLink code={c.customerCode} name={c.customerName} /> <span className="text-xs text-muted">{c.customerCode}</span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{jod(c.overdue)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{c.invoices}</td>

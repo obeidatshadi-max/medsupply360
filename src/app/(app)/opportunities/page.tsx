@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { LEVEL_LABEL } from "@/core/opportunities";
@@ -63,7 +64,7 @@ export default async function OpportunitiesPage() {
                 {r.ranked.map((x) => (
                   <tr key={x.customerCode} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {x.customerName} <span className="text-xs text-muted">{x.customerCode}</span>
+                      <CustomerLink code={x.customerCode} name={x.customerName} /> <span className="text-xs text-muted">{x.customerCode}</span>
                     </td>
                     <td className="px-3 py-2">
                       {x.kind} {x.estimated ? <span className="rounded bg-[#eef2ef] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-muted">ESTIMATED</span> : null}
@@ -108,7 +109,7 @@ export default async function OpportunitiesPage() {
                 {late.slice(0, 25).map((x) => (
                   <tr key={x.customerCode} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {x.customerName} <span className="text-xs text-muted">{x.customerCode}</span>
+                      <CustomerLink code={x.customerCode} name={x.customerName} /> <span className="text-xs text-muted">{x.customerCode}</span>
                     </td>
                     <td className="px-3 py-2">{LEVEL_LABEL[x.forecast.level]}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{x.forecast.cycleDays} d</td>

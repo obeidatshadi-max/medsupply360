@@ -46,6 +46,9 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
   return { main, explore };
 }
 
+/** The Accounts page filtered to one customer, for jumping there from a name on another page (the search matches the code). */
+export const accountHref = (code: string) => `/accounts/all?q=${encodeURIComponent(code)}`;
+
 /** Breadcrumb text for the current path. */
 export function isCurrentItem(pathname: string, item: NavItem): boolean {
   const under = (m: string) => pathname === m || pathname.startsWith(`${m}/`);
