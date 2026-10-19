@@ -5,6 +5,7 @@ import { getDb } from "@/db/client";
 import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { canAccess, canEditGuarantees, canEditPayments } from "@/core/permissions";
+import { readSubmitter } from "@/core/submitter";
 import { addGuarantee, addInvoice, deleteGuarantee, deleteInvoice, setCollected, updateGuarantee, type FinanceResult, type GuaranteeForm } from "@/server/services/tender-finance";
 
 export type FinanceFormState = { error?: string; saved?: boolean };
@@ -25,9 +26,9 @@ const guaranteeForm = (fd: FormData): GuaranteeForm => ({
   reference: val(fd, "reference"),
 });
 
-async function finish(result: FinanceResult, audit: { companyId: string; userId: string; action: string; entityType: string; tenderId: string; details?: Record<string, unknown> }): Promise<FinanceFormState> {
+async function finish(result: FinanceResult, audit: { companyId: string; userId: string; submittedBy: string; action: string; entityType: string; tenderId: string; details?: Record<string, unknown> }): Promise<FinanceFormState> {
   if (!result.ok) return { error: result.error };
-  await writeAudit({ companyId: audit.companyId, userId: audit.userId, action: audit.action, entityType: audit.entityType, entityId: result.id, details: { tenderId: audit.tenderId, ...audit.details } });
+  await writeAudit({ companyId: audit.companyId, userId: audit.userId, submittedBy: audit.submittedBy, action: audit.action, entityType: audit.entityType, entityId: result.id, details: { tenderId: audit.tenderId, ...audit.details } });
   refresh();
   return { saved: true };
 }
@@ -35,47 +36,59 @@ async function finish(result: FinanceResult, audit: { companyId: string; userId:
 export async function addGuaranteeAction(_prev: FinanceFormState, fd: FormData): Promise<FinanceFormState> {
   const user = await tenderUser();
   if (!user || !canEditGuarantees(user.role)) return { error: "Your role cannot record guarantees." };
+  const who = readSubmitter(fd);
+  if (!who.ok) return { error: who.error };
   const tenderId = val(fd, "tenderId");
   const r = await addGuarantee(getDb(), { companyId: user.companyId, userId: user.id, tenderId, form: guaranteeForm(fd) });
-  return finish(r, { companyId: user.companyId, userId: user.id, action: "tender.guarantee_added", entityType: "tender_guarantee", tenderId, details: { kind: val(fd, "kind") } });
+  return finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.guarantee_added", entityType: "tender_guarantee", tenderId, details: { kind: val(fd, "kind") } });
 }
 
 export async function updateGuaranteeAction(_prev: FinanceFormState, fd: FormData): Promise<FinanceFormState> {
   const user = await tenderUser();
   if (!user || !canEditGuarantees(user.role)) return { error: "Your role cannot change guarantees." };
+  const who = readSubmitter(fd);
+  if (!who.ok) return { error: who.error };
   const tenderId = val(fd, "tenderId");
   const r = await updateGuarantee(getDb(), { companyId: user.companyId, tenderId, guaranteeId: val(fd, "guaranteeId"), form: guaranteeForm(fd) });
-  return finish(r, { companyId: user.companyId, userId: user.id, action: "tender.guarantee_updated", entityType: "tender_guarantee", tenderId });
+  return finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.guarantee_updated", entityType: "tender_guarantee", tenderId });
 }
 
 export async function deleteGuaranteeAction(fd: FormData): Promise<void> {
   const user = await tenderUser();
   if (!user || !canEditGuarantees(user.role)) return;
+  const who = readSubmitter(fd);
+  if (!who.ok) return;
   const tenderId = val(fd, "tenderId");
   const r = await deleteGuarantee(getDb(), { companyId: user.companyId, tenderId, guaranteeId: val(fd, "guaranteeId") });
-  await finish(r, { companyId: user.companyId, userId: user.id, action: "tender.guarantee_deleted", entityType: "tender_guarantee", tenderId });
+  await finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.guarantee_deleted", entityType: "tender_guarantee", tenderId });
 }
 
 export async function addInvoiceAction(_prev: FinanceFormState, fd: FormData): Promise<FinanceFormState> {
   const user = await tenderUser();
   if (!user || !canEditPayments(user.role)) return { error: "Only finance can record invoices." };
+  const who = readSubmitter(fd);
+  if (!who.ok) return { error: who.error };
   const tenderId = val(fd, "tenderId");
   const r = await addInvoice(getDb(), { companyId: user.companyId, userId: user.id, tenderId, form: { invoiceNo: val(fd, "invoiceNo"), invoiceDate: val(fd, "invoiceDate"), amount: val(fd, "amount") } });
-  return finish(r, { companyId: user.companyId, userId: user.id, action: "tender.invoice_added", entityType: "tender_invoice", tenderId });
+  return finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.invoice_added", entityType: "tender_invoice", tenderId });
 }
 
 export async function setCollectedAction(_prev: FinanceFormState, fd: FormData): Promise<FinanceFormState> {
   const user = await tenderUser();
   if (!user || !canEditPayments(user.role)) return { error: "Only finance can record payments." };
+  const who = readSubmitter(fd);
+  if (!who.ok) return { error: who.error };
   const tenderId = val(fd, "tenderId");
   const r = await setCollected(getDb(), { companyId: user.companyId, tenderId, invoiceId: val(fd, "invoiceId"), collected: val(fd, "collected"), collectedOn: val(fd, "collectedOn") });
-  return finish(r, { companyId: user.companyId, userId: user.id, action: "tender.payment_recorded", entityType: "tender_invoice", tenderId, details: { collected: val(fd, "collected") } });
+  return finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.payment_recorded", entityType: "tender_invoice", tenderId, details: { collected: val(fd, "collected") } });
 }
 
 export async function deleteInvoiceAction(fd: FormData): Promise<void> {
   const user = await tenderUser();
   if (!user || !canEditPayments(user.role)) return;
+  const who = readSubmitter(fd);
+  if (!who.ok) return;
   const tenderId = val(fd, "tenderId");
   const r = await deleteInvoice(getDb(), { companyId: user.companyId, tenderId, invoiceId: val(fd, "invoiceId") });
-  await finish(r, { companyId: user.companyId, userId: user.id, action: "tender.invoice_deleted", entityType: "tender_invoice", tenderId });
+  await finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.invoice_deleted", entityType: "tender_invoice", tenderId });
 }

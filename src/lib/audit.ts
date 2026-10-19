@@ -5,6 +5,8 @@ import { auditLogs } from "@/db/schema";
 export async function writeAudit(entry: {
   companyId?: string | null;
   userId: string | null;
+  /** The person's typed name, when the action was a data submission. */
+  submittedBy?: string | null;
   action: string;
   entityType?: string;
   entityId?: string | number;
@@ -15,6 +17,7 @@ export async function writeAudit(entry: {
     .values({
       companyId: entry.companyId ?? null,
       userId: entry.userId,
+      submittedBy: entry.submittedBy ?? null,
       action: entry.action,
       entityType: entry.entityType,
       entityId: entry.entityId === undefined ? undefined : String(entry.entityId),

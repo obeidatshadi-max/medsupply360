@@ -31,7 +31,7 @@ describe("demo tender screen", () => {
 
   it("narrows the tender list with the search box but keeps the overview whole", () => {
     const html = tenderScreenHtml({ generic: false, query: "dialysis" });
-    expect(html).toContain("2 tenders · select one");
+    expect(html).toContain("2 tenders · search by owner");
     expect(html).toContain(jod(o.payments.unpaid));
     expect(tenderCsvRows(false, "dialysis")).toHaveLength(3);
     expect(tenderCsvRows(false)).toHaveLength(DEMO_TENDERS.length + 1);
@@ -45,6 +45,17 @@ describe("demo tender screen", () => {
     expect(html).toContain("Installed and accepted");
     expect(tenderDetailHtml("d10", false)).toContain("Expired");
     expect(tenderDetailHtml("missing", false)).toBeNull();
+  });
+
+  it("shows each tender's owner, finds tenders by owner, and says when nobody is assigned", () => {
+    const html = tenderScreenHtml({ generic: false });
+    for (const t of DEMO_TENDERS) if (t.owner) expect(html).toContain(t.owner);
+    expect(html).toContain("Not assigned");
+    const mine = DEMO_TENDERS.filter((t) => t.owner === "Khaled Mansour").length;
+    expect(tenderScreenHtml({ generic: false, query: "Khaled" })).toContain(`${mine} tenders · search by owner`);
+    expect(tenderDetailHtml("d1", false)).toContain("Khaled Mansour");
+    expect(tenderDetailHtml("d12", false)).toContain("Not assigned yet");
+    expect(tenderCsvRows(false)[0]).toContain("Owner");
   });
 
   it("escapes what it prints", () => {

@@ -161,18 +161,21 @@ function Banner({ alerts, anyData, anyGap }: { alerts: Alert[]; anyData: boolean
   );
 }
 
-/** Top of the owner overview: one alert banner and four big status cards. Details live further down the page. */
+/**
+ * Top of the owner overview: four big status cards first, so the figures are on the first screen, then the list of things
+ * that need attention. Details live further down the page.
+ */
 export function OwnerBrief({ cards, alerts }: { cards: BriefCard[]; alerts: Alert[] }) {
   const anyData = cards.some((c) => c.status !== "nodata");
   const anyGap = cards.some((c) => c.status === "nodata");
   return (
     <section aria-label="Summary for the owner" className="mb-8">
-      <Banner alerts={alerts} anyData={anyData} anyGap={anyGap} />
-      <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2 min-[1000px]:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-[14px] sm:grid-cols-2 min-[1000px]:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.title} c={c} />
         ))}
       </div>
+      <Banner alerts={alerts} anyData={anyData} anyGap={anyGap} />
       <p className="mt-3 text-[11px] text-muted">
         How we judge: sales and cash against the same dates last year; overdue = share of unpaid invoices past due (watch from 10%, act from 25%); stock = slow
         or expiring share of what you own (watch from 15%, act from 30%).

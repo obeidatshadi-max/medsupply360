@@ -5,7 +5,8 @@ const daysAgo = (n: number) => (n === 0 ? "today" : n === 1 ? "1 day ago" : `${n
 
 /**
  * Says how old the imported data is. Shown only when something is aging or stale, so a healthy overview stays quiet.
- * The wording is plain on purpose: it names each file, its newest date and how long ago that was.
+ * It is one slim line above the figure cards so the cards stay near the top of the screen; the longer explanation sits
+ * behind "What this means". The wording is plain on purpose: it names each file, its newest date and how long ago that was.
  */
 export function FreshnessBanner({ freshness, canImport }: { freshness: Freshness; canImport: boolean }) {
   if (freshness.level === "current") return null;
@@ -15,30 +16,27 @@ export function FreshnessBanner({ freshness, canImport }: { freshness: Freshness
     <section
       role="status"
       aria-label="Data freshness"
-      className={`mb-4 rounded-[10px] border border-l-4 p-4 text-sm ${stale ? "border-bad border-l-bad bg-bad-soft" : "border-warn border-l-warn bg-warn-soft"}`}
+      className={`mb-4 rounded-[10px] border border-l-4 px-4 py-2.5 text-sm ${stale ? "border-bad border-l-bad bg-bad-soft" : "border-warn border-l-warn bg-warn-soft"}`}
     >
-      <p className={`font-semibold ${stale ? "text-bad" : "text-warn"}`}>
-        {stale ? "!! The data is out of date" : "! The data is getting old"}
+      <p>
+        <span className={`font-semibold ${stale ? "text-bad" : "text-warn"}`}>{stale ? "!! The data is out of date." : "! The data is getting old."}</span>{" "}
+        {late.map((i) => `${i.label}: up to ${dayText(i.asOf as string)} (${daysAgo(i.daysOld as number)})`).join(" · ")}.{" "}
+        {canImport ? (
+          <a href="/imports" className="font-semibold underline underline-offset-2">
+            Import newer files
+          </a>
+        ) : (
+          <span className="text-xs text-muted">Ask the account owner to import newer files.</span>
+        )}
       </p>
-      <p className="mt-1">
-        {stale
-          ? "Some figures below may look worse than reality, because newer invoices and payments are not loaded yet."
-          : "Newer invoices or payments may not be loaded yet, so check the dates before you act on a figure."}
-      </p>
-      <ul className="mt-2 space-y-1">
-        {late.map((i) => (
-          <li key={i.key}>
-            <span className="font-semibold">{i.label}:</span> data goes up to {dayText(i.asOf as string)} ({daysAgo(i.daysOld as number)})
-          </li>
-        ))}
-      </ul>
-      {canImport ? (
-        <a href="/imports" className="mt-3 inline-block rounded-[7px] border border-line bg-white px-3 py-1.5 text-xs font-semibold hover:border-brand">
-          Import newer files
-        </a>
-      ) : (
-        <p className="mt-2 text-xs text-muted">Ask the account owner to import newer files.</p>
-      )}
+      <details className="mt-1 text-xs">
+        <summary className="cursor-pointer text-muted">What this means</summary>
+        <p className="mt-1">
+          {stale
+            ? "Some figures below may look worse than reality, because newer invoices and payments are not loaded yet."
+            : "Newer invoices or payments may not be loaded yet, so check the dates before you act on a figure."}
+        </p>
+      </details>
     </section>
   );
 }

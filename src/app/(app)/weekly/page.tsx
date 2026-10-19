@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { canSeeHistory } from "@/core/permissions";
 import type { Change } from "@/core/weekly";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -48,7 +49,7 @@ export default async function WeeklyPage() {
         title="Weekly summary"
         sub={`What changed in the last 7 days (${dateRange(thisFrom, thisTo)}) compared with the 7 days before (${dateRange(prevFrom, prevTo)}). It uses the files you imported. It is only as new as your last import.`}
       />
-      <DataTabs current="weekly" owner={user.role === "owner" && !user.guest} />
+      <DataTabs current="weekly" owner={user.role === "owner" && !user.guest} history={canSeeHistory(user.role) && !user.guest} />
       {nothing ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
           There are no sales or payments in these two weeks. Maybe nothing happened, or maybe you have not imported the latest files yet. Check the import dates below before you trust these zeros.

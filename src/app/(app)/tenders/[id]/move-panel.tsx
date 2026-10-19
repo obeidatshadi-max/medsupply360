@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { moveTenderAction, type TenderFormState } from "@/server/actions/tenders";
+import { SubmitterField } from "@/components/submitter-field";
 import { STAGE, STATUS_LABEL, neededFor, type TenderStatus } from "@/core/tender-flow";
 import { FieldInput, HiddenField, fieldClass, type FieldValues } from "../tender-fields";
 
@@ -60,6 +61,7 @@ export function MovePanel({ tenderId, status, values, moves }: { tenderId: strin
             </label>
             <input id="move-note" name="note" maxLength={2000} autoComplete="off" className={fieldClass} />
           </div>
+          <SubmitterField />
           {state.error ? (
             <p role="alert" className="text-sm text-bad">
               {state.error}

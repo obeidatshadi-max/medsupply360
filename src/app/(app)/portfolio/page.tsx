@@ -9,6 +9,7 @@ import { companyDataSummary } from "@/lib/company-data-summary";
 import { PeriodTag } from "@/components/period-tag";
 import { companyPortfolio } from "@/lib/portfolio";
 import { jod, pct, signedPct } from "@/lib/format";
+import { ProductAssignment } from "./product-assignment";
 
 export const metadata: Metadata = { title: "Products & suppliers" };
 
@@ -30,6 +31,7 @@ export default async function PortfolioPage() {
             Import data
           </a>
         ) : null}
+        <ProductAssignment companyId={user.companyId} role={user.role} />
       </div>
     );
   }
@@ -115,6 +117,7 @@ export default async function PortfolioPage() {
           {pct(CONCENTRATION_LIMIT)} of an area, we say the growth comes from that customer and do not call it a trend. We say you have few products in an area when you have fewer than {THIN_PRODUCTS} active products or only one supplier.
         </p>
       </section>
+      <ProductAssignment companyId={user.companyId} role={user.role} />
       <Glossary page="portfolio" />
     </div>
   );

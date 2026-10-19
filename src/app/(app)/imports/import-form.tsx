@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { importAction, type ImportActionState } from "@/server/actions/imports";
 import { SPECS, type ImportKind } from "@/core/import/specs";
+import { SubmitterField } from "@/components/submitter-field";
 
 /** Master data first: sales, receipts and stock rows point at product and customer codes that must already exist. */
 const ORDER: ImportKind[] = ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions", "installed_units"];
@@ -57,8 +58,9 @@ export function ImportForm() {
             </p>
           </div>
         ) : null}
+        <SubmitterField />
         <div className="flex flex-wrap gap-3">
-          <button type="submit" name="mode" value="check" disabled={pending} className="rounded-md border border-brand px-4 py-2 text-sm font-semibold text-brand disabled:opacity-60">
+          <button type="submit" name="mode" value="check" formNoValidate disabled={pending} className="rounded-md border border-brand px-4 py-2 text-sm font-semibold text-brand disabled:opacity-60">
             {pending ? "Working…" : "Check file (changes nothing)"}
           </button>
           <button type="submit" name="mode" value="import" disabled={pending} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-ink disabled:opacity-60">

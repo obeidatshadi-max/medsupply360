@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASSIGNABLE_ROLES, ROLES, canAccess, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
+import { ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
 
 describe("permissions", () => {
   it("lets the owner open everything", () => {
@@ -17,6 +17,15 @@ describe("permissions", () => {
   it("keeps the tender section away from viewers and Settings away from everyone but the owner", () => {
     expect(canAccess("viewer", "tender")).toBe(false);
     for (const role of ROLES.filter((r) => r !== "owner")) expect(canAccess(role, "settings")).toBe(false);
+  });
+
+  it("lets only the owner manage the sales force and only the owner and administrators read it", () => {
+    expect(ROLES.filter(canManageSalesForce)).toEqual(["owner"]);
+    expect(ROLES.filter(canSeeSalesForce)).toEqual(["owner", "admin"]);
+  });
+
+  it("shows the update history to the owner and administrators only", () => {
+    expect(ROLES.filter(canSeeHistory)).toEqual(["owner", "admin"]);
   });
 
   it("sends each role to a page it may open", () => {

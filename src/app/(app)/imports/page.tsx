@@ -49,7 +49,7 @@ export default async function ImportsPage() {
         title="Import data"
         sub={`Upload the accountant's Alpha ERP exports. Start with products and customers, then sales, receipts, unpaid invoices and stock: later files point at the codes in the earlier ones. Use "Check file" first. It validates everything and shows totals to compare with Alpha, without saving.`}
       />
-      <DataTabs current="imports" owner />
+      <DataTabs current="imports" owner history />
       <ImportForm />
       <DataReadiness report={readiness} />
       <section aria-label="Recent imports">

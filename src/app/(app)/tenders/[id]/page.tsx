@@ -11,9 +11,11 @@ import { dayText, jod } from "@/lib/format";
 import { listGuarantees, listInvoices } from "@/server/services/tender-finance";
 import { getTender } from "@/server/services/tenders";
 import { valuesOf } from "../tender-fields";
+import { listSalesPeople } from "@/server/services/sales-force";
 import { DetailsForm } from "./details-form";
 import { Guarantees } from "./guarantees";
 import { MovePanel } from "./move-panel";
+import { OwnerForm } from "./owner-form";
 import { Payments } from "./payments";
 
 export const metadata: Metadata = { title: "Tender" };
@@ -37,6 +39,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
 
   const facts: [string, string][] = [
     ["Authority", `${t.authority} · ${authority.name}`],
+    ["Owner", t.ownerName ?? "Not assigned yet"],
     ["Tender number", t.tenderNo ?? "—"],
     ["Products", LINE_LABEL[t.productLine]],
     ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
@@ -76,6 +79,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
         {t.notes ? <p className="mt-4 whitespace-pre-line text-sm text-muted">{t.notes}</p> : null}
       </section>
 
+      {user.role === "owner" ? <OwnerForm tenderId={t.id} currentId={t.ownerId} choices={await listSalesPeople(getDb(), user.companyId)} /> : null}
       {moves.length > 0 || canEditTender(user.role) ? <MovePanel tenderId={t.id} status={t.status} values={valuesOf(t)} moves={moves} /> : null}
       {canEditTender(user.role) ? <DetailsForm tenderId={t.id} values={valuesOf(t)} /> : null}
 
@@ -91,7 +95,8 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
                 <b>{h.fromStatus ? `${STATUS_LABEL[h.fromStatus]} → ${STATUS_LABEL[h.toStatus]}` : STATUS_LABEL[h.toStatus]}</b>
               </p>
               <p className="text-xs text-muted">
-                {when.format(h.at)} Jordan time{h.by ? ` · ${h.by}` : ""}
+                {when.format(h.at)} Jordan time
+                {h.submittedBy ? ` · ${h.submittedBy}${h.by ? ` (account: ${h.by})` : ""}` : h.by ? ` · ${h.by}` : ""}
               </p>
               {h.note ? <p className="mt-1">{h.note}</p> : null}
             </li>

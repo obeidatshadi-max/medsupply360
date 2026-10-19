@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { updateTenderAction, type TenderFormState } from "@/server/actions/tenders";
+import { SubmitterField } from "@/components/submitter-field";
 import { FieldInput, type FieldValues } from "../tender-fields";
 
 const ORDER = ["authority", "productLine", "title", "tenderNo", "estimatedValue", "deadline", "bidValue", "awardAmount", "contractNo", "contractValue", "deliveredOn"] as const;
@@ -20,6 +21,7 @@ export function DetailsForm({ tenderId, values }: { tenderId: string; values: Fi
       </div>
       <FieldInput name="closeReason" value={values.closeReason} />
       <FieldInput name="notes" value={values.notes} />
+      <SubmitterField />
       {state.error ? (
         <p role="alert" className="text-sm text-bad">
           {state.error}
