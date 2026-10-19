@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/page-heading";
-import { canEditGuarantees, canEditPayments, canEditTender, canMoveTender } from "@/core/permissions";
+import { canAccess, canEditGuarantees, canEditPayments, canEditTender, canMoveTender } from "@/core/permissions";
 import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, backMove, daysInStage, forwardMoves } from "@/core/tender-flow";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
@@ -29,7 +29,8 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
   if (!found) notFound();
   const { tender: t, history } = found;
   const [guarantees, invoices] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id)]);
-  const erp = Object.fromEntries(await erpFactsByInvoiceNo(getDb(), user.companyId, invoices.map((i) => i.invoiceNo)));
+  // The ERP check reads receivables, which the tender and finance roles may not open, so only business roles get it.
+  const erp = canAccess(user.role, "business") ? Object.fromEntries(await erpFactsByInvoiceNo(getDb(), user.companyId, invoices.map((i) => i.invoiceNo))) : null;
 
   const today = businessToday();
   const authority = AUTHORITIES.find((a) => a.code === t.authority)!;

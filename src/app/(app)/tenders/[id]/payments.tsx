@@ -36,7 +36,7 @@ function ErpNote({ check }: { check: ErpCheck }) {
   );
 }
 
-function InvoiceItem({ tenderId, inv, erp, canEdit }: { tenderId: string; inv: InvoiceRow; erp: ErpInvoiceFacts | undefined; canEdit: boolean }) {
+function InvoiceItem({ tenderId, inv, erp, checked, canEdit }: { tenderId: string; inv: InvoiceRow; erp: ErpInvoiceFacts | undefined; checked: boolean; canEdit: boolean }) {
   const [state, action, pending] = useActionState<FinanceFormState, FormData>(setCollectedAction, {});
   const left = Math.max(0, Math.round((inv.amount - inv.collected) * 1000) / 1000);
   return (
@@ -52,7 +52,7 @@ function InvoiceItem({ tenderId, inv, erp, canEdit }: { tenderId: string; inv: I
         {inv.lastCollectedOn ? ` (latest payment ${dayText(inv.lastCollectedOn)})` : ""} ·{" "}
         <span className={left === 0 ? "text-brand" : "text-bad"}>{left === 0 ? "Paid in full" : `${jod(left)} still unpaid`}</span>
       </p>
-      <ErpNote check={checkAgainstErp(left, erp)} />
+      {checked ? <ErpNote check={checkAgainstErp(left, erp)} /> : null}
       {canEdit ? (
         <details className="mt-3">
           <summary className="cursor-pointer text-xs underline underline-offset-2">Record payment or remove</summary>
@@ -93,7 +93,7 @@ function InvoiceItem({ tenderId, inv, erp, canEdit }: { tenderId: string; inv: I
   );
 }
 
-export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts>; canEdit: boolean; canAdd: boolean }) {
+export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts> | null; canEdit: boolean; canAdd: boolean }) {
   const [state, action, pending] = useActionState<FinanceFormState, FormData>(addInvoiceAction, {});
   const sum = paymentSummary(rows.map((r) => ({ amount: r.amount, collected: r.collected })));
   return (
@@ -109,7 +109,7 @@ export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: s
       )}
       <ul className="space-y-2">
         {rows.map((inv) => (
-          <InvoiceItem key={inv.id} tenderId={tenderId} inv={inv} erp={erp[inv.invoiceNo]} canEdit={canEdit} />
+          <InvoiceItem key={inv.id} tenderId={tenderId} inv={inv} erp={erp ? erp[inv.invoiceNo] : undefined} checked={erp !== null} canEdit={canEdit} />
         ))}
       </ul>
       {canEdit && canAdd ? (
