@@ -63,7 +63,7 @@ const empty = (kind: ImportKind, fatal: string, delimiter: Delimiter | null = nu
 });
 
 /** Refuse ambiguous mappings rather than silently choosing the first matching source column. */
-function mapColumns(spec: FileSpec, header: string[]) {
+export function mapColumns(spec: FileSpec, header: string[]) {
   const wanted = new Map<string, FieldSpec>();
   for (const field of spec.fields) {
     wanted.set(norm(field.key), field);
