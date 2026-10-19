@@ -125,6 +125,17 @@ describe("companyDataSummary", () => {
     expect(e.importsThisWeek).toEqual([]);
   });
 
+  it("ends each week at its own file's newest date, so a stale import shows its last real week instead of zeros", async () => {
+    const { companyWeekly } = await import("@/lib/weekly");
+    const r = await companyWeekly(a, TODAY, { sales: "2026-09-01", cash: TODAY });
+    expect(r.windows).toMatchObject({ thisFrom: "2026-08-26", thisTo: "2026-09-01", prevFrom: "2026-08-19", prevTo: "2026-08-25" });
+    expect(r.sales).toMatchObject({ now: 30, before: 0 });
+    expect(r.orders).toMatchObject({ now: 1, before: 0 });
+    expect(r.topCustomers.map((c) => c.code)).toEqual(["C1"]);
+    expect(r.cashWindows).toMatchObject({ thisTo: TODAY });
+    expect(r.cash).toMatchObject({ now: 40 });
+  });
+
   it("keeps product reorder histories company-scoped and does not let another product hide a missed order", async () => {
     const { companyProductReorders } = await import("@/lib/product-reorders");
     const company = (await q<{ id: string }>(`insert into companies (slug, name) values ('product-pilot', 'Pilot') returning id`))[0]!.id;

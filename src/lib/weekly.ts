@@ -4,9 +4,14 @@ import { getDb } from "@/db/client";
 import { change, weekWindows } from "@/core/weekly";
 import { companyReceivables, lastTwoReceivableSnapshots } from "@/lib/receivables";
 
-/** What changed in the last 7 days against the 7 before, from imported data. `today` is the Jordan business date. */
-export async function companyWeekly(companyId: string, today: string) {
-  const w = weekWindows(today);
+/**
+ * What changed in the last 7 days against the 7 before, from imported data. `today` is the Jordan business date.
+ * Each week ends at the newest date in its own file (pass `windowEnd(today, latest)`), so a stale import compares its
+ * last two real weeks instead of showing zeros. Sales and cash can end on different days.
+ */
+export async function companyWeekly(companyId: string, today: string, ends: { sales?: string; cash?: string } = {}) {
+  const w = weekWindows(ends.sales ?? today);
+  const wc = weekWindows(ends.cash ?? today);
   const db = getDb();
 
   const flows = await db.execute(sql`
@@ -15,8 +20,8 @@ export async function companyWeekly(companyId: string, today: string) {
          from sales_lines s join invoices i on i.company_id = s.company_id and i.id = s.invoice_id where s.company_id = ${companyId}) as sales_now,
       (select coalesce(sum(s.net_sales) filter (where i.invoice_date between ${w.prevFrom}::date and ${w.prevTo}::date), 0)::text
          from sales_lines s join invoices i on i.company_id = s.company_id and i.id = s.invoice_id where s.company_id = ${companyId}) as sales_before,
-      (select coalesce(sum(allocated_amount) filter (where receipt_date between ${w.thisFrom}::date and ${w.thisTo}::date), 0)::text from receipts where company_id = ${companyId}) as cash_now,
-      (select coalesce(sum(allocated_amount) filter (where receipt_date between ${w.prevFrom}::date and ${w.prevTo}::date), 0)::text from receipts where company_id = ${companyId}) as cash_before,
+      (select coalesce(sum(allocated_amount) filter (where receipt_date between ${wc.thisFrom}::date and ${wc.thisTo}::date), 0)::text from receipts where company_id = ${companyId}) as cash_now,
+      (select coalesce(sum(allocated_amount) filter (where receipt_date between ${wc.prevFrom}::date and ${wc.prevTo}::date), 0)::text from receipts where company_id = ${companyId}) as cash_before,
       (select count(distinct i.id)::int from invoices i join sales_lines s on s.company_id = i.company_id and s.invoice_id = i.id
          where i.company_id = ${companyId} and i.invoice_date between ${w.thisFrom}::date and ${w.thisTo}::date and s.net_sales > 0) as orders_now,
       (select count(distinct i.id)::int from invoices i join sales_lines s on s.company_id = i.company_id and s.invoice_id = i.id
@@ -46,6 +51,7 @@ export async function companyWeekly(companyId: string, today: string) {
 
   return {
     windows: w,
+    cashWindows: wc,
     sales: change(Number(f.sales_now), Number(f.sales_before)),
     cash: change(Number(f.cash_now), Number(f.cash_before)),
     orders: change(Number(f.orders_now), Number(f.orders_before)),
