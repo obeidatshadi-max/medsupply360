@@ -45,7 +45,7 @@ export default async function SalesForcePage() {
       ) : (
         <section aria-label="Sales force">
           <p className="mb-2 text-xs text-muted">
-            Sales are the net sales (without tax, after returns) on each person&rsquo;s accounts, {dateRange(from, to)}, year to date. The target so far is the monthly target times the months passed.
+            Sales are the net sales (without tax, after returns) on each person&rsquo;s accounts, {dateRange(from, to)}, year to date. An account&rsquo;s earlier sales follow whoever holds it today. Open a person to also see the sales of their products. The target so far is the monthly target times the months passed.
           </p>
           <div className="overflow-x-auto rounded-lg border border-line bg-white">
             <table className="w-full text-left text-sm">

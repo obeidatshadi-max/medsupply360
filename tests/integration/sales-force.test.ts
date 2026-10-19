@@ -24,6 +24,7 @@ import {
   listSalesPeople,
   listUnassignedAccounts,
   salesByPerson,
+  salesByPersonProducts,
   setSalesPersonActive,
   updateSalesPerson,
 } from "@/server/services/sales-force";
@@ -132,6 +133,24 @@ describe("assigning work", () => {
     expect(sales.get(dina)).toBe(1300);
     expect(sales.size).toBe(1);
     expect((await salesByPerson(db, a, "2032-01-01", "2032-12-31")).size).toBe(0);
+  });
+
+  it("totals the sales of the products a person holds, whoever bought them, and follows reassignment", async () => {
+    const people = await listSalesPeople(db, a);
+    const dina = people.find((p) => p.name === "Dina Abu-Zaid")!.id;
+    const khaled = people.find((p) => p.name === "Khaled Mansour")!.id;
+    const prod = (await q<{ id: string }>(`select id from products where company_id = '${a}' and code = 'P9'`))[0]!.id;
+    expect((await assignProduct(db, { companyId: a, productId: prod, personId: dina })).ok).toBe(true);
+    // P9 sold 1500 - 200 on C1 (Dina's account) and 999 on C2 (nobody's account): 2299 on the product view only.
+    const byProduct = await salesByPersonProducts(db, a, "2031-01-01", "2031-12-31");
+    expect(byProduct.get(dina)).toBe(2299);
+    expect(byProduct.size).toBe(1);
+    await assignProduct(db, { companyId: a, productId: prod, personId: khaled });
+    const moved = await salesByPersonProducts(db, a, "2031-01-01", "2031-12-31");
+    expect(moved.get(khaled)).toBe(2299);
+    expect(moved.has(dina)).toBe(false);
+    expect((await salesByPersonProducts(db, a, "2032-01-01", "2032-12-31")).size).toBe(0);
+    await assignProduct(db, { companyId: a, productId: prod, personId: null });
   });
 });
 

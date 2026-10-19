@@ -245,6 +245,21 @@ export async function salesByPerson(db: Db, companyId: string, from: string, to:
   return new Map(rows.map((r) => [r.id!, Number(r.sales)]));
 }
 
+/**
+ * Net sales (after returns, without tax) of the products each person holds between two dates, whoever bought them. This
+ * is a second view beside `salesByPerson`: one sale can count in both, so the two are never added together.
+ */
+export async function salesByPersonProducts(db: Db, companyId: string, from: string, to: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ id: products.salesPersonId, sales: sql<string>`coalesce(sum(${salesLines.netSales}), 0)::text` })
+    .from(salesLines)
+    .innerJoin(invoices, and(eq(invoices.companyId, salesLines.companyId), eq(invoices.id, salesLines.invoiceId)))
+    .innerJoin(products, and(eq(products.companyId, salesLines.companyId), eq(products.id, salesLines.productId)))
+    .where(and(eq(salesLines.companyId, companyId), isNotNull(products.salesPersonId), gte(invoices.invoiceDate, from), lte(invoices.invoiceDate, to)))
+    .groupBy(products.salesPersonId);
+  return new Map(rows.map((r) => [r.id!, Number(r.sales)]));
+}
+
 /** The distinct supplier names in the product list, for choosing which suppliers a person represents. */
 export async function listSupplierNames(db: Db, companyId: string): Promise<string[]> {
   const rows = await db
