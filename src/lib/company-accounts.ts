@@ -20,15 +20,19 @@ export interface CompanyAccount {
   lastOrder: string | null;
 }
 
-/** Separate aggregates avoid multiplying sales by invoice balances. Every join and source is company-scoped. */
-export async function companyAccounts(companyId: string, today: string, view: CompanyAccountView = "all", search = "") {
-  if (!isIsoDate(today)) throw new RangeError("Invalid accounts date");
-  const from = `${today.slice(0, 4)}-01-01`;
+/**
+ * Separate aggregates avoid multiplying sales by invoice balances. Every join and source is company-scoped.
+ * `salesTo` ends the year-to-date sales window (pass `windowEnd(today, latestInvoice)` so it matches the Overview);
+ * the unpaid-invoice snapshot is still the newest one up to `today`.
+ */
+export async function companyAccounts(companyId: string, today: string, view: CompanyAccountView = "all", search = "", salesTo = today) {
+  if (!isIsoDate(today) || !isIsoDate(salesTo)) throw new RangeError("Invalid accounts date");
+  const from = `${salesTo.slice(0, 4)}-01-01`;
   const result = await getDb().execute(sql`
     with context as (
       select
         exists(select 1 from sales_lines s join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
-          where s.company_id = ${companyId} and i.invoice_date <= ${today}::date) as has_sales,
+          where s.company_id = ${companyId} and i.invoice_date <= ${salesTo}::date) as has_sales,
         (select max(snapshot_date) from open_invoice_snapshots where company_id = ${companyId}
           and snapshot_date <= ${today}::date) as snapshot_date
     ), sales as (
@@ -39,7 +43,7 @@ export async function companyAccounts(companyId: string, today: string, view: Co
         max(i.invoice_date) filter(where s.doc_type = 'invoice' and s.quantity > 0 and s.net_sales > 0) as last_order
       from sales_lines s
       join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
-      where s.company_id = ${companyId} and i.invoice_date <= ${today}::date
+      where s.company_id = ${companyId} and i.invoice_date <= ${salesTo}::date
       group by i.customer_id
     ), balances as (
       select i.customer_id, sum(o.remaining_amount) as outstanding,
@@ -79,7 +83,7 @@ export async function companyAccounts(companyId: string, today: string, view: Co
     && (!query || [r.code, r.name, r.city, r.owner].some((v) => v?.toLocaleLowerCase().includes(query))));
   const sum = (key: "sales" | "grossProfit" | "outstanding" | "overdue") =>
     matched.length > 0 && matched.every((r) => r[key] !== null) ? roundJod(matched.reduce((total, r) => total + (r[key] ?? 0), 0)) : null;
-  return { from, to: today, snapshotDate, hasSales, search: search.trim().slice(0, 200), totalAccounts: accounts.length,
+  return { from, to: salesTo, snapshotDate, hasSales, search: search.trim().slice(0, 200), totalAccounts: accounts.length,
     matchedCount: matched.length, rows: matched.slice(0, 200),
     summary: { sales: sum("sales"), grossProfit: sum("grossProfit"), outstanding: sum("outstanding"), overdue: sum("overdue") } };
 }
