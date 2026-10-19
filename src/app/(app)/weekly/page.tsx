@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { windowEnd } from "@/core/freshness";
 import { canSeeHistory } from "@/core/permissions";
 import type { Change } from "@/core/weekly";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyWeekly } from "@/lib/weekly";
-import { dateRange, jod, signedPct } from "@/lib/format";
+import { dateRange, dayText, jod, signedPct } from "@/lib/format";
 import { companyDataReadiness } from "@/lib/data-readiness";
+import { companyDataSummary } from "@/lib/company-data-summary";
 import { DataReadiness } from "@/components/data-readiness";
 import { DataTabs } from "@/components/data-tabs";
 
@@ -38,8 +40,15 @@ export default async function WeeklyPage() {
     return <PageHeading eyebrow="Alpha ERP data" title="Weekly summary" sub="Please sign in with a company account to see this page. It shows what changed this week in the data you imported." />;
   }
   const today = businessToday();
-  const [w, readiness] = await Promise.all([companyWeekly(user.companyId, today), companyDataReadiness(user.companyId, today)]);
+  const d = await companyDataSummary(user.companyId);
+  const [w, readiness] = await Promise.all([
+    companyWeekly(user.companyId, today, { sales: windowEnd(today, d.latestInvoice), cash: windowEnd(today, d.latestReceipt) }),
+    companyDataReadiness(user.companyId, today),
+  ]);
   const { thisFrom, thisTo, prevFrom, prevTo } = w.windows;
+  const cash = w.cashWindows;
+  // A week that ends before today means the newest import is older than today; say so instead of showing zeros.
+  const behind = [thisTo < today ? `sales run to ${dayText(thisTo)}` : null, cash.thisTo < today ? `cash runs to ${dayText(cash.thisTo)}` : null].filter(Boolean).join(" and ");
   const nothing = w.sales.now === 0 && w.sales.before === 0 && w.cash.now === 0 && w.cash.before === 0;
 
   return (
@@ -47,9 +56,14 @@ export default async function WeeklyPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Alpha ERP data`}
         title="Weekly summary"
-        sub={`What changed in the last 7 days (${dateRange(thisFrom, thisTo)}) compared with the 7 days before (${dateRange(prevFrom, prevTo)}). It uses the files you imported. It is only as new as your last import.`}
+        sub={`What changed in the last 7 days of imported data (${dateRange(thisFrom, thisTo)}) compared with the 7 days before (${dateRange(prevFrom, prevTo)}). It uses the files you imported. It is only as new as your last import.`}
       />
       <DataTabs current="weekly" owner={user.role === "owner" && !user.guest} history={canSeeHistory(user.role) && !user.guest} />
+      {behind ? (
+        <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
+          Your newest imported data is older than today: {behind}. The weeks below end there, not today. Import newer files to see this week.
+        </p>
+      ) : null}
       {nothing ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
           There are no sales or payments in these two weeks. Maybe nothing happened, or maybe you have not imported the latest files yet. Check the import dates below before you trust these zeros.
@@ -57,7 +71,7 @@ export default async function WeeklyPage() {
       ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-3">
         <Tile label="Sales" period={dateRange(thisFrom, thisTo)} c={w.sales} money note="Without tax, after taking off returns" />
-        <Tile label="Cash collected" period={dateRange(thisFrom, thisTo)} c={w.cash} money note="Money received from customers" />
+        <Tile label="Cash collected" period={dateRange(cash.thisFrom, cash.thisTo)} c={w.cash} money note="Money received from customers" />
         <Tile label="Invoices issued" period={dateRange(thisFrom, thisTo)} c={w.orders} money={false} note="Invoices with sales above zero" />
       </div>
 
