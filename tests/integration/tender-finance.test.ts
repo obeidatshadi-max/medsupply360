@@ -10,7 +10,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
 import type { Db } from "@/db/import-writer";
-import { addGuarantee, addInvoice, deleteGuarantee, deleteInvoice, listGuarantees, listInvoices, setCollected, updateGuarantee, type GuaranteeForm } from "@/server/services/tender-finance";
+import { addGuarantee, addInvoice, deleteGuarantee, deleteInvoice, erpFactsByInvoiceNo, listGuarantees, listInvoices, setCollected, updateGuarantee, type GuaranteeForm } from "@/server/services/tender-finance";
 import { createTender, moveTender, type TenderForm } from "@/server/services/tenders";
 
 let client: PGlite;
@@ -146,5 +146,32 @@ describe("invoices and collection", () => {
     expect((await deleteInvoice(db, { companyId: b, tenderId: id, invoiceId: inv.id })).ok).toBe(false);
     expect((await deleteInvoice(db, { companyId: a, tenderId: id, invoiceId: inv.id })).ok).toBe(true);
     expect(await listInvoices(db, a, id)).toEqual([]);
+  });
+});
+
+describe("ERP check by invoice number", () => {
+  const erpInvoice = async (company: string, customer: string, no: string) =>
+    (await q<{ id: string }>(`insert into invoices (company_id, invoice_no, customer_id, invoice_date) values ('${company}', '${no}', '${customer}', '2027-02-01') returning id`))[0]!.id;
+
+  it("reports unknown numbers as absent and no snapshot as a null date", async () => {
+    expect((await erpFactsByInvoiceNo(db, a, [])).size).toBe(0);
+    expect((await erpFactsByInvoiceNo(db, a, ["NOPE-1"])).size).toBe(0);
+    const cust = (await q<{ id: string }>(`insert into customers (company_id, code, name) values ('${a}', 'CE0', 'Early') returning id`))[0]!.id;
+    await erpInvoice(a, cust, "E-0");
+    expect((await erpFactsByInvoiceNo(db, a, ["E-0"])).get("E-0")).toEqual({ found: true, snapshotDate: null, remaining: null });
+  });
+
+  it("reads what the newest unpaid file lists, ignores older files and other companies", async () => {
+    const cust = (await q<{ id: string }>(`insert into customers (company_id, code, name) values ('${a}', 'CE1', 'Hospital') returning id`))[0]!.id;
+    const custB = (await q<{ id: string }>(`insert into customers (company_id, code, name) values ('${b}', 'CE1', 'Other') returning id`))[0]!.id;
+    const open = await erpInvoice(a, cust, "E-1");
+    await erpInvoice(a, cust, "E-2");
+    await erpInvoice(b, custB, "E-1");
+    await client.query(`insert into open_invoice_snapshots (company_id, snapshot_date, invoice_id, remaining_amount) values ('${a}', '2027-03-01', '${open}', 900), ('${a}', '2027-04-01', '${open}', 250)`);
+    const facts = await erpFactsByInvoiceNo(db, a, ["E-1", "E-2", "NOPE-1"]);
+    expect(facts.get("E-1")).toEqual({ found: true, snapshotDate: "2027-04-01", remaining: 250 });
+    expect(facts.get("E-2")).toEqual({ found: true, snapshotDate: "2027-04-01", remaining: null });
+    expect(facts.has("NOPE-1")).toBe(false);
+    expect((await erpFactsByInvoiceNo(db, b, ["E-1"])).get("E-1")).toEqual({ found: true, snapshotDate: null, remaining: null });
   });
 });

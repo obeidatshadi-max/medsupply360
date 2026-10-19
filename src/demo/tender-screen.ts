@@ -201,6 +201,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
       ? invoices.map((i) => item(`${esc(i.invoiceNo)}<span class="cellsub">${dayText(i.invoiceDate)}${i.lastCollectedOn ? ` · last payment ${dayText(i.lastCollectedOn)}` : ""}</span>`, `${jod(i.collected)} of ${jod(i.amount)} collected`)).join("") +
         `<p class="mini">Invoiced ${jod(payments.invoiced)} · collected ${jod(payments.collected)} · still unpaid ${jod(payments.outstanding)}</p>`
       : `<p class="mini">${["contracted", "delivered", "collected"].includes(t.status) ? "No invoice recorded yet." : "Finance records invoices once the tender is contracted."}</p>`) +
+    (invoices.length ? `<p class="mini">In the live app each invoice is also checked by its number against the ERP files, and flagged when the ERP shows a different amount unpaid.</p>` : "") +
     `<h3 style="margin-top:22px">History</h3>` +
     [...t.history]
       .reverse()

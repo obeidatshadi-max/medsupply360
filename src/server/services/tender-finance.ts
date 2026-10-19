@@ -1,9 +1,10 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, max } from "drizzle-orm";
 import { isIsoDate } from "@/core/calc";
 import type { TenderStatus } from "@/core/tender-flow";
+import type { ErpInvoiceFacts } from "@/core/tender-erp";
 import { GUARANTEE_KINDS, type GuaranteeKind } from "@/core/tender-money";
 import type { Db } from "@/db/import-writer";
-import { tenderGuarantees, tenderInvoices, tenders } from "@/db/schema";
+import { invoices as erpInvoices, openInvoiceSnapshots, tenderGuarantees, tenderInvoices, tenders } from "@/db/schema";
 import { parseJod } from "@/core/jod";
 
 export type GuaranteeRow = {
@@ -108,6 +109,28 @@ export async function listInvoices(db: Db, companyId: string, tenderId: string):
     .where(and(eq(tenderInvoices.companyId, companyId), eq(tenderInvoices.tenderId, tenderId)))
     .orderBy(asc(tenderInvoices.invoiceDate), asc(tenderInvoices.invoiceNo));
   return rows.map((r) => ({ id: r.id, invoiceNo: r.invoiceNo, invoiceDate: r.invoiceDate, amount: Number(r.amount), collected: Number(r.collectedAmount), lastCollectedOn: r.lastCollectedOn }));
+}
+
+/**
+ * What the ERP files say about these invoice numbers: whether each exists and how much of it the newest unpaid-invoice
+ * file still lists. Keyed by invoice number; numbers the ERP does not know are absent from the map.
+ */
+export async function erpFactsByInvoiceNo(db: Db, companyId: string, invoiceNos: string[]): Promise<Map<string, ErpInvoiceFacts>> {
+  const out = new Map<string, ErpInvoiceFacts>();
+  if (invoiceNos.length === 0) return out;
+  const [latest] = await db.select({ d: max(openInvoiceSnapshots.snapshotDate) }).from(openInvoiceSnapshots).where(eq(openInvoiceSnapshots.companyId, companyId));
+  const snapshotDate = latest?.d ?? null;
+  const known = await db.select({ id: erpInvoices.id, no: erpInvoices.invoiceNo }).from(erpInvoices).where(and(eq(erpInvoices.companyId, companyId), inArray(erpInvoices.invoiceNo, invoiceNos)));
+  const remaining = new Map<string, number>();
+  if (snapshotDate && known.length) {
+    const rows = await db
+      .select({ invoiceId: openInvoiceSnapshots.invoiceId, remaining: openInvoiceSnapshots.remainingAmount })
+      .from(openInvoiceSnapshots)
+      .where(and(eq(openInvoiceSnapshots.companyId, companyId), eq(openInvoiceSnapshots.snapshotDate, snapshotDate), inArray(openInvoiceSnapshots.invoiceId, known.map((k) => k.id))));
+    for (const r of rows) remaining.set(r.invoiceId, Number(r.remaining));
+  }
+  for (const k of known) out.set(k.no, { found: true, snapshotDate, remaining: remaining.get(k.id) ?? null });
+  return out;
 }
 
 export type InvoiceForm = { invoiceNo: string; invoiceDate: string; amount: string };
