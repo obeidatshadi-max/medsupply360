@@ -1,6 +1,6 @@
 import type { companyAccounts, CompanyAccountView } from "@/lib/company-accounts";
 import { PeriodTag } from "@/components/period-tag";
-import { dayText, jod } from "@/lib/format";
+import { dayText, jod, pct } from "@/lib/format";
 
 const money = (v: number | null) => v === null ? "Data missing" : jod(v);
 
@@ -29,9 +29,10 @@ export function CompanyAccounts({ report: r, view, canImport = false, salesThrou
     <p className="text-sm text-muted">Values reflect imported records; complete exports still need reconciliation. Unclassified accounts appear only in All accounts.</p>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {([['Net sales', r.summary.sales], ['Gross profit', r.summary.grossProfit], ['Unpaid balance', r.summary.outstanding], ['Overdue', r.summary.overdue]] as const).map(([label, value]) =>
-        <div key={label} className="rounded-lg border border-line bg-surface p-4"><p className="text-xs text-muted">{label}</p><p className="mt-2 text-lg tabular-nums">{money(value)}</p></div>)}
+        <div key={label} className="rounded-lg border border-line bg-surface p-4"><p className="text-xs text-muted">{label}</p><p className="mt-2 text-lg tabular-nums">{money(value)}</p>
+          {label === 'Gross profit' && r.summary.costCoverage !== null ? <p className="mt-1 text-[11px] text-muted">Product cost known for {pct(r.summary.costCoverage)} of sales</p> : null}</div>)}
     </div>
-    <p className="text-xs text-muted">Totals include all {r.matchedCount} accounts matching this view and search. Gross profit is unknown if any matching sales line lacks cost.
+    <p className="text-xs text-muted">Totals include all {r.matchedCount} accounts matching this view and search. Gross profit counts only sales lines that carry a product cost, as on the Overview; the share of sales it covers is shown under it.
       Credits reduce unpaid balance; overdue shows positive invoices past their due date, without netting unallocated credits.</p>
     {r.rows.length === 0 ? <p className="rounded-lg border border-line p-5 text-sm">{r.totalAccounts ? "No accounts match this view or search." : "No company customers are loaded yet. Import the customer list to begin."}</p> :
       <div className="overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm">
