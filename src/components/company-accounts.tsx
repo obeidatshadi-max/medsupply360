@@ -37,7 +37,7 @@ export function CompanyAccounts({ report: r, view, canImport = false, salesThrou
       <div className="overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm">
         <thead><tr>{['Account', 'Segment', 'Net sales', 'Gross profit', 'Unpaid', 'Overdue', 'Last order', 'Review'].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr></thead>
         <tbody>{r.rows.map((a) => <tr key={a.code} className="border-t border-line">
-          <td className="px-3 py-2">{a.name}<br /><span className="text-xs text-muted">{a.code}{a.city ? ` · ${a.city}` : ''}{a.owner ? ` · ${a.owner}` : ''}{!a.active ? ' · Inactive' : ''}</span></td>
+          <td className="px-3 py-2">{a.name}<br /><span className="text-xs text-muted">{a.code}{a.city ? ` · ${a.city}` : ''}{a.owner ? ` · ${a.owner}` : ''}{a.owner && a.importedOwner && a.importedOwner.toLowerCase() !== a.owner.toLowerCase() ? ` (customer file: ${a.importedOwner})` : ''}{!a.active ? ' · Inactive' : ''}</span></td>
           <td className="px-3 py-2">{a.segment ?? 'Unclassified'}</td>
           <td className="px-3 py-2 tabular-nums">{money(a.sales)}</td><td className="px-3 py-2 tabular-nums">{money(a.grossProfit)}</td>
           <td className="px-3 py-2 tabular-nums">{money(a.outstanding)}</td><td className="px-3 py-2 tabular-nums">{money(a.overdue)}</td>
