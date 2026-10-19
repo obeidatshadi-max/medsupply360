@@ -36,11 +36,7 @@ export function embed(html, code) {
 if (process.argv[1]?.endsWith("build-demo.mjs")) {
   const path = root + "demo/index.html";
   const html = readFileSync(path, "utf8");
-  const status = JSON.parse(readFileSync(root + "demo/demo-status.json", "utf8"));
-  const next = embed(html, await bundle()).replace(
-    /\/\* BEGIN dashboard-status \*\/[\s\S]*?\/\* END dashboard-status \*\//,
-    () => `/* BEGIN dashboard-status */\nconst dashboardStatus=${JSON.stringify(status)};\n/* END dashboard-status */`,
-  );
+  const next = embed(html, await bundle());
   if (next !== html) writeFileSync(path, next);
   const pdf = root + "demo/assets/pdfjs/";
   mkdirSync(pdf, { recursive: true });

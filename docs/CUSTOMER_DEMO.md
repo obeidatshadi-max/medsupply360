@@ -33,6 +33,6 @@ The eight sample customers have invented but believable names, and the money fig
 
 `npm run demo:build` rebuilds the inline code from `src/demo/demo-entry.ts`, and copies the local PDF.js reader/worker/fonts into ignored `demo/assets/pdfjs/`. Rebuild before publishing: the PDF assets must accompany `index.html`. Dependencies and the lockfile are versioned, while these generated assets are recreated from the installed package.
 
-Demo release time is in `demo/demo-status.json`. Main-app release time remains in `src/lib/dashboard-status.json`; a demo-only release does not change the main app's version label. Both are distinct from actual data freshness.
+The strip under the top bar shows only when data was last integrated. The current day and time and a "screen updated" time are deliberately not shown, so there is no release-time file to maintain. Basic / Advanced is a small switch in the top bar.
 
 The demo's Netlify site is `sadaf-360-demo`, ID `5bf23be4-0c94-481c-b31d-1a44a8f5eb22`. It is a separate static deployment. Publish a staging copy of the complete `demo/` directory from outside the main app configuration, using the explicit demo site ID, so the main app's Next.js adapter and database deployment settings cannot be applied to this static site.
