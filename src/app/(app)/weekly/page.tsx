@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { windowEnd } from "@/core/freshness";
@@ -98,7 +99,7 @@ export default async function WeeklyPage() {
                 {w.topCustomers.map((c) => (
                   <tr key={c.code} className="border-t border-line first:border-t-0">
                     <td className="px-3 py-2">
-                      {c.name} <span className="text-xs text-muted">{c.code}</span>
+                      <CustomerLink code={c.code} name={c.name} /> <span className="text-xs text-muted">{c.code}</span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{jod(c.sales)}</td>
                   </tr>

@@ -10,6 +10,8 @@ export interface CompanyAccount {
   segment: string | null;
   /** The sales person the owner assigned on Sales force; when none, the owner name from the imported customer file. */
   owner: string | null;
+  /** The assigned sales person's id, for linking to their page; null when the owner is only the customer-file name. */
+  ownerId: string | null;
   /** Owner name as written in the imported customer file, kept so a disagreement with the assignment is visible. */
   importedOwner: string | null;
   city: string | null;
@@ -64,7 +66,7 @@ export async function companyAccounts(companyId: string, today: string, view: Co
       where o.company_id = ${companyId} and o.snapshot_date = (select snapshot_date from context)
       group by i.customer_id
     )
-    select c.code, c.name, c.segment, c.account_owner, sp.name as assigned_owner, c.city, c.active,
+    select c.code, c.name, c.segment, c.account_owner, sp.name as assigned_owner, sp.id::text as assigned_owner_id, c.city, c.active,
       x.has_sales, x.snapshot_date::text,
       coalesce(s.sales, 0)::text as sales, coalesce(s.costed_sales, 0)::text as costed_sales, coalesce(s.cost, 0)::text as cost,
       coalesce(s.missing_cost, 0)::int as missing_cost, s.last_order::text,
@@ -82,7 +84,7 @@ export async function companyAccounts(companyId: string, today: string, view: Co
   const snapshotDate = source[0]?.snapshot_date == null ? null : String(source[0].snapshot_date);
   const text = (v: unknown) => v == null ? null : String(v);
   const accounts: CompanyAccount[] = source.map((r) => ({
-    code: String(r.code), name: String(r.name), segment: text(r.segment), owner: text(r.assigned_owner) ?? text(r.account_owner), importedOwner: text(r.account_owner), city: text(r.city), active: r.active === true,
+    code: String(r.code), name: String(r.name), segment: text(r.segment), owner: text(r.assigned_owner) ?? text(r.account_owner), ownerId: text(r.assigned_owner_id), importedOwner: text(r.account_owner), city: text(r.city), active: r.active === true,
     sales: hasSales ? Number(r.sales) : null,
     costedSales: roundJod(Number(r.costed_sales)),
     grossProfit: !hasSales ? null : Number(r.costed_sales) !== 0 || Number(r.cost) !== 0 ? roundJod(Number(r.costed_sales) - Number(r.cost)) : Number(r.missing_cost) === 0 ? 0 : null,

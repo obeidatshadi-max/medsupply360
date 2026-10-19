@@ -1,3 +1,4 @@
+import { CustomerLink } from "@/components/customer-link";
 import { LEVEL_LABEL } from "@/core/opportunities";
 import type { companyProductReorders } from "@/lib/product-reorders";
 
@@ -25,7 +26,7 @@ export function ProductReorders({ report: r }: { report: Awaited<ReturnType<type
               <th className="px-3 py-2">Typical quantity</th><th className="px-3 py-2">Pattern consistency</th>
             </tr></thead>
             <tbody>{actions.slice(0, 25).map((x) => <tr key={JSON.stringify([x.customerCode, x.productCode])} className="border-t border-line">
-              <td className="px-3 py-2">{x.customerName} ({x.customerCode})<br />{x.productName} ({x.productCode})</td>
+              <td className="px-3 py-2"><CustomerLink code={x.customerCode} name={x.customerName} /> ({x.customerCode})<br />{x.productName} ({x.productCode})</td>
               <td className="px-3 py-2">{LEVEL_LABEL[x.forecast.level]}</td>
               <td className="px-3 py-2 tabular-nums">{x.forecast.lastOrder}</td>
               <td className="px-3 py-2 tabular-nums">{x.forecast.expectedNext}</td>

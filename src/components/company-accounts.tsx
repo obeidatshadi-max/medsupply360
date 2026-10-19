@@ -4,8 +4,10 @@ import { dayText, jod, pct } from "@/lib/format";
 
 const money = (v: number | null) => v === null ? "Data missing" : jod(v);
 
-export function CompanyAccounts({ report: r, view, canImport = false, salesThrough = null }: {
+export function CompanyAccounts({ report: r, view, canImport = false, ownerLinks = false, salesThrough = null }: {
   report: Awaited<ReturnType<typeof companyAccounts>>; view: CompanyAccountView; canImport?: boolean;
+  /** Link an assigned owner's name to their Sales force page (only for people who may open that page). */
+  ownerLinks?: boolean;
   /** Date of the newest invoice. The sales period ends there when it is earlier than the report date. */
   salesThrough?: string | null;
 }) {
@@ -38,7 +40,7 @@ export function CompanyAccounts({ report: r, view, canImport = false, salesThrou
       <div className="overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm">
         <thead><tr>{['Account', 'Segment', 'Net sales', 'Gross profit', 'Unpaid', 'Overdue', 'Last order', 'Review'].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr></thead>
         <tbody>{r.rows.map((a) => <tr key={a.code} className="border-t border-line">
-          <td className="px-3 py-2">{a.name}<br /><span className="text-xs text-muted">{a.code}{a.city ? ` · ${a.city}` : ''}{a.owner ? ` · ${a.owner}` : ''}{a.owner && a.importedOwner && a.importedOwner.toLowerCase() !== a.owner.toLowerCase() ? ` (customer file: ${a.importedOwner})` : ''}{!a.active ? ' · Inactive' : ''}</span></td>
+          <td className="px-3 py-2">{a.name}<br /><span className="text-xs text-muted">{a.code}{a.city ? ` · ${a.city}` : ''}{a.owner ? ' · ' : ''}{a.owner && ownerLinks && a.ownerId ? <a href={`/sales-force/${a.ownerId}`} className="underline underline-offset-2">{a.owner}</a> : a.owner}{a.owner && a.importedOwner && a.importedOwner.toLowerCase() !== a.owner.toLowerCase() ? ` (customer file: ${a.importedOwner})` : ''}{!a.active ? ' · Inactive' : ''}</span></td>
           <td className="px-3 py-2">{a.segment ?? 'Unclassified'}</td>
           <td className="px-3 py-2 tabular-nums">{money(a.sales)}</td><td className="px-3 py-2 tabular-nums">{money(a.grossProfit)}</td>
           <td className="px-3 py-2 tabular-nums">{money(a.outstanding)}</td><td className="px-3 py-2 tabular-nums">{money(a.overdue)}</td>

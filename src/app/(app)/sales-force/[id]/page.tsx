@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
 import { windowEnd } from "@/core/freshness";
 import { canManageSalesForce, canSeeSalesForce } from "@/core/permissions";
@@ -137,7 +138,7 @@ export default async function SalesPersonPage({ params, searchParams }: { params
             {accounts.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
                 <span>
-                  {c.name}
+                  <CustomerLink code={c.code} name={c.name} />
                   <span className="ml-2 text-xs text-muted">
                     {c.code}
                     {c.city ? ` · ${c.city}` : ""}
