@@ -1,6 +1,7 @@
 import { customerProfileStore, demoActionKey, normalizeCustomerProfile, profileDraftFromText, type CustomerProfile } from "./customer-profiles";
 import { checkDemoImport, currentAppTemplate, demoProductReorders, demoReadiness, SNAPSHOT_BAD_SAMPLE, SNAPSHOT_SAMPLE } from "./prediction-demo";
 import { SPECS, type ImportKind } from "@/core/import/specs";
+import { detectKind, IMPORT_ORDER } from "@/core/import/detect";
 import { DEMO_AS_OF } from "./dataset";
 
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -122,19 +123,30 @@ export function createCustomerPresentation(hooks: Hooks) {
     const qty = snapshots.get(profile().id) ?? 10;
     return box("Current MedSupply360 import checks", "Uses the working app's CSV parser and field mapping. This demo checks files locally; it does not save business records or replace sample dashboard values.",
       `<label for="app-import-kind">Current app file type<select id="app-import-kind">${Object.entries(SPECS).map(([k, s]) => `<option value="${k}" ${k === checkKind ? "selected" : ""}>${esc(s.title)}</option>`).join("")}</select></label>
-      <label for="app-import-file">Check a CSV file<input id="app-import-file" type="file" accept=".csv,text/csv"></label>
+      <label for="app-import-file">Check CSV files (one or several at once)<input id="app-import-file" type="file" multiple accept=".csv,text/csv"></label>
       <div class="profile-actions"><button id="app-template">Download current app sample CSV</button><button id="app-template-check">Check selected sample</button></div>
-      <p class="mini">Up to 4.5 MB. Snapshot date for this teaching example: ${DEMO_AS_OF}. These are format checks; cross-file references and accounting totals still require the real app and reconciliation.</p>
+      <p class="mini">Up to 4.5 MB each. The live app recognises each file's type from its column headings; here a file whose type is not recognised is checked as the type selected above. Snapshot date for this teaching example: ${DEMO_AS_OF}. These are format checks; cross-file references and accounting totals still require the real app and reconciliation.</p>
       <div class="profile-actions"><button id="snapshot-good">Try complete stock snapshot</button><button id="snapshot-bad">Try rejected replacement</button></div>
       <p id="snapshot-value">Retained sample stock: <b>${qty} units</b></p><div id="app-import-result" role="status">${checkResult}</div>`);
   }
-  function showCheck(raw: string, kind = checkKind, simulate = false) {
+  function checkHtml(raw: string, kind: ImportKind, simulate: boolean, label = "") {
     const r = checkDemoImport(kind, raw);
     if (simulate && !r.blocked) snapshots.set(profile().id, Number(r.accepted[0]?.values.quantity ?? 10));
-    checkResult = `<div class="info"><b>${r.blocked ? SPECS[kind].snapshot ? "Replacement blocked: prior sample retained" : "File check blocked: nothing loaded" : `${r.readyRows} rows pass file checks`}</b>
+    return `<div class="info">${label}<b>${r.blocked ? SPECS[kind].snapshot ? "Replacement blocked: prior sample retained" : "File check blocked: nothing loaded" : `${r.readyRows} rows pass file checks`}</b>
       ${r.fatal ? `<p>${esc(r.fatal)}</p>` : ""}${r.rejected.map((i) => `<p>Row ${i.row}: ${esc(i.reason)}</p>`).join("")}
       ${table(["App field", "Matched source column"], r.mappedColumns.map((m) => [m.field, m.sourceColumn]))}
       <p>Stock and unpaid snapshots must pass in full. Ambiguous columns are blocked. Raw file contents are not stored; dashboard figures remain synthetic.</p></div>`;
+  }
+  /** Several files at once, each checked as the type its headings show, in the order the live app would load them. */
+  function showChecks(files: { name: string; raw: string }[]) {
+    const typed = files.map((f) => { const found = detectKind(f.raw); return { ...f, kind: found.kind ?? checkKind, recognised: found.kind !== null }; })
+      .sort((a, b) => IMPORT_ORDER.indexOf(a.kind) - IMPORT_ORDER.indexOf(b.kind));
+    checkResult = typed.map((f) => checkHtml(f.raw, f.kind, false,
+      `<p class="mini">${esc(f.name)} · ${esc(SPECS[f.kind].title)} (${f.recognised ? "recognised from the headings" : "type not recognised, checked as the selected type"})</p>`)).join("");
+    const result = document.querySelector("#app-import-result"); if (result) result.innerHTML = checkResult;
+  }
+  function showCheck(raw: string, kind = checkKind, simulate = false) {
+    checkResult = checkHtml(raw, kind, simulate);
     const result = document.querySelector("#app-import-result"); if (result) result.innerHTML = checkResult;
     const value = document.querySelector("#snapshot-value"); if (value) value.textContent = `Retained sample stock: ${snapshots.get(profile().id) ?? 10} units`;
   }
@@ -212,11 +224,11 @@ export function createCustomerPresentation(hooks: Hooks) {
     const templateCheck = document.querySelector<HTMLButtonElement>("#app-template-check"); if (templateCheck) templateCheck.onclick = () => showCheck(currentAppTemplate(checkKind));
     const csv = document.querySelector<HTMLInputElement>("#app-import-file");
     if (csv) csv.onchange = async () => {
-      const file = csv.files?.[0]; if (!file) return;
-      if (file.size > 4_500_000) { hooks.toast("CSV limit is 4.5 MB. Export a smaller period."); return; }
-      const requestRevision = ++revision, requestKind = checkKind;
-      try { const raw = await file.text(); if (revision === requestRevision) showCheck(raw, requestKind); }
-      catch { if (revision === requestRevision) hooks.toast("The CSV could not be read."); }
+      const files = Array.from(csv.files ?? []); if (files.length === 0) return;
+      if (files.some((f) => f.size > 4_500_000)) { hooks.toast("CSV limit is 4.5 MB per file. Export a smaller period."); return; }
+      const requestRevision = ++revision;
+      try { const read = await Promise.all(files.map(async (f) => ({ name: f.name, raw: await f.text() }))); if (revision === requestRevision) showChecks(read); }
+      catch { if (revision === requestRevision) hooks.toast("A CSV could not be read."); }
     };
     const good = document.querySelector<HTMLButtonElement>("#snapshot-good"); if (good) good.onclick = () => showCheck(SNAPSHOT_SAMPLE.replace(",10,5", ",20,5"), "stock_snapshot", true);
     const bad = document.querySelector<HTMLButtonElement>("#snapshot-bad"); if (bad) bad.onclick = () => showCheck(SNAPSHOT_BAD_SAMPLE, "stock_snapshot", true);

@@ -47,7 +47,7 @@ export default async function ImportsPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Alpha ERP data`}
         title="Import data"
-        sub={`Upload the accountant's Alpha ERP exports. Start with products and customers, then sales, receipts, unpaid invoices and stock: later files point at the codes in the earlier ones. Use "Check file" first. It validates everything and shows totals to compare with Alpha, without saving.`}
+        sub={`Upload the accountant's Alpha ERP exports, one file or all of them at once. The type of each file is recognised from its column headings, and they are loaded in the order the data needs: products and customers first, then sales, receipts, unpaid invoices and stock. Use "Check" first. It validates everything and shows totals to compare with Alpha, without saving.`}
       />
       <DataTabs current="imports" owner history />
       <ImportForm />
