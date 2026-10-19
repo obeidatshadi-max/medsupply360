@@ -15,6 +15,12 @@ export interface CompanyAccount {
   city: string | null;
   active: boolean;
   sales: number | null;
+  /** Sales on lines that carry a product cost; the part of `sales` that `grossProfit` covers. */
+  costedSales: number;
+  /**
+   * Profit on the costed lines only, as on the Overview. Null when the account has sales but no cost on any line;
+   * zero when it has no sales lines at all.
+   */
   grossProfit: number | null;
   linesWithoutCost: number;
   outstanding: number | null;
@@ -41,6 +47,7 @@ export async function companyAccounts(companyId: string, today: string, view: Co
     ), sales as (
       select i.customer_id,
         coalesce(sum(s.net_sales) filter(where i.invoice_date >= ${from}::date), 0) as sales,
+        coalesce(sum(s.net_sales) filter(where i.invoice_date >= ${from}::date and s.product_cost is not null), 0) as costed_sales,
         coalesce(sum(s.product_cost) filter(where i.invoice_date >= ${from}::date), 0) as cost,
         count(*) filter(where i.invoice_date >= ${from}::date and s.product_cost is null)::int as missing_cost,
         max(i.invoice_date) filter(where s.doc_type = 'invoice' and s.quantity > 0 and s.net_sales > 0) as last_order
@@ -59,7 +66,7 @@ export async function companyAccounts(companyId: string, today: string, view: Co
     )
     select c.code, c.name, c.segment, c.account_owner, sp.name as assigned_owner, c.city, c.active,
       x.has_sales, x.snapshot_date::text,
-      coalesce(s.sales, 0)::text as sales, coalesce(s.cost, 0)::text as cost,
+      coalesce(s.sales, 0)::text as sales, coalesce(s.costed_sales, 0)::text as costed_sales, coalesce(s.cost, 0)::text as cost,
       coalesce(s.missing_cost, 0)::int as missing_cost, s.last_order::text,
       coalesce(b.outstanding, 0)::text as outstanding, coalesce(b.overdue, 0)::text as overdue,
       coalesce(b.unaged, 0)::int as unaged
@@ -77,7 +84,8 @@ export async function companyAccounts(companyId: string, today: string, view: Co
   const accounts: CompanyAccount[] = source.map((r) => ({
     code: String(r.code), name: String(r.name), segment: text(r.segment), owner: text(r.assigned_owner) ?? text(r.account_owner), importedOwner: text(r.account_owner), city: text(r.city), active: r.active === true,
     sales: hasSales ? Number(r.sales) : null,
-    grossProfit: hasSales && Number(r.missing_cost) === 0 ? roundJod(Number(r.sales) - Number(r.cost)) : null,
+    costedSales: roundJod(Number(r.costed_sales)),
+    grossProfit: !hasSales ? null : Number(r.costed_sales) !== 0 || Number(r.cost) !== 0 ? roundJod(Number(r.costed_sales) - Number(r.cost)) : Number(r.missing_cost) === 0 ? 0 : null,
     linesWithoutCost: Number(r.missing_cost), lastOrder: text(r.last_order),
     outstanding: snapshotDate ? Number(r.outstanding) : null, overdue: snapshotDate ? Number(r.overdue) : null,
     unagedInvoices: Number(r.unaged),
@@ -85,9 +93,15 @@ export async function companyAccounts(companyId: string, today: string, view: Co
   const query = search.trim().slice(0, 200).toLocaleLowerCase();
   const matched = accounts.filter((r) => (view === "all" || r.segment?.toLowerCase() === view)
     && (!query || [r.code, r.name, r.city, r.owner, r.importedOwner].some((v) => v?.toLocaleLowerCase().includes(query))));
-  const sum = (key: "sales" | "grossProfit" | "outstanding" | "overdue") =>
+  const sum = (key: "sales" | "outstanding" | "overdue") =>
     matched.length > 0 && matched.every((r) => r[key] !== null) ? roundJod(matched.reduce((total, r) => total + (r[key] ?? 0), 0)) : null;
+  // Gross profit follows the Overview: profit on costed lines, with the share of sales that covers. Accounts whose
+  // lines carry no cost are left out of the profit but stay in the sales, so the coverage shows the gap.
+  const costed = matched.filter((r) => r.grossProfit !== null);
+  const totalSales = sum("sales");
+  const grossProfit = costed.length > 0 ? roundJod(costed.reduce((total, r) => total + (r.grossProfit ?? 0), 0)) : null;
+  const costCoverage = totalSales !== null && totalSales > 0 && grossProfit !== null ? Math.min(1, matched.reduce((total, r) => total + r.costedSales, 0) / totalSales) : null;
   return { from, to: salesTo, snapshotDate, hasSales, search: search.trim().slice(0, 200), totalAccounts: accounts.length,
     matchedCount: matched.length, rows: matched.slice(0, 200),
-    summary: { sales: sum("sales"), grossProfit: sum("grossProfit"), outstanding: sum("outstanding"), overdue: sum("overdue") } };
+    summary: { sales: totalSales, grossProfit, costCoverage, outstanding: sum("outstanding"), overdue: sum("overdue") } };
 }
