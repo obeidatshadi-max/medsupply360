@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { addGuaranteeAction, deleteGuaranteeAction, updateGuaranteeAction, type FinanceFormState } from "@/server/actions/tender-finance";
+import { SubmitterField } from "@/components/submitter-field";
 import { GUARANTEE_KINDS, GUARANTEE_LABEL, guaranteeState } from "@/core/tender-money";
 import type { GuaranteeRow } from "@/server/services/tender-finance";
 import { dayText, jod } from "@/lib/format";
@@ -92,14 +93,16 @@ function EditRow({ tenderId, g, today, canEdit }: { tenderId: string; g: Guarant
             <input type="hidden" name="tenderId" value={tenderId} />
             <input type="hidden" name="guaranteeId" value={g.id} />
             <Fields g={g} />
+            <SubmitterField />
             <Message state={state} />
             <button type="submit" disabled={pending} className="rounded-[7px] border border-line bg-white px-3 py-1.5 text-xs font-semibold hover:border-brand disabled:opacity-60">
               {pending ? "Saving…" : "Save changes"}
             </button>
           </form>
-          <form action={deleteGuaranteeAction} className="mt-2">
+          <form action={deleteGuaranteeAction} className="mt-2 flex flex-wrap items-center gap-2">
             <input type="hidden" name="tenderId" value={tenderId} />
             <input type="hidden" name="guaranteeId" value={g.id} />
+            <SubmitterField compact />
             <button type="submit" className="text-xs text-bad underline underline-offset-2">
               Remove this guarantee (entered by mistake)
             </button>
@@ -126,6 +129,7 @@ export function Guarantees({ tenderId, rows, today, canEdit }: { tenderId: strin
           <input type="hidden" name="tenderId" value={tenderId} />
           <p className="text-sm font-medium">Add a guarantee</p>
           <Fields />
+          <SubmitterField />
           <Message state={state} />
           <button type="submit" disabled={pending} className="rounded-[7px] border border-line bg-white px-4 py-2 text-sm font-semibold hover:border-brand disabled:opacity-60">
             {pending ? "Saving…" : "Add guarantee"}

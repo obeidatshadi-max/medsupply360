@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createTenderAction, type TenderFormState } from "@/server/actions/tenders";
+import { SubmitterField } from "@/components/submitter-field";
 import { FieldInput, HiddenField, valuesOf } from "../tender-fields";
 
 const empty = valuesOf(null);
@@ -37,6 +38,7 @@ export function NewTenderForm() {
       {(["bidValue", "awardAmount", "closeReason", "contractNo", "contractValue", "deliveredOn"] as const).map((k) => (
         <HiddenField key={k} name={k} value="" />
       ))}
+      <SubmitterField />
       {state.error ? (
         <p role="alert" className="text-sm text-bad">
           {state.error}

@@ -64,9 +64,11 @@ export const auditLogs = pgTable(
     entityType: varchar("entity_type", { length: 60 }),
     entityId: varchar("entity_id", { length: 80 }),
     details: jsonb("details").$type<Record<string, unknown>>(),
+    /** The person's name as typed on the form. A department shares one sign-in, so `userId` alone does not say who. */
+    submittedBy: varchar("submitted_by", { length: 80 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("audit_action_created_idx").on(t.action, t.createdAt)],
+  (t) => [index("audit_action_created_idx").on(t.action, t.createdAt), index("audit_company_created_idx").on(t.companyId, t.createdAt)],
 );
 
 /** One-time password-reset links. Only the SHA-256 of the token is stored, so a database leak cannot be replayed. */
@@ -139,6 +141,32 @@ export const importBatches = pgTable(
   ],
 );
 
+/**
+ * The sales force: people the CEO makes responsible for products, customer accounts and tenders. They do not need a
+ * login, so this is a list the owner keeps. A person turned off stays on what they already hold but cannot be chosen
+ * for anything new.
+ */
+export const salesPeople = pgTable(
+  "sales_people",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    name: varchar("name", { length: 80 }).notNull(),
+    email: varchar("email", { length: 255 }),
+    /** Supplier companies this person represents, as they appear in the product list. */
+    supplierNames: text("supplier_names").array().notNull().default(sql`'{}'::text[]`),
+    /** What the CEO expects of this person. All optional. */
+    monthlySalesTarget: numeric("monthly_sales_target", { precision: 14, scale: 3 }),
+    newAccountsTarget: integer("new_accounts_target"),
+    visitsPerWeek: integer("visits_per_week"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("sales_people_company_id_uniq").on(t.companyId, t.id), uniqueIndex("sales_people_name_uniq").using("btree", t.companyId, sql`lower(${t.name})`)],
+);
+
 export const products = pgTable(
   "products",
   {
@@ -160,8 +188,11 @@ export const products = pgTable(
     tracksExpiry: boolean("tracks_expiry").notNull().default(false),
     active: boolean("active").notNull().default(true),
     importBatchId: uuid("import_batch_id"),
+    /** The sales person the CEO assigned to this product. Never touched by an import. */
+    salesPersonId: uuid("sales_person_id"),
   },
   (t) => [
+    foreignKey({ columns: [t.companyId, t.salesPersonId], foreignColumns: [salesPeople.companyId, salesPeople.id] }),
     unique("products_company_id_uniq").on(t.companyId, t.id),
     uniqueIndex("products_company_code_uniq").on(t.companyId, t.code),
     foreignKey({ columns: [t.companyId, t.importBatchId], foreignColumns: [importBatches.companyId, importBatches.id] }),
@@ -186,8 +217,11 @@ export const customers = pgTable(
     accountOwner: varchar("account_owner", { length: 200 }),
     active: boolean("active").notNull().default(true),
     importBatchId: uuid("import_batch_id"),
+    /** The sales person the CEO assigned to this account. Never touched by an import. */
+    salesPersonId: uuid("sales_person_id"),
   },
   (t) => [
+    foreignKey({ columns: [t.companyId, t.salesPersonId], foreignColumns: [salesPeople.companyId, salesPeople.id] }),
     unique("customers_company_id_uniq").on(t.companyId, t.id),
     uniqueIndex("customers_company_code_uniq").on(t.companyId, t.code),
     foreignKey({ columns: [t.companyId, t.importBatchId], foreignColumns: [importBatches.companyId, importBatches.id] }),
@@ -417,6 +451,8 @@ export const tenders = pgTable(
     contractValue: numeric("contract_value", { precision: 14, scale: 3 }),
     deliveredOn: date("delivered_on"),
     notes: text("notes"),
+    /** Who is responsible for this tender; set by the CEO. Null until someone is assigned. */
+    ownerId: uuid("owner_id"),
     createdBy: uuid("created_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -426,6 +462,7 @@ export const tenders = pgTable(
     // The same number may exist at two authorities; at one authority it identifies one tender. NULL numbers (pipeline) never clash.
     uniqueIndex("tenders_authority_no_uniq").on(t.companyId, t.authority, t.tenderNo),
     index("tenders_status_idx").on(t.companyId, t.status),
+    foreignKey({ columns: [t.companyId, t.ownerId], foreignColumns: [salesPeople.companyId, salesPeople.id] }),
   ],
 );
 
@@ -441,6 +478,8 @@ export const tenderStatusLog = pgTable(
     fromStatus: tenderStatus("from_status"),
     toStatus: tenderStatus("to_status").notNull(),
     userId: uuid("user_id").references(() => users.id),
+    /** The person's typed name; see `auditLogs.submittedBy`. */
+    submittedBy: varchar("submitted_by", { length: 80 }),
     note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

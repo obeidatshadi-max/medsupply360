@@ -53,7 +53,7 @@ const tenderNo = (t: DemoTender, generic: boolean) => neutral(t.tenderNo, t, gen
 function matchesQuery(t: DemoTender, query: string | undefined, generic: boolean): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
-  return [t.title, authorityLabel(t.authority, generic), tenderNo(t, generic) ?? "", STATUS_LABEL[t.status], LINE_LABEL[t.productLine]].some((s) => s.toLowerCase().includes(q));
+  return [t.title, authorityLabel(t.authority, generic), tenderNo(t, generic) ?? "", STATUS_LABEL[t.status], LINE_LABEL[t.productLine], t.owner ?? "not assigned"].some((s) => s.toLowerCase().includes(q));
 }
 
 export function tenderScreenHtml({ generic, query }: TenderScreenOptions): string {
@@ -121,6 +121,7 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     return [
       `<b>${a(t.authority)}</b>`,
       `${ref(t.id, t.title)}${no ? `<span class="cellsub">${esc(no)}</span>` : ""}`,
+      t.owner === null ? `<span class="mini">Not assigned</span>` : esc(t.owner),
       LINE_LABEL[t.productLine],
       `${STATUS_LABEL[t.status]}<span class="cellsub">Stage ${STAGE[t.status].no} of 10</span>`,
       v === null ? "—" : jod(v),
@@ -140,14 +141,14 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
   return (
     `<div class="info">Made-up tenders on ${dayText(DEMO_TENDER_AS_OF)}. ${
       generic ? "Authority names are neutral placeholders for this customer." : "They use the real authority names, but the titles, numbers and amounts are invented."
-    } In the live app the tender department and finance enter these as each tender moves, and the owner follows them here.</div>` +
+    } In the live app the tender department and finance enter these as each tender moves, the CEO assigns each tender an owner, and the CEO follows them here.</div>` +
     `<div class="ob-row">Where the tenders stand</div>` +
     phaseCards +
     `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. Win rate: ${winRate}.</p>` +
     `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("Still unpaid by the authorities", "Tender invoices not yet collected", unpaid)}${panel("Why bids were lost", "The reason recorded when a tender is marked lost", lost)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("By authority", "Active = not lost, cancelled or collected", byAuthority)}${panel("Longest in their current stage", "A plain count of days, not a deadline: some stages are slow by nature.", longest)}</div>` +
-    `<div style="margin-top:20px">${panel("All tenders", `${plural(rows.length, "tender")} · select one for its guarantees, invoices and history`, table(["Authority", "Tender", "Products", "Stage", "Value", "Deadline", "Days in stage"], rows))}</div>` +
+    `<div style="margin-top:20px">${panel("All tenders", `${plural(rows.length, "tender")} · search by owner, authority or product · select one for its guarantees, invoices and history`, table(["Authority", "Tender", "Owner", "Products", "Stage", "Value", "Deadline", "Days in stage"], rows))}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("How a tender moves", "The department's ten stages. Each move asks only for the details that stage needs.", stages)}${panel(
       "Who can do what",
       "Access in the live app. The owner adds people and sets their access in Settings.",
@@ -165,6 +166,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
   const no = tenderNo(t, generic);
   const facts: [string, string][] = [
     ["Authority", authorityName(t.authority, generic)],
+    ["Owner", t.owner ?? "Not assigned yet"],
     ["Tender number", no ?? "—"],
     ["Products", LINE_LABEL[t.productLine]],
     ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
@@ -204,17 +206,17 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
       .reverse()
       .map((h) => item(`<b>${STATUS_LABEL[h.to]}</b>${h.note ? `<span class="cellsub">${esc(h.note)}</span>` : ""}`, `${dayText(h.on)} · ${esc(h.by)}`))
       .join("") +
-    `<div class="info">In the live app the tender department moves the tender and enters its details; finance records guarantees, invoices and payments. This demo only shows the records.</div>`
+    `<div class="info">In the live app the tender department moves the tender and enters its details; finance records guarantees, invoices and payments. Each person types their name on the form and the date and time are saved automatically, as in the Update history tab. This demo only shows the records.</div>`
   );
 }
 
 /** Rows for the demo's Export button on the Tenders screen. */
 export function tenderCsvRows(generic: boolean, query?: string): (string | number)[][] {
   return [
-    ["Authority", "Tender", "Tender number", "Products", "Stage", "Value JOD", "Submission deadline", "Days in stage", "Unpaid on invoices JOD"],
+    ["Authority", "Tender", "Owner", "Tender number", "Products", "Stage", "Value JOD", "Submission deadline", "Days in stage", "Unpaid on invoices JOD"],
     ...DEMO_TENDERS.filter((t) => matchesQuery(t, query, generic)).map((t) => {
       const d = demoTenderDetail(t.id)!;
-      return [authorityLabel(t.authority, generic), t.title, tenderNo(t, generic) ?? "", LINE_LABEL[t.productLine], STATUS_LABEL[t.status], tenderValue(t) ?? "", t.deadline ?? "", d.daysInStage, d.payments.outstanding];
+      return [authorityLabel(t.authority, generic), t.title, t.owner ?? "", tenderNo(t, generic) ?? "", LINE_LABEL[t.productLine], STATUS_LABEL[t.status], tenderValue(t) ?? "", t.deadline ?? "", d.daysInStage, d.payments.outstanding];
     }),
   ];
 }

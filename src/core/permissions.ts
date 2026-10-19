@@ -57,6 +57,15 @@ export function canMoveTender(role: Role, from: TenderStatus, to: TenderStatus):
   return false;
 }
 
+/** Who keeps the sales force and assigns products, accounts and tenders to it: the CEO. */
+export const canManageSalesForce = (role: Role): boolean => role === "owner";
+
+/** Who may read the Sales force page (emails, targets, who holds what): the owner and administrators. */
+export const canSeeSalesForce = (role: Role): boolean => role === "owner" || role === "admin";
+
+/** Who may read the Update history: the owner and administrators. Department staff see their own tender's history only. */
+export const canSeeHistory = (role: Role): boolean => role === "owner" || role === "admin";
+
 /** Guarantees are prepared with the bid (tender department) and issued and returned by finance. */
 export const canEditGuarantees = (role: Role): boolean => role === "owner" || role === "tender" || role === "finance";
 

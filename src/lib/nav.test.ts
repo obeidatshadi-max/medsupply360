@@ -29,6 +29,16 @@ describe("navItems", () => {
     const { main } = navItems(OWNER);
     expect(crumbFor("/weekly", main)).toBe("Alpha ERP data");
     expect(crumbFor("/imports", main)).toBe("Alpha ERP data");
+    expect(crumbFor("/history", main)).toBe("Alpha ERP data");
+  });
+
+  it("shows the Sales force to the owner and administrators only, right after Sales & accounts", () => {
+    for (const role of ["owner", "admin"] as const) {
+      const l = labels({ guest: false, role });
+      expect(l).toContain("Sales force");
+      expect(l.indexOf("Sales force")).toBe(l.indexOf("Sales & accounts") + 1);
+    }
+    for (const o of [{ guest: false, role: "viewer" }, { guest: true, role: "owner" }, { guest: false, role: "tender" }, { guest: false, role: "finance" }] as O[]) expect(labels(o)).not.toContain("Sales force");
   });
 
   it("shows department users the tender section only", () => {

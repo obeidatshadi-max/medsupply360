@@ -12,4 +12,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 `demo/` is a reusable presentation tailored to the company profile for each customer visit. Preserve the original Sadaf profile as a preset and use the profile switcher for other customers. Supplied company facts and suppliers are context; operational records and financial figures remain clearly synthetic. Keep actions isolated by customer and support profile export for another device.
 
+**Every change to the app is mirrored in the demo in the same piece of work**: features, screens, sidebar order and wording, labels, and sample numbers. The demo is the first promotional exposure of the product and must never fall behind. Finish with `npm run demo:build`, the tests, and a look in the browser; ship both in the same PR.
+
 When extending a live workflow that is demonstrated here, reuse its calculation/validation core and update the corresponding demo experience. Do not carry a previous customer's supplier or product claims into a new profile. See `docs/CUSTOMER_DEMO.md` for build, PDF assets and the separate static-site deployment.

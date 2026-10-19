@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { runImport, type ImportOutcome } from "@/db/import-writer";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { isIsoDate } from "@/core/calc";
+import { readSubmitter } from "@/core/submitter";
 import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -40,6 +41,10 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   const { kind, mode, snapshotDate } = parsed.data;
   if (snapshotDate !== "" && !isIsoDate(snapshotDate)) return { error: "The snapshot date is not a valid date." };
 
+  // A check changes nothing, so only a real import needs a name.
+  const who = readSubmitter(formData);
+  if (mode === "import" && !who.ok) return { error: who.error };
+
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a CSV file." };
   if (file.size > MAX_FILE_BYTES) {
@@ -66,6 +71,7 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
     await writeAudit({
       companyId: user.companyId,
       userId: user.id,
+      submittedBy: who.ok ? who.name : null,
       action: "import.run",
       entityType: "import_batch",
       entityId: outcome.batchId ?? undefined,

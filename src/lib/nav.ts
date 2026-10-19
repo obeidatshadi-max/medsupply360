@@ -1,4 +1,4 @@
-import { canAccess, type Role } from "@/core/permissions";
+import { canAccess, canSeeSalesForce, type Role } from "@/core/permissions";
 
 /**
  * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Alpha ERP data" and the
@@ -27,13 +27,14 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
     { label: "Owner overview", icon: "◫", href: "/dashboard", match: ["/dashboard"] },
     { label: "Products & suppliers", icon: "▦", href: "/portfolio", match: ["/portfolio"] },
     { label: "Sales & accounts", icon: "↗", href: "/accounts/all", match: ["/accounts"] },
+    ...(canSeeSalesForce(role) && !guest ? [{ label: "Sales force", icon: "☺", href: "/sales-force", match: ["/sales-force"] } satisfies NavItem] : []),
     { label: "Inventory & supply", icon: "▦", href: "/inventory", match: ["/inventory"] },
     { label: "Finance & profitability", icon: "◉", href: "/finance", match: ["/finance"] },
     { label: "Management actions", icon: "✓", href: "/opportunities", match: ["/opportunities"] },
     // One data group: the owner lands on Import files, everyone else on the Weekly update (see DataTabs).
     owner && !guest
-      ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports", "/weekly"] }
-      : { label: "Alpha ERP data", icon: "⇄", href: "/weekly", match: ["/weekly"] },
+      ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports", "/weekly", "/history"] }
+      : { label: "Alpha ERP data", icon: "⇄", href: "/weekly", match: ["/weekly", "/history"] },
   ];
   if (canAccess(role, "tender") && !guest) main.push(tender);
   if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });

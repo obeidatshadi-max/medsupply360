@@ -1,14 +1,16 @@
 const TABS = [
-  { key: "imports", label: "Import files", href: "/imports", ownerOnly: true },
-  { key: "weekly", label: "Weekly update", href: "/weekly", ownerOnly: false },
+  { key: "imports", label: "Import files", href: "/imports", needs: "owner" },
+  { key: "weekly", label: "Weekly update", href: "/weekly", needs: "anyone" },
+  { key: "history", label: "Update history", href: "/history", needs: "history" },
 ] as const;
 
 /**
- * The two screens of the "Alpha ERP data" group. Importing is owner-only; the weekly update is open to everyone who
- * can sign in, so other users see just the one tab.
+ * The screens of the "Alpha ERP data" group. Importing is owner-only; the weekly update is open to everyone who can
+ * sign in; the update history is for the owner and administrators. A person who may open only one sees no tab strip.
  */
-export function DataTabs({ current, owner }: { current: (typeof TABS)[number]["key"]; owner: boolean }) {
-  const tabs = TABS.filter((t) => owner || !t.ownerOnly);
+export function DataTabs({ current, owner, history }: { current: (typeof TABS)[number]["key"]; owner: boolean; history: boolean }) {
+  const allowed = { owner, anyone: true, history };
+  const tabs = TABS.filter((t) => allowed[t.needs]);
   if (tabs.length < 2) return null;
   return (
     <nav aria-label="Alpha ERP data" className="mb-4 flex gap-2 text-sm">

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { addInvoiceAction, deleteInvoiceAction, setCollectedAction, type FinanceFormState } from "@/server/actions/tender-finance";
+import { SubmitterField } from "@/components/submitter-field";
 import { paymentSummary } from "@/core/tender-money";
 import type { InvoiceRow } from "@/server/services/tender-finance";
 import { dayText, jod } from "@/lib/format";
@@ -59,12 +60,16 @@ function InvoiceItem({ tenderId, inv, canEdit }: { tenderId: string; inv: Invoic
               </button>
             </div>
             <div className="md:col-span-3">
+              <SubmitterField />
+            </div>
+            <div className="md:col-span-3">
               <Message state={state} />
             </div>
           </form>
-          <form action={deleteInvoiceAction} className="mt-2">
+          <form action={deleteInvoiceAction} className="mt-2 flex flex-wrap items-center gap-2">
             <input type="hidden" name="tenderId" value={tenderId} />
             <input type="hidden" name="invoiceId" value={inv.id} />
+            <SubmitterField compact />
             <button type="submit" className="text-xs text-bad underline underline-offset-2">
               Remove this invoice (entered by mistake)
             </button>
@@ -112,6 +117,7 @@ export function Payments({ tenderId, rows, canEdit, canAdd }: { tenderId: string
               <input name="amount" required inputMode="decimal" autoComplete="off" className={fieldClass} />
             </div>
           </div>
+          <SubmitterField />
           <Message state={state} />
           <button type="submit" disabled={pending} className="rounded-[7px] border border-line bg-white px-4 py-2 text-sm font-semibold hover:border-brand disabled:opacity-60">
             {pending ? "Saving…" : "Add invoice"}

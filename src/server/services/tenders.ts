@@ -17,7 +17,7 @@ import {
 import { canEditTender, canMoveTender, type Role } from "@/core/permissions";
 import type { Db } from "@/db/import-writer";
 import { collectionBlocker } from "@/core/tender-money";
-import { tenderStatusLog, tenders, users } from "@/db/schema";
+import { salesPeople, tenderStatusLog, tenders, users } from "@/db/schema";
 import { listInvoices } from "@/server/services/tender-finance";
 
 export type TenderRow = TenderFields & {
@@ -29,16 +29,19 @@ export type TenderRow = TenderFields & {
   statusChangedAt: Date;
   notes: string | null;
   createdAt: Date;
+  /** Who is responsible for the tender (set by the CEO), or null when nobody is assigned yet. */
+  ownerId: string | null;
+  ownerName: string | null;
 };
 
-export type TenderEvent = { id: string; fromStatus: TenderStatus | null; toStatus: TenderStatus; note: string | null; at: Date; by: string | null };
+export type TenderEvent = { id: string; fromStatus: TenderStatus | null; toStatus: TenderStatus; note: string | null; at: Date; by: string | null; submittedBy: string | null };
 
 export type TenderResult = { ok: true; id: string } | { ok: false; error: string };
 
 const num = (v: string | null): number | null => (v === null ? null : Number(v));
 
 type Raw = typeof tenders.$inferSelect;
-const toRow = (r: Raw): TenderRow => ({
+const toRow = (r: Raw, ownerName: string | null = null): TenderRow => ({
   id: r.id,
   authority: r.authority,
   tenderNo: r.tenderNo,
@@ -56,6 +59,8 @@ const toRow = (r: Raw): TenderRow => ({
   deliveredOn: r.deliveredOn,
   notes: r.notes,
   createdAt: r.createdAt,
+  ownerId: r.ownerId,
+  ownerName,
 });
 
 export { parseJod };
@@ -174,25 +179,36 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 export async function listTenders(db: Db, companyId: string): Promise<TenderRow[]> {
-  const rows = await db.select().from(tenders).where(eq(tenders.companyId, companyId)).orderBy(desc(tenders.updatedAt));
-  return rows.map(toRow);
+  const rows = await db
+    .select({ t: tenders, ownerName: salesPeople.name })
+    .from(tenders)
+    .leftJoin(salesPeople, and(eq(salesPeople.companyId, tenders.companyId), eq(salesPeople.id, tenders.ownerId)))
+    .where(eq(tenders.companyId, companyId))
+    .orderBy(desc(tenders.updatedAt));
+  return rows.map((r) => toRow(r.t, r.ownerName));
 }
 
 export async function getTender(db: Db, companyId: string, id: string): Promise<{ tender: TenderRow; history: TenderEvent[] } | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-  const [row] = await db.select().from(tenders).where(and(eq(tenders.companyId, companyId), eq(tenders.id, id))).limit(1);
-  if (!row) return null;
+  const [found] = await db
+    .select({ t: tenders, ownerName: salesPeople.name })
+    .from(tenders)
+    .leftJoin(salesPeople, and(eq(salesPeople.companyId, tenders.companyId), eq(salesPeople.id, tenders.ownerId)))
+    .where(and(eq(tenders.companyId, companyId), eq(tenders.id, id)))
+    .limit(1);
+  if (!found) return null;
+  const row = found.t;
   const log = await db
-    .select({ id: tenderStatusLog.id, fromStatus: tenderStatusLog.fromStatus, toStatus: tenderStatusLog.toStatus, note: tenderStatusLog.note, at: tenderStatusLog.createdAt, by: users.fullName })
+    .select({ id: tenderStatusLog.id, fromStatus: tenderStatusLog.fromStatus, toStatus: tenderStatusLog.toStatus, note: tenderStatusLog.note, at: tenderStatusLog.createdAt, by: users.fullName, submittedBy: tenderStatusLog.submittedBy })
     .from(tenderStatusLog)
     .leftJoin(users, eq(users.id, tenderStatusLog.userId))
     .where(and(eq(tenderStatusLog.companyId, companyId), eq(tenderStatusLog.tenderId, id)))
     .orderBy(asc(tenderStatusLog.createdAt));
-  return { tender: toRow(row), history: log };
+  return { tender: toRow(row, found.ownerName), history: log };
 }
 
 /** A new tender starts as a pipeline opportunity, or as an announced tender when its number, value and deadline are known. */
-export async function createTender(db: Db, input: { companyId: string; userId: string; form: TenderForm; startAs: "pipeline" | "open" }): Promise<TenderResult> {
+export async function createTender(db: Db, input: { companyId: string; userId: string; submittedBy?: string | null; form: TenderForm; startAs: "pipeline" | "open" }): Promise<TenderResult> {
   const c = clean(input.form);
   if (!c.ok) return c;
   const v = c.value;
@@ -221,7 +237,7 @@ export async function createTender(db: Db, input: { companyId: string; userId: s
           createdBy: input.userId,
         })
         .returning({ id: tenders.id });
-      await tx.insert(tenderStatusLog).values({ companyId: input.companyId, tenderId: row!.id, fromStatus: null, toStatus: input.startAs, userId: input.userId, note: "Tender recorded" });
+      await tx.insert(tenderStatusLog).values({ companyId: input.companyId, tenderId: row!.id, fromStatus: null, toStatus: input.startAs, userId: input.userId, submittedBy: input.submittedBy ?? null, note: "Tender recorded" });
       return { ok: true as const, id: row!.id };
     });
   } catch (err) {
@@ -270,7 +286,7 @@ export async function updateTender(db: Db, input: { companyId: string; tenderId:
  */
 export async function moveTender(
   db: Db,
-  input: { companyId: string; userId: string; role: Role; tenderId: string; to: TenderStatus; seenStatus: TenderStatus; form: TenderForm; note: string },
+  input: { companyId: string; userId: string; submittedBy?: string | null; role: Role; tenderId: string; to: TenderStatus; seenStatus: TenderStatus; form: TenderForm; note: string },
 ): Promise<TenderResult> {
   const found = await getTender(db, input.companyId, input.tenderId);
   if (!found) return { ok: false, error: "That tender was not found." };
@@ -315,7 +331,7 @@ export async function moveTender(
         .where(and(eq(tenders.companyId, input.companyId), eq(tenders.id, input.tenderId), eq(tenders.status, from)))
         .returning({ id: tenders.id });
       if (changed.length === 0) return { ok: false as const, error: "The tender changed while you were editing. Reload the page." };
-      await tx.insert(tenderStatusLog).values({ companyId: input.companyId, tenderId: input.tenderId, fromStatus: from, toStatus: input.to, userId: input.userId, note: text(input.note, 2000) });
+      await tx.insert(tenderStatusLog).values({ companyId: input.companyId, tenderId: input.tenderId, fromStatus: from, toStatus: input.to, userId: input.userId, submittedBy: input.submittedBy ?? null, note: text(input.note, 2000) });
       return { ok: true as const, id: input.tenderId };
     });
   } catch (err) {

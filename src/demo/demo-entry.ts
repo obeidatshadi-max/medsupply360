@@ -12,3 +12,7 @@ export { demoProductReorders, demoReadiness, checkDemoImport, SNAPSHOT_SAMPLE, S
 export { SPECS as IMPORT_SPECS } from "@/core/import/specs";
 export { createCustomerPresentation } from "./customer-presentation";
 export { tenderCsvRows, tenderDetailHtml, tenderScreenHtml } from "./tender-screen";
+export { settingsCsvRows, settingsHtml } from "./settings-screen";
+export { freshnessHtml } from "./freshness-demo";
+export { productAssignHtml, salesForceCsvRows, salesForceHtml, salesPersonHtml } from "./sales-force-demo";
+export { historyCsvRows, historyHtml } from "./history-screen";

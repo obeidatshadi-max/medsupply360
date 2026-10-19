@@ -8,7 +8,9 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod } from "@/lib/format";
 import { companyTenderOverview } from "@/server/services/tender-overview";
+import { listSalesPeople } from "@/server/services/sales-force";
 import { listTenders } from "@/server/services/tenders";
+import { matchesOwner, parseOwnerFilter } from "@/core/sales-force";
 import { OverviewPanel } from "./overview-panel";
 
 export const metadata: Metadata = { title: "Tenders" };
@@ -20,17 +22,23 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
   const authority = isAuthority(one(sp.authority)) ? one(sp.authority) : "";
+  const ownerFilter = parseOwnerFilter(one(sp.owner));
   const phase = PHASE_FILTERS.some((p) => p.key === one(sp.phase)) ? (one(sp.phase) as PhaseKey) : "";
 
   const today = businessToday();
-  const [all, overview] = await Promise.all([listTenders(getDb(), user.companyId), companyTenderOverview(getDb(), user.companyId, today)]);
-  const rows = all.filter((t) => (!authority || t.authority === authority) && (!phase || phaseOf(t.status) === phase));
-  const href = (next: { authority?: string; phase?: string }) => {
+  const [all, overview, owners] = await Promise.all([listTenders(getDb(), user.companyId), companyTenderOverview(getDb(), user.companyId, today), listSalesPeople(getDb(), user.companyId)]);
+  const rows = all.filter((t) => (!authority || t.authority === authority) && (!phase || phaseOf(t.status) === phase) && matchesOwner(ownerFilter, t.ownerId));
+  // Only people who hold a tender (or are still active) are worth a filter button.
+  const ownerChips = owners.filter((o) => o.active || o.tenders > 0);
+  const ownerValue = ownerFilter.kind === "owner" ? ownerFilter.id : ownerFilter.kind === "none" ? "none" : "";
+  const href = (next: { authority?: string; phase?: string; owner?: string }) => {
     const q = new URLSearchParams();
     const a = next.authority ?? authority;
     const p = next.phase ?? phase;
     if (a) q.set("authority", a);
     if (p) q.set("phase", p);
+    const o = next.owner ?? ownerValue;
+    if (o) q.set("owner", o);
     const s = q.toString();
     return s ? `/tenders?${s}` : "/tenders";
   };
@@ -63,6 +71,19 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
             </a>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2" aria-label="Filter by owner">
+          <a href={href({ owner: "" })} className={chip(ownerValue === "")}>
+            All owners
+          </a>
+          {ownerChips.map((o) => (
+            <a key={o.id} href={href({ owner: o.id })} className={chip(ownerValue === o.id.toLowerCase())}>
+              {o.name}
+            </a>
+          ))}
+          <a href={href({ owner: "none" })} className={chip(ownerValue === "none")}>
+            No owner yet
+          </a>
+        </div>
         <div className="flex flex-wrap gap-2" aria-label="Filter by phase">
           <a href={href({ phase: "" })} className={chip(!phase)}>
             All phases
@@ -86,6 +107,7 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
               <tr>
                 <th className="px-3 py-2 font-medium">Authority</th>
                 <th className="px-3 py-2 font-medium">Tender</th>
+                <th className="px-3 py-2 font-medium">Owner</th>
                 <th className="px-3 py-2 font-medium">Products</th>
                 <th className="px-3 py-2 font-medium">Stage</th>
                 <th className="px-3 py-2 text-right font-medium">Estimated value</th>
@@ -103,6 +125,7 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
                     </a>
                     {t.tenderNo ? <span className="block text-xs text-muted">{t.tenderNo}</span> : null}
                   </td>
+                  <td className="px-3 py-2">{t.ownerName ?? <span className="text-muted">Not assigned</span>}</td>
                   <td className="px-3 py-2">{LINE_LABEL[t.productLine]}</td>
                   <td className="px-3 py-2">
                     {STATUS_LABEL[t.status]}
