@@ -120,7 +120,7 @@ export function salesForceHtml({ products, overrides, query, generic }: SalesFor
   });
   return (
     `<div class="info">Made-up sales people and figures. In the live app the owner adds people, ${generic ? "" : "picks the supplier companies each represents, "}sets what he expects of each one, and assigns products (on Products &amp; suppliers), customer accounts and tenders to them. Open a person to see everything they hold.</div>` +
-    `<section class="panel"><div class="panelhead"><div><h2>Your sales team</h2><p class="sub">Sales are the net sales on each person's accounts, ${DEMO_PERIOD}, as of ${dayText(DEMO_AS_OF)}. The target so far is the monthly target times the months passed.</p></div></div>` +
+    `<section class="panel"><div class="panelhead"><div><h2>Your sales team</h2><p class="sub">Sales are the net sales on each person's accounts, ${DEMO_PERIOD}, as of ${dayText(DEMO_AS_OF)}. An account's earlier sales follow whoever holds it today. The target so far is the monthly target times the months passed.</p></div></div>` +
     table(["Person", "Suppliers", "Products", "Accounts", "Tenders", "Expected", `Sales, ${DEMO_PERIOD}`], rows, "No matching person. Change the search.") +
     `</section>` +
     `<div class="info">New accounts and visits are expectations the owner sets. The system does not count them yet.</div>`

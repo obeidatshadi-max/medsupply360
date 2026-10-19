@@ -12,7 +12,7 @@ import { businessToday } from "@/lib/business-date";
 import { companyDataSummary } from "@/lib/company-data-summary";
 import { dateRange, jod, pct } from "@/lib/format";
 import { assignAccountAction, setSalesPersonActiveAction } from "@/server/actions/sales-force";
-import { getSalesPerson, listPersonAccounts, listPersonProducts, listPersonTenders, listSupplierNames, listUnassignedAccounts, salesByPerson } from "@/server/services/sales-force";
+import { getSalesPerson, listPersonAccounts, listPersonProducts, listPersonTenders, listSupplierNames, listUnassignedAccounts, salesByPerson, salesByPersonProducts } from "@/server/services/sales-force";
 import { EditPersonForm } from "../person-forms";
 
 export const metadata: Metadata = { title: "Sales person" };
@@ -33,8 +33,9 @@ export default async function SalesPersonPage({ params, searchParams }: { params
   const to = windowEnd(businessToday(), d.latestInvoice);
   const from = `${to.slice(0, 4)}-01-01`;
   const manage = canManageSalesForce(user.role);
-  const [sales, productsHeld, accounts, tenderList, suppliers, candidates] = await Promise.all([
+  const [sales, productSales, productsHeld, accounts, tenderList, suppliers, candidates] = await Promise.all([
     salesByPerson(db, user.companyId, from, to),
+    salesByPersonProducts(db, user.companyId, from, to),
     listPersonProducts(db, user.companyId, person.id),
     listPersonAccounts(db, user.companyId, person.id),
     listPersonTenders(db, user.companyId, person.id),
@@ -42,6 +43,7 @@ export default async function SalesPersonPage({ params, searchParams }: { params
     manage ? listUnassignedAccounts(db, user.companyId, search, 25) : Promise.resolve([]),
   ]);
   const ytd = sales.get(person.id) ?? 0;
+  const productYtd = productSales.get(person.id) ?? 0;
   const tp = targetProgress(ytd, person.monthlySalesTarget, to);
 
   const stat = (label: string, value: string, note?: string) => (
@@ -65,8 +67,9 @@ export default async function SalesPersonPage({ params, searchParams }: { params
         </Link>
       </p>
 
-      <section aria-label="Figures" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stat("Sales on their accounts", accounts.length === 0 ? "—" : jod(ytd), `${dateRange(from, to)}, year to date`)}
+      <section aria-label="Figures" className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        {stat("Sales on their accounts", accounts.length === 0 ? "—" : jod(ytd), `${dateRange(from, to)}, year to date. Follows who holds each account today, earlier sales included.`)}
+        {stat("Sales of their products", productsHeld.length === 0 ? "—" : jod(productYtd), "Whoever bought them. Overlaps the figure on accounts, so do not add the two.")}
         {stat(
           "Monthly target so far",
           tp.expected === null ? "—" : jod(tp.expected),
