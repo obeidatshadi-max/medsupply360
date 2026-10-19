@@ -71,7 +71,7 @@ describe("demo data agrees with the calculation core", () => {
     }
   });
   it("stock is valued at cost: SKU-530 uses 1.8 per piece, as in its own sales example", () => {
-    expect(data().stock.find((s) => s.id === "SKU-530")!.value).toBe(c.stockValue(2400, 1.8));
+    expect(data().stock.find((s) => s.id === "SKU-530")!.value).toBe(c.stockValue(2477, 1.8));
   });
   it("business lines are internally consistent", () => {
     const { lines } = data();
@@ -81,7 +81,7 @@ describe("demo data agrees with the calculation core", () => {
       expect(l.col).toBeLessThanOrEqual(l.rev);
       expect(l.rec).toBeLessThanOrEqual(l.rev);
     }
-    expect(lines.reduce((a, l) => a + l.rev, 0)).toBe(4_530_000);
+    expect(lines.reduce((a, l) => a + l.rev, 0)).toBe(4_540_013);
   });
   it("annual consumable contribution = actual monthly purchases x 12 x 30%", () => {
     for (const u of data().units) expect(u.profit, u.id).toBe(Math.round(c.roundJod(u.actual * 12 * 0.3)));
@@ -101,15 +101,15 @@ describe("demo displays what the core calculates", () => {
   it("overdue total and aging reconcile", () => {
     const { invoices } = data();
     const aging = c.receivablesAging(invoices.map((i) => ({ outstanding: i.value, dueDate: i.due })), ASOF);
-    expect(aging.overdue).toBe(117_500);
-    expect(mainText("basic", "overview")).toContain("JOD 117.5K");
+    expect(aging.overdue).toBe(117_067);
+    expect(mainText("basic", "overview")).toContain("JOD 117.1K");
   });
   it("expiry exposure shown equals the core total on every screen that shows it", () => {
     const total = data().stock.reduce((a, s) => a + s.loss, 0);
-    expect(total).toBe(21_810);
-    expect(mainText("basic", "overview")).toContain("JOD 21,810");
+    expect(total).toBe(21_760);
+    expect(mainText("basic", "overview")).toContain("JOD 21,760");
     expect(mainText("advanced", "overview")).toContain("JOD 21.8K");
-    expect(mainText("advanced", "inventory")).toContain("JOD 21,810");
+    expect(mainText("advanced", "inventory")).toContain("JOD 21,760");
   });
   it("recurring capture and gap match the core", () => {
     const { units } = data();
@@ -127,8 +127,8 @@ describe("demo displays what the core calculates", () => {
   });
   it("standalone consumable sales = consumable revenue - recurring", () => {
     const l = data().lines.find((x) => x.name === "Consumables")!;
-    expect(l.rev - l.rec).toBe(480_000);
-    expect(mainText("advanced", "sales")).toContain("JOD 480.0K");
+    expect(l.rev - l.rec).toBe(490_755);
+    expect(mainText("advanced", "sales")).toContain("JOD 490.8K");
   });
   it("tenders show the app's sample tenders with the same overview figures", () => {
     const o = demoTenderOverview();
@@ -137,7 +137,7 @@ describe("demo displays what the core calculates", () => {
     (w.document.querySelector('[data-tender="d8"]') as HTMLElement).click();
     const drawer = (w.document.querySelector("#detail")?.textContent ?? "").replace(/\s+/g, " ");
     expect(drawer).toContain("INV-2026-0433");
-    expect(drawer).toContain(`still unpaid ${jod(360000)}`);
+    expect(drawer).toContain(`still unpaid ${jod(355660)}`);
     w.eval("close()");
     expect(jsErrors).toEqual([]);
   });

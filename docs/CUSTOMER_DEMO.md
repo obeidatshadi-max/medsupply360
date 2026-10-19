@@ -25,6 +25,10 @@ The profile does not provide revenue, costs, actual customer accounts, inventory
 
 PDF/text/JSON files are read locally. PDF extraction uses the bundled [Mozilla PDF.js](https://mozilla.github.io/pdf.js/) reader, with an 8 MB / 40-page limit. Scanned PDFs need pasted OCR text or manual entry. The original PDF bytes are not stored or uploaded. Exported JSON contains the reviewed profile fields.
 
+## Sample customers and figures
+
+The eight sample customers have invented but believable names, and the money figures are deliberately uneven (to the dinar, not rounded to thousands) so a live presentation reads like real records. They stay clearly made up: the "SYNTHETIC DATA" tag, the banner and the "made-up" notes remain on screen. Before using a new customer name, search the web for it: one name was dropped on 2026-10-19 because a real private hospital already used it. Keep the totals consistent: the accounts add up to the business lines, and tests enforce it.
+
 ## Build and publish
 
 `npm run demo:build` rebuilds the inline code from `src/demo/demo-entry.ts`, and copies the local PDF.js reader/worker/fonts into ignored `demo/assets/pdfjs/`. Rebuild before publishing: the PDF assets must accompany `index.html`. Dependencies and the lockfile are versioned, while these generated assets are recreated from the installed package.

@@ -41,8 +41,8 @@ describe("demo tenders", () => {
     expect(o.deadlines.upcoming.length).toBeGreaterThan(0);
     expect(o.deadlines.passed.map((d) => d.title)).toContain("Pulse oximeters");
     expect(o.guarantees.active).toBeGreaterThan(0);
-    expect(o.guarantees.expiredNotReturned).toBe(22500);
-    expect(o.payments).toEqual({ invoiced: 698000, collected: 338000, unpaid: 360000 });
-    expect(o.authorities.find((a) => a.code === "JUH")!.unpaid).toBe(360000);
+    expect(o.guarantees.expiredNotReturned).toBe(22438);
+    expect(o.payments).toEqual({ invoiced: 695950, collected: 340290, unpaid: 355660 });
+    expect(o.authorities.find((a) => a.code === "JUH")!.unpaid).toBe(355660);
   });
 });

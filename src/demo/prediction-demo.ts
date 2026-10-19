@@ -5,14 +5,14 @@ import { DEMO_AS_OF } from "./dataset";
 
 const days = ["2026-05-01", "2026-05-31", "2026-06-30", "2026-07-30"];
 export function demoProductReorders() {
-  const base: ProductOrder = { customerCode: "DEMO-C1", customerName: "Demo Private Hospital A", productCode: "DEMO-P1",
+  const base: ProductOrder = { customerCode: "DEMO-C1", customerName: "Dabouq Heights Private Hospital", productCode: "DEMO-P1",
     productName: "Example repeat consumable A", segment: "Private", category: "Consumables", unit: "pack", date: days[0], quantity: 20, value: 200 };
   return buildProductReorders([
     ...days.map((date) => ({ ...base, date })),
     { ...base, productCode: "DEMO-P2", productName: "Example repeat consumable B", date: "2026-10-07", quantity: 5 },
-    ...["2026-06-15", "2026-07-15", "2026-08-14", "2026-09-13"].map((date) => ({ ...base, customerCode: "DEMO-C2", customerName: "Demo Surgical Center B", date, quantity: 10 })),
-    ...days.map((date) => ({ ...base, customerCode: "DEMO-T1", customerName: "Demo Tender Hospital", segment: "Tender", date })),
-    { ...base, customerCode: "DEMO-U1", customerName: "Demo Unclassified Account", segment: null },
+    ...["2026-06-15", "2026-07-15", "2026-08-14", "2026-09-13"].map((date) => ({ ...base, customerCode: "DEMO-C2", customerName: "Irbid Al-Wasl Surgical Center", date, quantity: 10 })),
+    ...days.map((date) => ({ ...base, customerCode: "DEMO-T1", customerName: "Northern Region Public Medical Complex", segment: "Tender", date })),
+    { ...base, customerCode: "DEMO-U1", customerName: "Unclassified walk-in account", segment: null },
   ], DEMO_AS_OF);
 }
 
