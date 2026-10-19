@@ -133,3 +133,18 @@ describe("demo sales force", () => {
     expect(productAssignHtml({ ...OPTS, query: "<script>" })).not.toContain("<script>");
   });
 });
+
+describe("demo cross-links", () => {
+  it("names the holder of each demo account and nobody for an unheld one", async () => {
+    const { accountHolder } = await import("./sales-force-demo");
+    expect(accountHolder("T-01")).toBe("Khaled Mansour");
+    expect(accountHolder("P-02")).toBe("Yousef Nasrallah");
+    expect(accountHolder("NOPE")).toBeNull();
+  });
+
+  it("lets a person's account names open that account on the Sales & accounts screen", async () => {
+    const { salesPersonHtml } = await import("./sales-force-demo");
+    const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: false })!;
+    expect(html).toContain('data-goto-account="Demo Public Hospital Group"');
+  });
+});

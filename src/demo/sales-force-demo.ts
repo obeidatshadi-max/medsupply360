@@ -60,6 +60,9 @@ export function assigneeOf(p: DemoProduct, overrides: Record<string, string>): s
   return DEMO_SALES_FORCE.find((s) => s.suppliers.includes(p.manufacturer))?.name ?? null;
 }
 
+/** The sales person who holds a demo account (by its id on the accounts screens), or null when nobody does. */
+export const accountHolder = (accountId: string): string | null => Object.entries(ACCOUNTS).find(([, ids]) => ids.includes(accountId))?.[0] ?? null;
+
 export const ownerNames = () => DEMO_SALES_FORCE.map((p) => p.name);
 
 const TONE: Record<TargetStatus, string> = { on: "var(--green)", behind: "var(--gold)", far: "var(--red)", none: "var(--muted)" };
@@ -145,7 +148,7 @@ export function salesPersonHtml(name: string, opts: Pick<SalesForceOptions, "pro
     kv("New accounts a month", String(person.newAccounts)) +
     kv("Customer visits a week", String(person.visits)) +
     `<h3 style="margin-top:22px">Customer accounts (${h.accounts.length})</h3>` +
-    list(h.accounts.map((a) => kv(`${esc(a.name)}<span class="cellsub">${esc(a.city)}</span>`, jod(a.sales))), "No account assigned.") +
+    list(h.accounts.map((a) => kv(`<button class="linkbtn" data-goto-account="${esc(a.name)}">${esc(a.name)}</button><span class="cellsub">${esc(a.city)}</span>`, jod(a.sales))), "No account assigned.") +
     `<h3 style="margin-top:22px">Products (${h.products.length})</h3>` +
     list(h.products.map((p) => kv(esc(p.name), esc(p.line))), "No product assigned yet.") +
     `<h3 style="margin-top:22px">Tenders (${h.tenders.length})</h3>` +
