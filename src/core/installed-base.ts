@@ -12,6 +12,8 @@ export type ServiceStatus = "Active" | "Expiring" | "No contract";
 
 export interface UnitInput {
   code: string;
+  /** The business line of the machine's product; null when the unit has no product on the list. */
+  line?: "Equipment" | "Devices" | "Consumables" | null;
   name: string;
   customerCode: string;
   customerName: string;

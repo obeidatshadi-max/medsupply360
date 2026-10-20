@@ -3,20 +3,24 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { windowEnd } from "@/core/freshness";
 import { buildInstalledBase, type ServiceStatus, type UnitInput } from "@/core/installed-base";
+import { unitInLine } from "@/core/line-filter";
+import type { Line } from "@/core/sales-by-line";
 import { addDays } from "@/lib/format";
 
 /** Days of purchases that set what a customer "actually" buys per month. Ninety days smooths one-off orders without going stale. */
 export const PURCHASE_WINDOW_DAYS = 90;
 
 /** Every installed unit of one company with its customer, as recorded on the equipment list. */
-export async function companyInstalledUnits(companyId: string): Promise<UnitInput[]> {
+export async function companyInstalledUnits(companyId: string, line: Line | null = null): Promise<UnitInput[]> {
   const rows = await getDb().execute(sql`
-    select u.code, u.name, c.code as customer_code, c.name as customer_name, u.installed_on::text as installed_on,
+    select u.code, u.name, p.line::text as line, c.code as customer_code, c.name as customer_name, u.installed_on::text as installed_on,
       u.warranty_end::text as warranty_end, u.service::text as service, u.expected_monthly_consumables::text as expected
     from installed_units u join customers c on c.company_id = u.company_id and c.id = u.customer_id
+      left join products p on p.company_id = u.company_id and p.id = u.product_id
     where u.company_id = ${companyId}`);
-  return (rows.rows as Record<string, string | null>[]).map((r) => ({
+  const all: UnitInput[] = (rows.rows as Record<string, string | null>[]).map((r) => ({
     code: String(r.code),
+    line: r.line as Line | null,
     name: String(r.name),
     customerCode: String(r.customer_code),
     customerName: String(r.customer_name),
@@ -25,16 +29,17 @@ export async function companyInstalledUnits(companyId: string): Promise<UnitInpu
     service: r.service as ServiceStatus | null,
     expectedMonthly: r.expected === null ? null : Number(r.expected),
   }));
+  return all.filter((u) => unitInLine(u.line ?? null, line));
 }
 
 /**
  * The installed base of one company against the consumables its customers bought in the 90 days up to the newest
  * invoice (never later than today). Consumables are the product lines marked Consumables; returns are taken off.
  */
-export async function companyInstalledBase(companyId: string, today: string) {
+export async function companyInstalledBase(companyId: string, today: string, line: Line | null = null) {
   const db = getDb();
   const [units, latest] = await Promise.all([
-    companyInstalledUnits(companyId),
+    companyInstalledUnits(companyId, line),
     db.execute(sql`select max(invoice_date)::text as d from invoices where company_id = ${companyId} and invoice_date <= ${today}::date`),
   ]);
   const to = windowEnd(today, (latest.rows[0] as { d: string | null } | undefined)?.d ?? null);

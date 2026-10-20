@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { CONCENTRATION_LIMIT, GROWTH_THRESHOLD, MIN_SHARE, NOT_SET, THIN_PRODUCTS, nextStep, type AreaFigures } from "@/core/portfolio";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -21,7 +23,16 @@ export default async function PortfolioPage() {
     return <PageHeading eyebrow="Products & suppliers" title="Portfolio growth" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
   const d = await companyDataSummary(user.companyId);
-  const p = await companyPortfolio(user.companyId, windowEnd(businessToday(), d.latestInvoice));
+  const line = await currentLine();
+  const p = await companyPortfolio(user.companyId, windowEnd(businessToday(), d.latestInvoice), line);
+  if (!p && line !== null) {
+    return (
+      <div>
+        <PageHeading eyebrow={`${user.companyName} · Products & suppliers`} title="Portfolio growth" sub={`There are no sales for ${line} this year or last year. Choose another line.`} />
+        <LineFilter current={line} />
+      </div>
+    );
+  }
   if (!p) {
     return (
       <div>

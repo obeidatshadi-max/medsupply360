@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { PeriodTag } from "@/components/period-tag";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { LOW_SHARE, OLD_UNIT_YEARS, REASON_LABEL, buildRadar } from "@/core/opportunity-radar";
@@ -20,7 +22,16 @@ export default async function OpportunityRadarPage() {
     return <PageHeading eyebrow="Opportunity radar" title="Opportunity radar" sub="Please sign in with a company account to see this page. It uses the equipment list and the sales you loaded." />;
   }
   const today = businessToday();
-  const base = await companyInstalledBase(user.companyId, today);
+  const line = await currentLine();
+  const base = await companyInstalledBase(user.companyId, today, line);
+  if (base.totals.units === 0 && line !== null) {
+    return (
+      <div>
+        <PageHeading eyebrow={`${user.companyName} · Opportunity radar`} title="Opportunity radar" sub={`No installed machine belongs to ${line}. Choose another line.`} />
+        <LineFilter current={line} />
+      </div>
+    );
+  }
 
   if (base.totals.units === 0) {
     return (
@@ -55,6 +66,7 @@ export default async function OpportunityRadarPage() {
         title="Opportunity radar"
         sub="Where to look first for growth in the installed base. Each signal is a reason to start a conversation, not a sales forecast."
       />
+      <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines. Purchases are the customer's consumables." />
       <PeriodTag from={base.window.from} to={base.window.to} label="Purchases" />
       {r.accounts.length > 0 ? (
         <p>
