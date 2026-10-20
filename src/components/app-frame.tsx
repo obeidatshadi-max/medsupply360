@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PageSearch } from "@/components/page-search";
 import { crumbFor, isCurrentItem as isCurrent, type NavItem } from "@/lib/nav";
 
 
@@ -120,7 +121,10 @@ export function AppFrame({
             </p>
             <p className="text-sm font-semibold md:hidden">{crumb}</p>
           </div>
-          <div className="flex items-center gap-2">{topRight}</div>
+          <div className="flex items-center gap-2">
+            <PageSearch />
+            {topRight}
+          </div>
         </header>
         {status}
         <main className="mx-auto max-w-[1600px] px-4 py-6 md:px-8 md:py-[30px]">{children}</main>
