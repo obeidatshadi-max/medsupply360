@@ -577,3 +577,20 @@ export const supportIndicators = pgTable(
     index("support_indicators_company_idx").on(t.companyId, t.department),
   ],
 );
+
+/** The owner's own description of the company (one row per company). The name stays on `companies`. Empty text = not written yet. */
+export const companyProfiles = pgTable("company_profiles", {
+  companyId: uuid("company_id")
+    .primaryKey()
+    .references(() => companies.id),
+  location: varchar("location", { length: 160 }).notNull().default(""),
+  address: text("address").notNull().default(""),
+  founded: varchar("founded", { length: 4 }).notNull().default(""),
+  team: varchar("team", { length: 160 }).notNull().default(""),
+  audience: text("audience").notNull().default(""),
+  purpose: text("purpose").notNull().default(""),
+  erp: varchar("erp", { length: 160 }).notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  updatedBy: varchar("updated_by", { length: 80 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

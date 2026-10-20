@@ -25,11 +25,11 @@ describe("navItems", () => {
     expect(navItems(OWNER).main.every((i) => i.href)).toBe(true);
   });
 
-  it("lists the demo's five EXPLORE screens first; Installed base, Service & support, Support functions and Opportunity radar are built, Company profile is greyed", () => {
+  it("lists the demo's five EXPLORE screens first; all five are built", () => {
     for (const o of [OWNER, { guest: false, role: "admin" } as O, { guest: true, role: "viewer" } as O]) {
       const explore = navItems(o).explore;
       expect(explore.slice(0, 5).map((i) => i.label)).toEqual(["Company profile", "Installed base", "Service & support", "Support functions", "Opportunity radar"]);
-      expect(explore.slice(0, 5).filter((i) => i.href).map((i) => i.href)).toEqual(["/installed-base", "/service", "/support-functions", "/opportunity-radar"]);
+      expect(explore.slice(0, 5).filter((i) => i.href).map((i) => i.href)).toEqual(["/company-profile", "/installed-base", "/service", "/support-functions", "/opportunity-radar"]);
     }
     expect(navItems({ guest: false, role: "tender" }).explore).toEqual([]);
   });

@@ -19,7 +19,7 @@ describe("describeAction", () => {
   it("has a sentence and an area for every listed action", () => {
     for (const a of DATA_ACTIONS) {
       expect(describeAction(a, {}).length).toBeGreaterThan(5);
-      expect(["Tenders", "Uploads", "Support functions"]).toContain(areaOf(a));
+      expect(["Tenders", "Uploads", "Support functions", "Company profile"]).toContain(areaOf(a));
     }
   });
 
