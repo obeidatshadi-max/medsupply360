@@ -155,3 +155,21 @@ describe("demo cross-links", () => {
     expect(html).toContain('data-goto-account="Jordan Valley Public Hospitals Group"');
   });
 });
+
+describe("demo sales person activity", () => {
+  it("shows new accounts this month and visits this week against the targets, and the log-a-visit form", () => {
+    const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: false })!;
+    expect(html).toContain("New accounts this month");
+    expect(html).toContain("Visits this week");
+    expect(html).toContain("2 of 12");
+    expect(html).toContain("Behind");
+    expect(html).toContain("Log a visit");
+    expect(html).toContain("Infusion pump demonstration");
+  });
+
+  it("does not show one customer's visit notes under another customer's profile", () => {
+    const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: true })!;
+    expect(html).not.toContain("Dabouq");
+    expect(html).toContain("No visit written down yet.");
+  });
+});

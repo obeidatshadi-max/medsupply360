@@ -5,6 +5,7 @@
  *
  * Assignments made in the demo are kept for the session only (the page passes them in as `overrides`).
  */
+import { activityProgress, weekEnd, weekStart } from "@/core/sales-activity";
 import { TARGET_WORD, elapsedMonths, targetProgress, type TargetStatus } from "@/core/sales-force";
 import { dayText, jod, pct } from "@/lib/format";
 import { allAccountRows } from "./accounts";
@@ -19,8 +20,22 @@ export interface DemoSalesPerson {
   monthlyTarget: number;
   newAccounts: number;
   visits: number;
+  /** Made-up activity so far: new accounts this month and visits this week, against the two targets above. */
+  newThisMonth: number;
+  visitsThisWeek: number;
   active: boolean;
 }
+
+/** Made-up visits, newest first, for the person drawer. Customer names are the demo's invented accounts. */
+const SAMPLE_VISITS: Record<string, { on: string; customer: string; note: string }[]> = {
+  "Khaled Mansour": [
+    { on: "2026-10-07", customer: "Dabouq Heights Private Hospital", note: "Infusion pump demonstration to the biomedical team" },
+    { on: "2026-10-06", customer: "Jabal Amman University Hospital", note: "Follow-up on the open quotation" },
+  ],
+  "Dina Abu-Zaid": [{ on: "2026-10-06", customer: "Rawabi Wound and Diabetes Clinic", note: "Consumables reorder discussion" }],
+  "Yousef Nasrallah": [],
+  "Hani Tarawneh": [],
+};
 
 /** Account ids (see accounts-dataset) each person holds. */
 const ACCOUNTS: Record<string, string[]> = {
@@ -37,10 +52,10 @@ const accountSales = (ids: string[]) => allAccountRows().filter((r) => ids.inclu
 const roundTo = (n: number, step: number) => Math.max(step, Math.round(n / step) * step);
 
 const BASE: Omit<DemoSalesPerson, "monthlyTarget">[] = [
-  { name: "Khaled Mansour", email: "khaled@demo-company.example", suppliers: ["MEDIMA Sp. z o.o.", "BOWA-electronic GmbH & Co. KG"], newAccounts: 2, visits: 12, active: true },
-  { name: "Dina Abu-Zaid", email: "dina@demo-company.example", suppliers: ["Vapotherm, Inc.", "Wassenburg Medical B.V."], newAccounts: 1, visits: 10, active: true },
-  { name: "Yousef Nasrallah", email: "yousef@demo-company.example", suppliers: ["MolecuLight Inc."], newAccounts: 2, visits: 14, active: true },
-  { name: "Hani Tarawneh", email: "hani@demo-company.example", suppliers: [], newAccounts: 1, visits: 8, active: false },
+  { name: "Khaled Mansour", email: "khaled@demo-company.example", suppliers: ["MEDIMA Sp. z o.o.", "BOWA-electronic GmbH & Co. KG"], newAccounts: 2, visits: 12, newThisMonth: 2, visitsThisWeek: 2, active: true },
+  { name: "Dina Abu-Zaid", email: "dina@demo-company.example", suppliers: ["Vapotherm, Inc.", "Wassenburg Medical B.V."], newAccounts: 1, visits: 10, newThisMonth: 0, visitsThisWeek: 1, active: true },
+  { name: "Yousef Nasrallah", email: "yousef@demo-company.example", suppliers: ["MolecuLight Inc."], newAccounts: 2, visits: 14, newThisMonth: 1, visitsThisWeek: 0, active: true },
+  { name: "Hani Tarawneh", email: "hani@demo-company.example", suppliers: [], newAccounts: 1, visits: 8, newThisMonth: 0, visitsThisWeek: 0, active: false },
 ];
 
 export const DEMO_SALES_FORCE: DemoSalesPerson[] = BASE.map((p) => ({
@@ -131,6 +146,18 @@ export function salesForceHtml({ products, overrides, query, generic }: SalesFor
 }
 
 /** The drawer for one person: figures, accounts, products and tenders. Null for an unknown name. */
+const goal = (done: number, target: number) => (activityProgress(done, target).status === "on" ? "On target" : "Behind");
+
+/** The live app's "Log a visit" form. The demo's button saves nothing (see the toast in demo/index.html). */
+function visitFormHtml(): string {
+  return (
+    `<form id="demoVisitForm" class="panel" autocomplete="off" style="margin-top:14px"><div class="panelhead"><div><h2>Log a visit</h2><p class="sub">One line for each customer visit this person made. The count of visits in the week comes from these lines.</p></div></div>` +
+    `<div class="formgrid"><label>Date of the visit<input name="visitedOn" type="date" value="${DEMO_AS_OF}" max="${DEMO_AS_OF}"></label>` +
+    `<label>What happened (optional)<input name="note" maxlength="300" placeholder="For example: demonstrated the analyzer to the lab manager"></label></div>` +
+    `<p style="margin-top:12px"><button type="submit" class="primary" style="width:auto">Save the visit</button> <span class="mini">The live app saves it; here it saves nothing.</span></p></form>`
+  );
+}
+
 export function salesPersonHtml(name: string, opts: Pick<SalesForceOptions, "products" | "overrides" | "generic">): string | null {
   const person = DEMO_SALES_FORCE.find((p) => p.name === name);
   if (!person) return null;
@@ -145,8 +172,11 @@ export function salesPersonHtml(name: string, opts: Pick<SalesForceOptions, "pro
     `<div class="info" style="margin-top:0">${tp.ratio === null ? TARGET_WORD.none : `${pct(tp.ratio)} of the target so far · ${TARGET_WORD[tp.status]}`}</div>` +
     kv("Supplier companies", supplierText(person, opts.generic)) +
     kv("Monthly sales target", jod(person.monthlyTarget)) +
-    kv("New accounts a month", String(person.newAccounts)) +
-    kv("Customer visits a week", String(person.visits)) +
+    kv("New accounts this month", `${person.newThisMonth} of ${person.newAccounts} · ${goal(person.newThisMonth, person.newAccounts)}`) +
+    kv(`Visits this week (${dayText(weekStart(DEMO_AS_OF))} to ${dayText(weekEnd(weekStart(DEMO_AS_OF)))})`, `${person.visitsThisWeek} of ${person.visits} · ${goal(person.visitsThisWeek, person.visits)}`) +
+    `<h3 style="margin-top:22px">Customer visits</h3>` +
+    list((opts.generic ? [] : (SAMPLE_VISITS[person.name] ?? [])).map((v) => kv(`${dayText(v.on)} · ${esc(v.customer)}<span class="cellsub">${esc(v.note)}</span>`, "")), "No visit written down yet.") +
+    visitFormHtml() +
     `<h3 style="margin-top:22px">Customer accounts (${h.accounts.length})</h3>` +
     list(h.accounts.map((a) => kv(`<button class="linkbtn" data-goto-account="${esc(a.name)}">${esc(a.name)}</button><span class="cellsub">${esc(a.city)}</span>`, jod(a.sales))), "No account assigned.") +
     `<h3 style="margin-top:22px">Products (${h.products.length})</h3>` +

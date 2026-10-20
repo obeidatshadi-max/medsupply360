@@ -1,7 +1,8 @@
-import { and, asc, eq, gte, ilike, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/import-writer";
-import { customers, invoices, products, salesLines, salesPeople, tenders } from "@/db/schema";
+import { customers, invoices, products, salesLines, salesPeople, salesVisits, tenders } from "@/db/schema";
 import { cleanSalesPerson, isUuid, type SalesPersonForm } from "@/core/sales-force";
+import { cleanVisit, type VisitForm } from "@/core/sales-activity";
 
 export type SalesPersonRow = {
   id: string;
@@ -268,4 +269,64 @@ export async function listSupplierNames(db: Db, companyId: string): Promise<stri
     .where(and(eq(products.companyId, companyId), isNotNull(products.supplierName)))
     .orderBy(asc(products.supplierName));
   return rows.map((r) => r.name!).filter((n) => n.trim() !== "");
+}
+
+/** The date of the first invoice of each account a person holds (null for an account with no invoice), from the sales that were imported. */
+export async function firstInvoiceDatesOfAccounts(db: Db, companyId: string, personId: string): Promise<(string | null)[]> {
+  const rows = await db
+    .select({ first: sql<string | null>`min(${invoices.invoiceDate})::text` })
+    .from(customers)
+    .leftJoin(invoices, and(eq(invoices.companyId, customers.companyId), eq(invoices.customerId, customers.id)))
+    .where(and(eq(customers.companyId, companyId), eq(customers.salesPersonId, personId)))
+    .groupBy(customers.id);
+  return rows.map((r) => r.first);
+}
+
+export type VisitRow = { id: string; visitedOn: string; customerName: string | null; customerCode: string | null; note: string | null; recordedBy: string | null };
+
+/** A person's most recent visits, newest first. */
+export async function listVisits(db: Db, companyId: string, personId: string, limit = 20): Promise<VisitRow[]> {
+  const rows = await db
+    .select({ id: salesVisits.id, visitedOn: sql<string>`${salesVisits.visitedOn}::text`, customerName: customers.name, customerCode: customers.code, note: salesVisits.note, recordedBy: salesVisits.recordedBy })
+    .from(salesVisits)
+    .leftJoin(customers, and(eq(customers.companyId, salesVisits.companyId), eq(customers.id, salesVisits.customerId)))
+    .where(and(eq(salesVisits.companyId, companyId), eq(salesVisits.salesPersonId, personId)))
+    .orderBy(desc(salesVisits.visitedOn), desc(salesVisits.createdAt))
+    .limit(limit);
+  return rows;
+}
+
+/** How many visits a person made between two dates, both included. */
+export async function countVisits(db: Db, companyId: string, personId: string, from: string, to: string): Promise<number> {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(salesVisits)
+    .where(and(eq(salesVisits.companyId, companyId), eq(salesVisits.salesPersonId, personId), gte(salesVisits.visitedOn, from), lte(salesVisits.visitedOn, to)));
+  return r?.n ?? 0;
+}
+
+/** Writes down one visit. The customer, when given, must be one of this company's customers. */
+export async function addVisit(db: Db, input: { companyId: string; personId: string; form: VisitForm; today: string; by: string }): Promise<SalesResult> {
+  if (!isUuid(input.personId)) return { ok: false, error: NOT_FOUND };
+  const v = cleanVisit(input.form, input.today);
+  if (!v.ok) return v;
+  const [p] = await db.select({ id: salesPeople.id }).from(salesPeople).where(and(eq(salesPeople.companyId, input.companyId), eq(salesPeople.id, input.personId))).limit(1);
+  if (!p) return { ok: false, error: NOT_FOUND };
+  if (v.value.customerId !== null) {
+    if (!isUuid(v.value.customerId)) return { ok: false, error: ACCOUNT_NOT_FOUND };
+    const [c] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.companyId, input.companyId), eq(customers.id, v.value.customerId))).limit(1);
+    if (!c) return { ok: false, error: ACCOUNT_NOT_FOUND };
+  }
+  const [row] = await db
+    .insert(salesVisits)
+    .values({ companyId: input.companyId, salesPersonId: input.personId, customerId: v.value.customerId, visitedOn: v.value.visitedOn, note: v.value.note, recordedBy: input.by })
+    .returning({ id: salesVisits.id });
+  return { ok: true, id: row!.id };
+}
+
+/** Removes a visit that was written down by mistake. */
+export async function removeVisit(db: Db, input: { companyId: string; visitId: string }): Promise<SalesResult> {
+  if (!isUuid(input.visitId)) return { ok: false, error: "That visit was not found." };
+  const gone = await db.delete(salesVisits).where(and(eq(salesVisits.companyId, input.companyId), eq(salesVisits.id, input.visitId))).returning({ id: salesVisits.id });
+  return gone.length ? { ok: true, id: input.visitId } : { ok: false, error: "That visit was not found." };
 }
