@@ -25,6 +25,15 @@ describe("navItems", () => {
     expect(navItems(OWNER).main.every((i) => i.href)).toBe(true);
   });
 
+  it("lists the demo's five EXPLORE screens first; only Installed base is built, the rest are greyed", () => {
+    for (const o of [OWNER, { guest: false, role: "admin" } as O, { guest: true, role: "viewer" } as O]) {
+      const explore = navItems(o).explore;
+      expect(explore.slice(0, 5).map((i) => i.label)).toEqual(["Company profile", "Installed base", "Service & support", "Support functions", "Opportunity radar"]);
+      expect(explore.slice(0, 5).filter((i) => i.href).map((i) => i.href)).toEqual(["/installed-base"]);
+    }
+    expect(navItems({ guest: false, role: "tender" }).explore).toEqual([]);
+  });
+
   it("names the data pages as part of Data in the breadcrumb", () => {
     const { main } = navItems(OWNER);
     expect(crumbFor("/imports/erp", main)).toBe("Data");
@@ -59,13 +68,13 @@ describe("navItems", () => {
 
 describe("sample entries", () => {
   it("shows Sample tenders to guests and to business users, and Sample data to signed-in users only", () => {
-    const explore = (o: O) => navItems(o).explore.map((i) => i.label);
+    const explore = (o: O) => navItems(o).explore.map((i) => i.label).filter((l) => l.startsWith("Sample"));
     expect(explore({ guest: true, role: "viewer" })).toEqual(["Sample tenders"]);
     expect(explore(OWNER)).toEqual(["Sample data", "Sample tenders"]);
   });
 
   it("highlights only one sample item at a time", () => {
-    const [data, tenders] = navItems(OWNER).explore;
+    const [data, tenders] = navItems(OWNER).explore.filter((i) => i.label.startsWith("Sample"));
     expect(isCurrentItem("/sample/tenders", tenders!)).toBe(true);
     expect(isCurrentItem("/sample/tenders", data!)).toBe(false);
     expect(isCurrentItem("/sample", data!)).toBe(true);

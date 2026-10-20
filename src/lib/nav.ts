@@ -38,7 +38,13 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
   if (canAccess(role, "tender") && !guest) main.push(tender);
   if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });
   // Sample screens use made-up numbers: everyone with business access may open them, guests included.
+  // The demo's EXPLORE screens, in its order. A screen the app has not built yet is listed greyed with "Soon" so nothing is hidden.
   const explore: NavItem[] = [
+    { label: "Company profile", icon: "▧" },
+    { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
+    { label: "Service & support", icon: "⚙" },
+    { label: "Support functions", icon: "◇" },
+    { label: "Opportunity radar", icon: "✧" },
     ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),
     { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders"] },
   ];
