@@ -40,7 +40,7 @@ export default async function UnitPage({ params }: { params: Promise<{ code: str
   const gap = account.gapMonthly;
 
   const tiles = [
-    { label: "Expected consumables / month", value: account.expectedMonthly === null ? "No estimate" : jod(Math.round(account.expectedMonthly)), note: "Estimate typed on the equipment list, all machines of this customer" },
+    { label: "Expected consumables / month", value: account.expectedMonthly === null ? "No estimate" : jod(Math.round(account.expectedMonthly)), note: account.expectedSource === "history" ? "The customer's own earlier purchases, all machines of this customer" : "Estimate typed in Data, all machines of this customer" },
     { label: "Bought / month", value: jod(Math.round(account.actualMonthly)), note: "Consumables sales to this customer, monthly average" },
     { label: "Share of expected bought", value: account.share === null ? "—" : pct(account.share), note: "Above 100% means more than the estimate" },
     { label: "Gap to investigate / month", value: gap === null ? "—" : jod(Math.round(gap)), note: "Not a confirmed loss" },
@@ -51,7 +51,7 @@ export default async function UnitPage({ params }: { params: Promise<{ code: str
       <PageHeading
         eyebrow={`${user.companyName} · Installed machine · ${unit.code}`}
         title={unit.name}
-        sub={`At ${account.customerName}${unit.installedOn ? `, installed ${dayText(unit.installedOn)}` : ""}. Purchases are recorded per customer, so the figures below cover all ${account.units.length} machine${account.units.length === 1 ? "" : "s"} this customer holds.`}
+        sub={`At ${account.customerName}${unit.installedOn ? `, ${unit.source === "erp" ? "first sold" : "installed"} ${dayText(unit.installedOn)}` : ""}. Purchases are recorded per customer, so the figures below cover all ${account.units.length} machine${account.units.length === 1 ? "" : "s"} this customer holds.`}
       />
       <PeriodTag from={d.window.from} to={d.window.to} label="Purchases" />
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
@@ -71,7 +71,7 @@ export default async function UnitPage({ params }: { params: Promise<{ code: str
         <Fact label="Product on the list">{d.product ? `${d.product.name} (${d.product.code})` : <span className="text-muted">Not linked to a product</span>}</Fact>
         <Fact label="Business line of the machine">{d.product?.line ?? <span className="text-muted">Unknown without a product</span>}</Fact>
         <Fact label="Supplier">{d.product?.supplier ?? <span className="text-muted">Not written</span>}</Fact>
-        <Fact label="Age">{age === null ? <span className="text-muted">Install date not recorded</span> : `${age} year${age === 1 ? "" : "s"}`}</Fact>
+        <Fact label={unit.source === "erp" ? "Time since first sold" : "Age"}>{age === null ? <span className="text-muted">Install date not recorded</span> : `${age} year${age === 1 ? "" : "s"}`}</Fact>
         <Fact label="Warranty ends">{unit.warrantyEnd ? dayText(unit.warrantyEnd) : <span className="text-muted">Not recorded</span>}</Fact>
         <Fact label="Service position">{GROUP_LABEL[group]}</Fact>
         <Fact label="Estimate for this machine alone">{unit.expectedMonthly === null ? <span className="text-muted">None</span> : `${jod(unit.expectedMonthly)} a month`}</Fact>

@@ -17,10 +17,11 @@ export async function companyUnitDetail(companyId: string, code: string, today: 
 
   const db = getDb();
   const [product, linked] = await Promise.all([
-    db.execute(sql`
-      select p.code, p.name, p.line::text as line, p.supplier_name, p.manufacturer
-      from installed_units u join products p on p.company_id = u.company_id and p.id = u.product_id
-      where u.company_id = ${companyId} and u.code = ${code}`),
+    unit.productCode
+      ? db.execute(sql`
+          select p.code, p.name, p.line::text as line, p.supplier_name, p.manufacturer
+          from products p where p.company_id = ${companyId} and p.code = ${unit.productCode}`)
+      : Promise.resolve({ rows: [] }),
     db.execute(sql`
       select p.code, p.name, sum(s.net_sales)::text as sales
       from sales_lines s

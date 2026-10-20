@@ -58,9 +58,10 @@ describe("line filter on the data screens", () => {
   });
 
   it("keeps installed machines of the chosen line, and unit with no product only under All lines", async () => {
-    expect((await companyInstalledUnits(a, null)).map((u) => u.code).sort()).toEqual(["U1", "U2", "U3"]);
+    // Two readers were sold to C2: one is described by hand (U2), the other is taken from the sales.
+    expect((await companyInstalledUnits(a, null)).map((u) => u.code).sort()).toEqual(["ERP-C2-P3-2", "U1", "U2", "U3"]);
     expect((await companyInstalledUnits(a, "Equipment")).map((u) => u.code)).toEqual(["U1"]);
-    expect((await companyInstalledUnits(a, "Devices")).map((u) => u.code)).toEqual(["U2"]);
+    expect((await companyInstalledUnits(a, "Devices")).map((u) => u.code).sort()).toEqual(["ERP-C2-P3-2", "U2"]);
     expect((await companyInstalledUnits(a, "Consumables")).map((u) => u.code)).toEqual([]);
     const base = await companyInstalledBase(a, TODAY, "Equipment");
     expect(base.totals).toMatchObject({ units: 1, customers: 1 });

@@ -22,6 +22,7 @@ export const DATA_ACTIONS = [
   "support.indicator_deleted",
   "support.reading_recorded",
   "profile.updated",
+  "machine.details_saved",
   "mgmt_action.added",
   "mgmt_action.completed",
   "mgmt_action.reopened",
@@ -31,8 +32,8 @@ export type DataAction = (typeof DATA_ACTIONS)[number];
 
 export const isDataAction = (a: string): a is DataAction => (DATA_ACTIONS as readonly string[]).includes(a);
 
-export type HistoryArea = "Tenders" | "Uploads" | "Support functions" | "Company profile" | "Management actions";
-export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "Uploads" : a.startsWith("support.") ? "Support functions" : a === "profile.updated" ? "Company profile" : a.startsWith("mgmt_action.") ? "Management actions" : "Tenders");
+export type HistoryArea = "Tenders" | "Uploads" | "Support functions" | "Company profile" | "Management actions" | "Machines";
+export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "Uploads" : a.startsWith("support.") ? "Support functions" : a === "profile.updated" ? "Company profile" : a.startsWith("mgmt_action.") ? "Management actions" : a === "machine.details_saved" ? "Machines" : "Tenders");
 
 const status = (v: unknown) => (typeof v === "string" && v in STATUS_LABEL ? STATUS_LABEL[v as TenderStatus] : null);
 const num = (v: unknown) => (typeof v === "number" ? v : null);
@@ -82,6 +83,8 @@ export function describeAction(action: DataAction, details: Record<string, unkno
       return `Reopened a management action${text(d.title)}`;
     case "mgmt_action.removed":
       return `Removed a management action${text(d.title)}`;
+    case "machine.details_saved":
+      return `Added details to a machine${text(d.name)}`;
     case "profile.updated":
       return "Changed the company profile";
     case "import.run": {

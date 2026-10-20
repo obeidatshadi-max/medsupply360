@@ -69,9 +69,8 @@ export async function companyChannelStatus(companyId: string): Promise<Record<Ch
     channel: "manual",
     lastUpdate: newest(...manualKinds.map((k) => loaded.get(k) ?? null), iso(m.people_at), iso(m.indicators_at)),
     by: (byKinds(manualKinds)?.submitted_by as string | null | undefined) ?? null,
-    facts: [`${units} installed unit${units === 1 ? "" : "s"}`, `${people} sales ${people === 1 ? "person" : "people"}`, `${indicators} support indicator${indicators === 1 ? "" : "s"}`],
+    facts: [`${units} machine${units === 1 ? "" : "s"} with details added`, `${people} sales ${people === 1 ? "person" : "people"}`, `${indicators} support indicator${indicators === 1 ? "" : "s"}`],
     missing: [
-      ...(units === 0 ? ["No installed equipment"] : []),
       ...(people === 0 ? ["No sales force"] : people > withTarget ? [`${people - withTarget} sales ${people - withTarget === 1 ? "person has" : "people have"} no monthly target`] : []),
     ],
   };

@@ -23,7 +23,7 @@ export default async function InstalledBasePage() {
   const user = await requireUser();
   if (!levelAllows(await currentLevel(), user.role, "/installed-base")) return <AdvancedGate title="Installed base" />;
   if (user.guest) {
-    return <PageHeading eyebrow="Installed base" title="Installed base" sub="Please sign in with a company account to see this page. It uses the equipment list you loaded." />;
+    return <PageHeading eyebrow="Installed base" title="Installed base" sub="Please sign in with a company account to see this page. It uses the sales you imported." />;
   }
   const line = await currentLine();
   const r = await companyInstalledBase(user.companyId, businessToday(), line);
@@ -41,7 +41,7 @@ export default async function InstalledBasePage() {
         <PageHeading
           eyebrow={`${user.companyName} · Installed base`}
           title="Installed base"
-          sub="No installed equipment has been loaded yet. Load the equipment list (customer, machine, warranty, and the consumables each should use per month) to see which customers buy less than their equipment needs."
+          sub="No equipment or devices appear in the imported sales yet, and none has been described by hand. Import the sales file in Data: every equipment or device sold becomes a machine here, and nothing has to be typed twice."
         />
         {user.role === "owner" ? (
           <Link href="/imports/manual" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
@@ -55,7 +55,7 @@ export default async function InstalledBasePage() {
   const t = r.totals;
   const stats = [
     { label: "Installed units", value: n(t.units), note: `${n(t.customers)} customer${t.customers === 1 ? "" : "s"}${t.unitsWithoutEstimate > 0 ? `; ${n(t.unitsWithoutEstimate)} without an estimate` : ""}` },
-    { label: "Expected consumables / month", value: jod(Math.round(t.expectedMonthly)), note: `Estimate typed on the equipment list, ${n(t.customersWithEstimate)} customer${t.customersWithEstimate === 1 ? "" : "s"} covered` },
+    { label: "Expected consumables / month", value: jod(Math.round(t.expectedMonthly)), note: `A typed estimate, or the customer's own earlier purchases; ${n(t.customersWithEstimate)} customer${t.customersWithEstimate === 1 ? "" : "s"} covered` },
     { label: "Bought / month", value: jod(Math.round(t.actualMonthly)), note: "Consumables sales to the same customers, monthly average" },
     { label: "Gap to investigate / month", value: jod(Math.round(t.gapMonthly)), note: "Expected less bought, customers that buy more are not netted off" },
   ];
@@ -65,7 +65,7 @@ export default async function InstalledBasePage() {
       <PageHeading
         eyebrow={`${user.companyName} · Installed base`}
         title="Installed base"
-        sub="Equipment at customers, and whether they buy the consumables it should use. Sales are recorded per customer, so the comparison is made per customer. A gap is a reason to ask, not proof of a lost sale."
+        sub="Equipment sold to customers, taken from the sales you imported, and whether they still buy the consumables it needs. Sales are recorded per customer, so the comparison is made per customer. A gap is a reason to ask, not proof of a lost sale."
       />
       <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines. Purchases are the customer's consumables." />
       <PeriodTag from={r.window.from} to={r.window.to} label="Purchases" />
@@ -115,7 +115,10 @@ export default async function InstalledBasePage() {
                       ))}
                     </ul>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{a.expectedMonthly === null ? <span className="text-muted">No estimate</span> : jod(Math.round(a.expectedMonthly))}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {a.expectedMonthly === null ? <span className="text-muted">Not enough history</span> : jod(Math.round(a.expectedMonthly))}
+                    {a.expectedSource ? <span className="block text-[10px] text-muted">{a.expectedSource === "typed" ? "typed estimate" : "from earlier purchases"}</span> : null}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">{jod(Math.round(a.actualMonthly))}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{a.share === null ? "—" : pct(a.share)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{a.gapMonthly === null ? "—" : jod(Math.round(a.gapMonthly))}</td>

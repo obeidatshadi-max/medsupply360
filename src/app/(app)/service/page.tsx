@@ -31,7 +31,7 @@ export default async function ServicePage() {
   const user = await requireUser();
   if (!levelAllows(await currentLevel(), user.role, "/service")) return <AdvancedGate title="Service & support" />;
   if (user.guest) {
-    return <PageHeading eyebrow="Service & support" title="Service & support" sub="Please sign in with a company account to see this page. It uses the equipment list you loaded." />;
+    return <PageHeading eyebrow="Service & support" title="Service & support" sub="Please sign in with a company account to see this page. It uses the sales you imported." />;
   }
   const today = businessToday();
   const line = await currentLine();
@@ -51,7 +51,7 @@ export default async function ServicePage() {
         <PageHeading
           eyebrow={`${user.companyName} · Service & support`}
           title="Service & support"
-          sub="No installed equipment has been loaded yet. Load the equipment list with each machine's warranty end and service status to see which machines are under a service contract and which are a contract to sell."
+          sub="No equipment or devices appear in the imported sales yet. Every machine sold becomes a machine here; add its warranty end and service status in Data, Manual entry."
         />
         {user.role === "owner" ? (
           <Link href="/imports/manual" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
@@ -64,7 +64,7 @@ export default async function ServicePage() {
 
   const t = v.totals;
   const stats = [
-    { label: "Machines under contract", value: n(t.underContract), note: "Service status Active on the equipment list" },
+    { label: "Machines under contract", value: n(t.underContract), note: "Service status Active, as added in Data" },
     { label: "Contract coverage", value: t.coverage === null ? "—" : pct(t.coverage), note: `${n(t.underContract)} of ${n(t.units)} installed machines` },
     { label: "Contracts to sell or renew", value: n(t.toFollowUp), note: "No contract, or a contract that is expiring" },
     { label: "Service status not recorded", value: n(t.notRecorded), note: t.notRecorded > 0 ? "A gap in the list, not a sale: fill it in first" : "Every machine has a status" },
@@ -75,7 +75,7 @@ export default async function ServicePage() {
       <PageHeading
         eyebrow={`${user.companyName} · Service & support`}
         title="Service & support"
-        sub={`Which installed machines are under a service contract, and which are a contract to sell or renew, as recorded on the equipment list on ${dayText(today)}. The most urgent come first: out of warranty with no contract.`}
+        sub={`Which installed machines are under a service contract, and which are a contract to sell or renew, on ${dayText(today)}. Machines come from the sales you imported; a warranty end or service status shows only once the owner has added it in Data, Manual entry. The most urgent come first: out of warranty with no contract.`}
       />
       <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines." />
       {t.toFollowUp > 0 ? (

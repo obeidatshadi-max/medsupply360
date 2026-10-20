@@ -23,7 +23,7 @@ export default async function OpportunityRadarPage() {
   const user = await requireUser();
   if (!levelAllows(await currentLevel(), user.role, "/opportunity-radar")) return <AdvancedGate title="Opportunity radar" />;
   if (user.guest) {
-    return <PageHeading eyebrow="Opportunity radar" title="Opportunity radar" sub="Please sign in with a company account to see this page. It uses the equipment list and the sales you loaded." />;
+    return <PageHeading eyebrow="Opportunity radar" title="Opportunity radar" sub="Please sign in with a company account to see this page. It uses the sales you imported." />;
   }
   const today = businessToday();
   const line = await currentLine();
@@ -43,7 +43,7 @@ export default async function OpportunityRadarPage() {
         <PageHeading
           eyebrow={`${user.companyName} · Opportunity radar`}
           title="Opportunity radar"
-          sub="No installed equipment has been loaded yet. The radar looks for customers that buy less than their machines need, machines without a service contract, and older machines, so it needs the equipment list."
+          sub="No equipment or devices appear in the imported sales yet. The radar finds customers that now buy less than they used to, machines with no known service contract, and older machines, all from the sales you import in Data."
         />
         {user.role === "owner" ? (
           <Link href="/imports/manual" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
