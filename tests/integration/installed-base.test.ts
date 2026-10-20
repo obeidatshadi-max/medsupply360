@@ -9,7 +9,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as schema from "@/db/schema";
 import { runImport, type Db } from "@/db/import-writer";
-import { companyInstalledBase } from "@/lib/installed-base";
+import { companyInstalledBase, companyInstalledUnits } from "@/lib/installed-base";
 
 const h = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/db/client", () => ({ getDb: () => h.db }));
@@ -94,5 +94,15 @@ describe("companyInstalledBase", () => {
     const r = await companyInstalledBase(none, TODAY);
     expect(r.totals.units).toBe(0);
     expect(r.accounts).toEqual([]);
+  });
+});
+
+describe("companyInstalledUnits", () => {
+  it("lists one company's units with their customer and recorded service status, and no one else's", async () => {
+    const units = await companyInstalledUnits(a);
+    expect(units.map((u) => u.code).sort()).toEqual(["U1", "U2", "U3"]);
+    expect(units.find((u) => u.code === "U1")).toMatchObject({ customerName: "Hospital A", service: "No contract", warrantyEnd: "2026-06-01" });
+    expect(units.find((u) => u.code === "U3")).toMatchObject({ service: null, warrantyEnd: null });
+    expect((await companyInstalledUnits(b)).map((u) => u.code)).toEqual(["X1"]);
   });
 });
