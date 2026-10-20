@@ -4,10 +4,7 @@ import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
 import { SmartUpload } from "@/components/smart-upload";
 import { RecentImports } from "@/components/recent-imports";
-import { DataReadiness } from "@/components/data-readiness";
 import { CHANNEL_INFO } from "@/core/channels";
-import { companyDataReadiness } from "@/lib/data-readiness";
-import { businessToday } from "@/lib/business-date";
 
 export const metadata: Metadata = { title: "ERP system channel" };
 
@@ -21,7 +18,6 @@ export default async function ErpChannelPage() {
       </section>
     );
   }
-  const readiness = await companyDataReadiness(user.companyId, businessToday());
   const kinds = CHANNEL_INFO.erp.kinds;
 
   return (
@@ -38,7 +34,6 @@ export default async function ErpChannelPage() {
         </a>
       </p>
       <SmartUpload allowed={kinds} noun="the Alpha exports" />
-      <DataReadiness report={readiness} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>
   );

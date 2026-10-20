@@ -64,7 +64,7 @@ export function channelsHtml({ erpName = "Alpha ERP" }: { erpName?: string } = {
       `<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><h2 style="margin:0">${esc(info.title)}</h2>` +
       `<span style="flex:none;padding:2px 8px;border-radius:5px;font-size:11px;${STATE_STYLE[state]}">${STATE_LABEL[state]}</span></div>` +
       `<p class="sub">${esc(summary)}</p>` +
-      `<p style="margin:12px 0 2px">${esc(lastUpdateText(s, DEMO_NOW))}</p><p class="mini">Normally fed by: ${esc(info.feeder)}</p>` +
+      `<p style="margin:12px 0 2px">${esc(lastUpdateText(s, DEMO_NOW))}</p><p class="mini">Fed by: ${esc(info.feeder)} · ${esc(info.cadence)}</p>` +
       (s.facts.length ? `<ul style="margin:12px 0 0;padding-left:18px">${s.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : "") +
       (s.missing.length ? `<p class="mini" style="margin-top:12px;color:#8a6a1f"><b>Still missing</b></p><ul class="mini" style="margin:2px 0 0;padding-left:18px">${s.missing.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : "") +
       `<div style="margin-top:18px"><button class="primary" data-route="chan-${c}" style="width:auto">Open ${esc(info.title)}</button></div></article>`

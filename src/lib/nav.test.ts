@@ -6,28 +6,28 @@ const labels = (o: O) => navItems(o).main.map((i) => i.label);
 const OWNER: O = { guest: false, role: "owner" };
 
 describe("navItems", () => {
-  it("has one Data entry and no separate weekly or compare entries", () => {
-    for (const o of [OWNER, { guest: false, role: "viewer" } as O, { guest: true, role: "viewer" } as O, { guest: false, role: "admin" } as O]) {
-      expect(labels(o).filter((l) => l === "Data")).toHaveLength(1);
+  it("has one Data entry for the owner and administrators, and none for viewers, guests or departments", () => {
+    for (const o of [OWNER, { guest: false, role: "admin" } as O]) expect(labels(o).filter((l) => l === "Data")).toHaveLength(1);
+    for (const o of [{ guest: false, role: "viewer" }, { guest: true, role: "owner" }, { guest: false, role: "tender" }, { guest: false, role: "finance" }] as O[]) expect(labels(o)).not.toContain("Data");
+    for (const o of [OWNER, { guest: false, role: "admin" } as O]) {
       expect(labels(o)).not.toContain("Data & update routine");
       expect(labels(o)).not.toContain("Compare versions");
     }
   });
 
-  it("sends the owner to imports and everyone else to the weekly update", () => {
+  it("sends the owner to the data channels and administrators to the update history", () => {
     const pick = (o: O) => navItems(o).main.find((i) => i.label === "Data")!;
     expect(pick(OWNER).href).toBe("/imports");
-    expect(pick({ guest: false, role: "viewer" }).href).toBe("/weekly");
-    expect(pick({ guest: true, role: "viewer" }).href).toBe("/weekly");
+    expect(pick({ guest: false, role: "admin" }).href).toBe("/history");
   });
 
   it("has no greyed-out placeholder left in the main menu", () => {
     expect(navItems(OWNER).main.every((i) => i.href)).toBe(true);
   });
 
-  it("names the weekly page as part of Data in the breadcrumb", () => {
+  it("names the data pages as part of Data in the breadcrumb", () => {
     const { main } = navItems(OWNER);
-    expect(crumbFor("/weekly", main)).toBe("Data");
+    expect(crumbFor("/imports/erp", main)).toBe("Data");
     expect(crumbFor("/imports", main)).toBe("Data");
     expect(crumbFor("/history", main)).toBe("Data");
   });

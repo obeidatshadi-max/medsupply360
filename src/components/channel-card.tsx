@@ -15,7 +15,7 @@ export function ChannelCard({ status, now, href }: { status: ChannelStatus; now:
       </div>
       <p className="mt-1 text-xs text-muted">{info.summary}</p>
       <p className="mt-3 text-sm">{lastUpdateText(status, now)}</p>
-      <p className="text-xs text-muted">Normally fed by: {info.feeder}</p>
+      <p className="text-xs text-muted">Fed by: {info.feeder} · {info.cadence}</p>
       {status.facts.length > 0 ? (
         <ul className="mt-3 space-y-0.5 text-sm">
           {status.facts.map((f) => (

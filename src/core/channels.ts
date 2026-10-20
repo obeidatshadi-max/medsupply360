@@ -16,6 +16,8 @@ export type ChannelInfo = {
   href: string;
   /** One line under the title on the hub card. */
   summary: string;
+  /** How often it should be fed, in words. */
+  cadence: string;
   /** Who normally feeds this channel. */
   feeder: string;
   /** File types the channel accepts through upload. */
@@ -30,6 +32,7 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     title: "ERP system",
     href: "/imports/erp",
     summary: "Alpha ERP exports: products, customers, sales, receipts, unpaid invoices and stock.",
+    cadence: "Every week",
     feeder: "Accountant",
     kinds: ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions"],
     staleAfterDays: 7,
@@ -39,6 +42,7 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     title: "Tender department",
     href: "/imports/tenders",
     summary: "Tenders, their stages, guarantees and payments, entered by the tender team or loaded from an Excel list.",
+    cadence: "Whenever a tender changes",
     feeder: "Tender department",
     kinds: ["tenders"],
     staleAfterDays: 14,
@@ -48,6 +52,7 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     title: "Manual entry",
     href: "/imports/manual",
     summary: "Data that is not in Alpha: installed equipment, the sales force and their targets.",
+    cadence: "When equipment or the sales team changes",
     feeder: "Owner",
     kinds: ["installed_units", "sales_people"],
     staleAfterDays: 60,
