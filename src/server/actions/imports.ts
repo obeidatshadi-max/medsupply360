@@ -13,6 +13,8 @@ import { businessToday } from "@/lib/business-date";
 
 /** Largest file accepted. Netlify functions cap a request body near 6 MB, so stay under it and ask for monthly splits. */
 const MAX_FILE_BYTES = 4_500_000;
+/** Codes one upload may announce to a check (customer and product lists are small next to sales files). */
+const MAX_ASSUMED_CODES = 100_000;
 /** Rows echoed back to the page; the full list of rejections is still counted and the first 50 are stored on the batch. */
 const SHOWN_ROWS = 200;
 
@@ -56,6 +58,15 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   }
 
   const dryRun = mode !== "import";
+  // A check of a whole upload: the lists in the same upload will exist by the time the sales file is saved.
+  const codes = (name: string) =>
+    dryRun
+      ? String(formData.get(name) ?? "")
+          .split("\n")
+          .map((c) => c.trim())
+          .filter(Boolean)
+          .slice(0, MAX_ASSUMED_CODES)
+      : [];
   const outcome = await runImport(getDb(), {
     companyId: user.companyId,
     userId: user.id,
@@ -65,6 +76,7 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
     today: businessToday(),
     snapshotDate: snapshotDate === "" ? undefined : snapshotDate,
     dryRun,
+    assumed: dryRun ? { customerCodes: codes("assumeCustomers"), productCodes: codes("assumeProducts") } : undefined,
   });
 
   if (outcome.wrote) {
