@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
@@ -33,9 +34,9 @@ export default async function ManualChannelPage() {
           All channels
         </a>
         {" · "}
-        <a href="/sales-force" className="text-brand underline underline-offset-2">
+        <Link href="/sales-force" className="text-brand underline underline-offset-2">
           Sales force and targets
-        </a>
+        </Link>
       </p>
       <SmartUpload allowed={kinds} noun="your installed-equipment list" />
       <RecentImports companyId={user.companyId} kinds={kinds} />

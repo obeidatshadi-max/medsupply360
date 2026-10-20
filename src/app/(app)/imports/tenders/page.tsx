@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
@@ -20,9 +21,9 @@ export default async function TenderChannelPage() {
       <PageHeading eyebrow={`${user.companyName} · Data channels`} title="Tender department" sub="Tenders are recorded by the tender team in the Tenders section." />
       <DataTabs current="imports" owner history />
       <p className="text-sm">
-        <a href="/tenders" className="text-brand underline underline-offset-2">
+        <Link href="/tenders" className="text-brand underline underline-offset-2">
           Open Tenders
-        </a>
+        </Link>
       </p>
     </div>
   );
