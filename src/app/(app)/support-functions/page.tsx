@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { canManageSupport } from "@/core/permissions";
 import { STATUS_LABEL, indicatorStatus, sortIndicators, summarize, targetText, valueText, type IndicatorStatus } from "@/core/support-indicators";
 import { getDb } from "@/db/client";
@@ -10,6 +11,9 @@ import { listIndicators } from "@/server/services/support-indicators";
 import { AddIndicatorForm, EditIndicatorForm, ReadingForm, RemoveIndicatorForm } from "./support-forms";
 
 export const metadata: Metadata = { title: "Support functions" };
+
+/** Who normally answers for each department, so the Assign action form opens with a sensible choice. */
+const RESPONSIBLE_FOR: Record<string, string> = { Logistics: "Operations manager", Procurement: "Procurement manager", "HR & development": "HR manager", "Customer support": "Service manager", "Tender support": "Tender manager", Finance: "Finance manager" };
 
 const CLASS: Record<IndicatorStatus, string> = { met: "bg-brand-soft text-ink", missed: "bg-bad-soft text-bad", no_reading: "border border-line bg-white text-muted" };
 
@@ -77,6 +81,11 @@ export default async function SupportFunctionsPage() {
                       <div>
                         <p className="text-xs text-muted">Status</p>
                         <span className={`mt-1 inline-block rounded px-2 py-0.5 text-xs ${CLASS[status]}`}>{STATUS_LABEL[status]}</span>
+                        {status === "missed" ? (
+                          <p className="mt-2">
+                            <AssignActionLink role={user.role} title={`Fix: ${i.name}`} evidence={`${i.department}: ${valueText(i.actual ?? 0, i.unit)} against a target of ${targetText(i.direction, i.target, i.unit)}.${i.consequence ? ` ${i.consequence}.` : ""}`} responsible={RESPONSIBLE_FOR[i.department]} />
+                          </p>
+                        ) : null}
                       </div>
                       <div>
                         <p className="text-xs text-muted">Business consequence</p>

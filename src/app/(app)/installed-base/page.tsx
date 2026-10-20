@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
 import { PeriodTag } from "@/components/period-tag";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { RecoveryScenario } from "@/components/recovery-scenario";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -52,6 +53,11 @@ export default async function InstalledBasePage() {
         sub="Equipment at customers, and whether they buy the consumables it should use. Sales are recorded per customer, so the comparison is made per customer. A gap is a reason to ask, not proof of a lost sale."
       />
       <PeriodTag from={r.window.from} to={r.window.to} label="Purchases" />
+      {t.gapMonthly > 0 ? (
+        <p>
+          <AssignActionLink role={user.role} title="Look into the repeat consumable purchase gap" evidence={`Expected consumables exceed purchases by about ${jod(Math.round(t.gapMonthly))} a month across ${n(t.customersWithEstimate)} customer${t.customersWithEstimate === 1 ? "" : "s"}. Compare usage with purchases, stock, and alternate suppliers.`} responsible="Sales manager" label="Assign account review →" />
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
