@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "Management actions" };
 export default async function OpportunitiesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireUser();
   if (user.guest) {
-    return <PageHeading eyebrow="Management actions" title="Opportunities" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
+    return <PageHeading eyebrow="Management actions" title="Management actions" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
   const today = businessToday();
   const [r, productReorders, actionRows] = await Promise.all([
@@ -48,7 +48,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   if (!r) {
     return (
       <div>
-        <PageHeading eyebrow={`${user.companyName} · Management actions`} title="Opportunities" sub="You have not imported sales yet. Import products, customers and sales to see which customers should order again soon." />
+        <PageHeading eyebrow={`${user.companyName} · Management actions`} title="Management actions" sub="You have not imported sales yet. Import products, customers and sales to see which customers should order again soon." />
         {user.role === "owner" ? (
           <a href="/imports" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
             Import data
@@ -65,7 +65,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
     <div>
       <PageHeading
         eyebrow={`${user.companyName} · Management actions`}
-        title="Opportunities"
+        title="Management actions"
         sub={`Where to act first, on ${r.asOf}. Each customer has one line. We show the biggest signal and only name the others. We never add them together.`}
       />
 

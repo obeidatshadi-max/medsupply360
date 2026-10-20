@@ -14,7 +14,7 @@ export function ImportResult({ fileName, outcome }: { fileName: string; outcome:
       ? `Nothing was imported: all ${outcome.rowsTotal} rows were rejected.`
       : outcome.status === "partial"
         ? `Imported ${outcome.rowsAccepted} of ${outcome.rowsTotal} rows. ${outcome.rowsRejected} ${outcome.rowsRejected === 1 ? "row was" : "rows were"} rejected: fix ${outcome.rowsRejected === 1 ? "it" : "them"} in the file and import it again.`
-        : `Imported all ${outcome.rowsTotal} rows.`;
+        : `Imported all ${outcome.rowsTotal} ${outcome.rowsTotal === 1 ? "row" : "rows"}.`;
 
   return (
     <section aria-label="Import result" className="space-y-4 rounded-lg border border-line bg-surface p-5">
