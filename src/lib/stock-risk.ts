@@ -11,7 +11,7 @@ export const ISSUE_WINDOW_DAYS = 180;
  * Issue quantities are taken as absolute values, so the result does not depend on whether the ERP writes issues as
  * negative or positive; returns are taken off.
  */
-export async function companyStockRisk(companyId: string, line: Line | null = null) {
+export async function companyStockRisk(companyId: string, line: Line | null = null, productCode: string | null = null) {
   const db = getDb();
   const latest = await db.execute(sql`select max(snapshot_date)::text as d from stock_snapshots where company_id = ${companyId}`);
   const asOf = (latest.rows[0] as { d: string | null } | undefined)?.d;
@@ -21,6 +21,7 @@ export async function companyStockRisk(companyId: string, line: Line | null = nu
     select p.code, p.name, p.line::text as line, s.batch, s.quantity::text as quantity, s.unit_cost::text as unit_cost, s.expiry_date::text as expiry_date
     from stock_snapshots s join products p on p.company_id = s.company_id and p.id = s.product_id
     where s.company_id = ${companyId} and s.snapshot_date = ${asOf}::date and s.owned and (${line}::text is null or p.line::text = ${line}::text)
+      and (${productCode}::text is null or p.code = ${productCode}::text)
   `);
   const batches: StockBatch[] = (snap.rows as Record<string, string | null>[]).map((x) => ({
     productCode: String(x.code),
@@ -39,6 +40,7 @@ export async function companyStockRisk(companyId: string, line: Line | null = nu
     from stock_transactions t join products p on p.company_id = t.company_id and p.id = t.product_id
     where t.company_id = ${companyId} and t.tx_date > (${asOf}::date - ${ISSUE_WINDOW_DAYS}::int) and t.tx_date <= ${asOf}::date
       and (${line}::text is null or p.line::text = ${line}::text)
+      and (${productCode}::text is null or p.code = ${productCode}::text)
     group by p.code
   `);
   const daily = new Map((tx.rows as Record<string, string>[]).map((x) => [String(x.code), Math.max(0, Number(x.net_issued)) / ISSUE_WINDOW_DAYS]));
@@ -46,5 +48,5 @@ export async function companyStockRisk(companyId: string, line: Line | null = nu
   const hist = await db.execute(sql`select (${asOf}::date - min(tx_date))::int as days from stock_transactions where company_id = ${companyId} and tx_date <= ${asOf}::date`);
   const historyDays = (hist.rows[0] as { days: number | null } | undefined)?.days ?? null;
 
-  return { asOf, historyDays, windowDays: ISSUE_WINDOW_DAYS, ...buildStockRisk(batches, daily, asOf) };
+  return { asOf, historyDays, windowDays: ISSUE_WINDOW_DAYS, batches, dailyIssues: daily, ...buildStockRisk(batches, daily, asOf) };
 }
