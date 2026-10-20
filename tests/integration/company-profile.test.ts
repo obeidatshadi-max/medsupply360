@@ -17,7 +17,7 @@ let db: Db;
 let a: string;
 let b: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
-const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({ ...emptyProfile, location: "Jordan", founded: "2008", erp: "Alpha ERP", purpose: "Distributing medical brands", ...over });
+const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({ ...emptyProfile, companyName: "Distributor A", location: "Jordan", founded: "2008", erp: "Alpha ERP", purpose: "Distributing medical brands", ...over });
 
 beforeAll(async () => {
   client = new PGlite();
@@ -44,6 +44,13 @@ describe("company profile", () => {
     expect(p).toMatchObject({ location: "Amman", purpose: "", updatedBy: "Rana Khoury" });
     expect(p!.updatedAt).toBeInstanceOf(Date);
     expect((await q<{ n: string }>(`select count(*)::text n from company_profiles where company_id = '${a}'`))[0]!.n).toEqual(expect.stringMatching(/^1$/));
+  });
+
+  it("renames the company with the profile, so the name the owner typed is the one shown", async () => {
+    await saveProfile(db, { companyId: a, form: form({ companyName: "Renamed Distributor", location: "Amman", purpose: "" }), by: "Sami Nasser", thisYear: 2026 });
+    expect((await getProfile(db, a))!.companyName).toBe("Renamed Distributor");
+    expect((await q<{ name: string }>(`select name from companies where id = '${a}'`))[0]!.name).toBe("Renamed Distributor");
+    expect((await q<{ name: string }>(`select name from companies where id = '${b}'`))[0]!.name).toBe("Company B");
   });
 
   it("refuses an invalid year and leaves the stored profile alone", async () => {

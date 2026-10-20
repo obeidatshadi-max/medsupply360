@@ -1,13 +1,17 @@
 /**
  * The company profile: who the company is, in the owner's own words. Pure, so the form and the tests share one set of
- * rules. The company name is set when the account is created and is not edited here. The accounting system is typed
+ * rules. The company name is typed by the owner here, so the profile always carries the name of the distributor it describes (an
+ * account may have been opened under another name). The accounting system is typed
  * text (for example "Alpha ERP"); it is information for readers, and the importer does not depend on it.
  */
 
+export const NAME_MIN = 2;
+export const NAME_MAX = 200;
 export const LIMITS = { location: 160, address: 1000, team: 160, audience: 1500, purpose: 2000, erp: 160, notes: 4000 } as const;
 export const FOUNDED_MIN = 1800;
 
 export interface ProfileForm {
+  companyName: string;
   location: string;
   address: string;
   founded: string;
@@ -21,7 +25,7 @@ export interface ProfileForm {
 /** What is stored: every field is text, empty when the owner has not written it. */
 export type ProfileValues = ProfileForm;
 
-export const emptyProfile: ProfileValues = { location: "", address: "", founded: "", team: "", audience: "", purpose: "", erp: "", notes: "" };
+export const emptyProfile: ProfileValues = { companyName: "", location: "", address: "", founded: "", team: "", audience: "", purpose: "", erp: "", notes: "" };
 
 export type ProfileResult = { ok: true; value: ProfileValues } | { ok: false; error: string };
 
@@ -44,6 +48,7 @@ const block = (v: unknown) =>
 
 export function cleanProfile(form: ProfileForm, thisYear: number): ProfileResult {
   const out: ProfileValues = {
+    companyName: line(form.companyName),
     location: line(form.location),
     address: block(form.address),
     founded: line(form.founded),
@@ -53,6 +58,8 @@ export function cleanProfile(form: ProfileForm, thisYear: number): ProfileResult
     erp: line(form.erp),
     notes: block(form.notes),
   };
+  if (out.companyName.length < NAME_MIN || !/\p{L}/u.test(out.companyName)) return { ok: false, error: "Write your company name." };
+  if (out.companyName.length > NAME_MAX) return { ok: false, error: `Use ${NAME_MAX} characters or fewer for the company name.` };
   const names: Record<keyof typeof LIMITS, string> = { location: "location", address: "address", team: "team description", audience: "customers", purpose: "business purpose", erp: "accounting system", notes: "notes" };
   for (const key of Object.keys(LIMITS) as (keyof typeof LIMITS)[]) {
     if (out[key].length > LIMITS[key]) return { ok: false, error: `Use ${LIMITS[key]} characters or fewer for the ${names[key]}.` };

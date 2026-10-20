@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/current-user";
-import { VIEWS, type View } from "@/demo/accounts";
-import { AccountsScreen } from "@/demo/accounts-screen";
+import { VIEWS } from "@/demo/accounts";
 import { companyAccounts, type CompanyAccountView } from "@/lib/company-accounts";
 import { CompanyAccounts } from "@/components/company-accounts";
 import { PageHeading } from "@/components/page-heading";
@@ -23,8 +22,8 @@ export default async function AccountsPage({ params, searchParams }: { params: P
   const { view } = await params;
   if (!VIEWS.some((v) => v.key === view)) notFound();
   const user = await requireUser();
-  // Guests (open access) see the synthetic dataset; signed-in users see their own company's accounts once data is imported.
-  if (user.guest) return <AccountsScreen view={view as View} basePath="/accounts" />;
+  // A signed-out visitor sees no accounts; made-up ones live only under Sample data.
+  if (user.guest) return <PageHeading eyebrow="Accounts" title="Company accounts" sub="Please sign in with a company account to see your accounts." />;
   const query = (await searchParams).q;
   const today = businessToday();
   const summary = await companyDataSummary(user.companyId);

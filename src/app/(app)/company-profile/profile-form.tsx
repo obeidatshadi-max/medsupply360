@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { SubmitterField } from "@/components/submitter-field";
-import { LIMITS, type ProfileValues } from "@/core/company-profile";
+import { LIMITS, NAME_MAX, type ProfileValues } from "@/core/company-profile";
 import { saveProfileAction, type ProfileFormState } from "@/server/actions/company-profile";
 
 const field = "mt-1 block w-full rounded-md border border-line bg-white px-3 py-2 text-sm";
@@ -11,6 +11,10 @@ export function ProfileForm({ values }: { values: ProfileValues }) {
   const [state, action, pending] = useActionState<ProfileFormState, FormData>(saveProfileAction, {});
   return (
     <form action={action} className="space-y-4 rounded-lg border border-line bg-surface p-5">
+      <label className="block text-sm font-medium">
+        Company name
+        <input name="companyName" required minLength={2} maxLength={NAME_MAX} defaultValue={values.companyName} placeholder="Your company, as you want it shown" className={field} />
+      </label>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="text-sm font-medium">
           Location
