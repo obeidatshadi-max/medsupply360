@@ -21,13 +21,14 @@ export const DATA_ACTIONS = [
   "support.indicator_updated",
   "support.indicator_deleted",
   "support.reading_recorded",
+  "profile.updated",
 ] as const;
 export type DataAction = (typeof DATA_ACTIONS)[number];
 
 export const isDataAction = (a: string): a is DataAction => (DATA_ACTIONS as readonly string[]).includes(a);
 
-export type HistoryArea = "Tenders" | "Uploads" | "Support functions";
-export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "Uploads" : a.startsWith("support.") ? "Support functions" : "Tenders");
+export type HistoryArea = "Tenders" | "Uploads" | "Support functions" | "Company profile";
+export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "Uploads" : a.startsWith("support.") ? "Support functions" : a === "profile.updated" ? "Company profile" : "Tenders");
 
 const status = (v: unknown) => (typeof v === "string" && v in STATUS_LABEL ? STATUS_LABEL[v as TenderStatus] : null);
 const num = (v: unknown) => (typeof v === "number" ? v : null);
@@ -69,6 +70,8 @@ export function describeAction(action: DataAction, details: Record<string, unkno
       const value = text(d.reading);
       return `Recorded a reading${text(d.name)}${value ? `: ${d.reading}` : ""}`;
     }
+    case "profile.updated":
+      return "Changed the company profile";
     case "import.run": {
       const spec = typeof d.kind === "string" && d.kind in SPECS ? SPECS[d.kind as ImportKind].title : "a file";
       const rows = num(d.rowsAccepted);

@@ -40,7 +40,7 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
   // Sample screens use made-up numbers: everyone with business access may open them, guests included.
   // The demo's EXPLORE screens, in its order. A screen the app has not built yet is listed greyed with "Soon" so nothing is hidden.
   const explore: NavItem[] = [
-    { label: "Company profile", icon: "▧" },
+    { label: "Company profile", icon: "▧", href: "/company-profile", match: ["/company-profile"] },
     { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
     { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
     { label: "Support functions", icon: "◇", href: "/support-functions", match: ["/support-functions"] },
