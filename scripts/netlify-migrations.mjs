@@ -1,6 +1,6 @@
 // Mirrors Drizzle migrations (drizzle/NNNN_name.sql) into the layout Netlify Database applies on deploy:
 // netlify/database/migrations/NNNN_name-with-hyphens/migration.sql. Run after `npm run db:generate`.
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -11,7 +11,12 @@ export function netlifyMigrationDir(file) {
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   for (const file of readdirSync("drizzle").filter((f) => f.endsWith(".sql")).sort()) {
-    const dir = join("netlify/database/migrations", netlifyMigrationDir(file));
+    // Netlify needs a unique number per migration, and some Netlify migrations (for example a one-off data fix) have no
+    // Drizzle file. A Drizzle migration already mirrored under a later number keeps that number instead of being copied twice.
+    const base = "netlify/database/migrations";
+    const name = netlifyMigrationDir(file).replace(/^\d+_/, "");
+    const existing = existsSync(base) ? readdirSync(base).find((d) => d.replace(/^\d+_/, "") === name) : undefined;
+    const dir = join(base, existing ?? netlifyMigrationDir(file));
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "migration.sql"), readFileSync(join("drizzle", file)));
     console.log(`✓ ${dir}/migration.sql`);
