@@ -17,16 +17,22 @@ export const DATA_ACTIONS = [
   "tender.invoice_deleted",
   "tender.payment_recorded",
   "import.run",
+  "support.indicator_added",
+  "support.indicator_updated",
+  "support.indicator_deleted",
+  "support.reading_recorded",
 ] as const;
 export type DataAction = (typeof DATA_ACTIONS)[number];
 
 export const isDataAction = (a: string): a is DataAction => (DATA_ACTIONS as readonly string[]).includes(a);
 
-export type HistoryArea = "Tenders" | "ERP import";
-export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "ERP import" : "Tenders");
+export type HistoryArea = "Tenders" | "Uploads" | "Support functions";
+export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "Uploads" : a.startsWith("support.") ? "Support functions" : "Tenders");
 
 const status = (v: unknown) => (typeof v === "string" && v in STATUS_LABEL ? STATUS_LABEL[v as TenderStatus] : null);
 const num = (v: unknown) => (typeof v === "number" ? v : null);
+/** " (name)" for a detail that is a non-empty string, else nothing. */
+const text = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? ` (${v})` : "");
 
 /** One short sentence for a recorded action. Unknown details fall back to the general wording, never to a blank. */
 export function describeAction(action: DataAction, details: Record<string, unknown> | null | undefined): string {
@@ -53,6 +59,16 @@ export function describeAction(action: DataAction, details: Record<string, unkno
       return "Removed an invoice";
     case "tender.payment_recorded":
       return typeof d.collected === "string" && d.collected !== "" ? `Recorded a payment (total collected ${d.collected})` : "Recorded a payment";
+    case "support.indicator_added":
+      return `Added a support indicator${text(d.name)}`;
+    case "support.indicator_updated":
+      return `Changed a support indicator${text(d.name)}`;
+    case "support.indicator_deleted":
+      return `Removed a support indicator${text(d.name)}`;
+    case "support.reading_recorded": {
+      const value = text(d.reading);
+      return `Recorded a reading${text(d.name)}${value ? `: ${d.reading}` : ""}`;
+    }
     case "import.run": {
       const spec = typeof d.kind === "string" && d.kind in SPECS ? SPECS[d.kind as ImportKind].title : "a file";
       const rows = num(d.rowsAccepted);

@@ -54,3 +54,16 @@ describe("demo Data section", () => {
     expect(errors).toEqual([]);
   });
 });
+
+describe("demo Support functions", () => {
+  it("lists the indicators with a status and records nothing", () => {
+    const { w, errors } = setup();
+    route(w, "support");
+    const main = w.document.querySelector("#main")!;
+    expect(main.textContent).toContain("On-time deliveries");
+    expect(main.textContent).toContain("Off target");
+    (main.querySelector("[data-support-reading]") as HTMLButtonElement).click();
+    expect(w.document.body.textContent).toContain("nothing was saved");
+    expect(errors).toEqual([]);
+  });
+});

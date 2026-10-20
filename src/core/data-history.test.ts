@@ -19,8 +19,16 @@ describe("describeAction", () => {
   it("has a sentence and an area for every listed action", () => {
     for (const a of DATA_ACTIONS) {
       expect(describeAction(a, {}).length).toBeGreaterThan(5);
-      expect(["Tenders", "ERP import"]).toContain(areaOf(a));
+      expect(["Tenders", "Uploads", "Support functions"]).toContain(areaOf(a));
     }
+  });
+
+  it("names the indicator and the reading for support actions", () => {
+    expect(describeAction("support.reading_recorded", { name: "On-time deliveries", reading: "88%" })).toBe("Recorded a reading (On-time deliveries): 88%");
+    expect(describeAction("support.reading_recorded", {})).toBe("Recorded a reading");
+    expect(describeAction("support.indicator_added", { name: "Vacancy days" })).toBe("Added a support indicator (Vacancy days)");
+    expect(areaOf("support.indicator_deleted")).toBe("Support functions");
+    expect(areaOf("import.run")).toBe("Uploads");
   });
 
   it("lists only data actions", () => {

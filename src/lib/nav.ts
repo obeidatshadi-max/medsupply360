@@ -43,7 +43,7 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
     { label: "Company profile", icon: "▧" },
     { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
     { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
-    { label: "Support functions", icon: "◇" },
+    { label: "Support functions", icon: "◇", href: "/support-functions", match: ["/support-functions"] },
     { label: "Opportunity radar", icon: "✧", href: "/opportunity-radar", match: ["/opportunity-radar"] },
     ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),
     { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders"] },

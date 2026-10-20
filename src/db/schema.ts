@@ -540,3 +540,40 @@ export const tenderInvoices = pgTable(
     foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
   ],
 );
+
+// ─── Support functions ──────────────────────────────────────────────────────
+// A few indicators per supporting department (logistics, procurement, HR, customer support, tender support). The owner
+// sets the target and who answers for it; a person records each reading. Nothing here is computed from the ERP.
+
+export const indicatorDirection = pgEnum("indicator_direction", ["at_least", "at_most"]);
+
+export const supportIndicators = pgTable(
+  "support_indicators",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    /** One of the departments listed in src/core/support-indicators.ts. */
+    department: varchar("department", { length: 40 }).notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    /** "%", "days", "cases"... Empty when the figure has no unit. */
+    unit: varchar("unit", { length: 20 }).notNull().default(""),
+    direction: indicatorDirection("direction").notNull(),
+    target: numeric("target", { precision: 14, scale: 3 }).notNull(),
+    /** Latest reading and the day it was measured; both NULL until the first reading. */
+    actual: numeric("actual", { precision: 14, scale: 3 }),
+    measuredOn: date("measured_on"),
+    /** Who typed the latest reading. */
+    readingBy: varchar("reading_by", { length: 80 }),
+    responsible: varchar("responsible", { length: 80 }),
+    consequence: text("consequence"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("support_indicators_company_id_uniq").on(t.companyId, t.id),
+    uniqueIndex("support_indicators_name_uniq").using("btree", t.companyId, t.department, sql`lower(${t.name})`),
+    index("support_indicators_company_idx").on(t.companyId, t.department),
+  ],
+);

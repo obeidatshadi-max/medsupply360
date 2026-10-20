@@ -78,6 +78,13 @@
       "when": 1792468627071,
       "tag": "0010_import_kinds_tenders_sales_people",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792473395217,
+      "tag": "0011_support_indicators",
+      "breakpoints": true
     }
   ]
 }
