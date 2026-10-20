@@ -1,3 +1,6 @@
+import { AdvancedGate } from "@/components/advanced-gate";
+import { levelAllows } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
@@ -26,6 +29,7 @@ function warrantyText(days: number | null, end: string | null): string {
 
 export default async function ServicePage() {
   const user = await requireUser();
+  if (!levelAllows(await currentLevel(), user.role, "/service")) return <AdvancedGate title="Service & support" />;
   if (user.guest) {
     return <PageHeading eyebrow="Service & support" title="Service & support" sub="Please sign in with a company account to see this page. It uses the equipment list you loaded." />;
   }

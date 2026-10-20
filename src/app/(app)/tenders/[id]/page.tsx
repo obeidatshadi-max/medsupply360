@@ -1,3 +1,6 @@
+import { AdvancedGate } from "@/components/advanced-gate";
+import { levelAllows } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,6 +27,7 @@ const when = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Amman", day: "2-
 
 export default async function TenderPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser("tender");
+  if (!levelAllows(await currentLevel(), user.role, "/tenders")) return <AdvancedGate title="Tenders" />;
   const { id } = await params;
   const found = await getTender(getDb(), user.companyId, id);
   if (!found) notFound();

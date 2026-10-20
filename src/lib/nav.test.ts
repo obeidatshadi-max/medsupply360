@@ -66,6 +66,25 @@ describe("navItems", () => {
   });
 });
 
+describe("Basic and Advanced", () => {
+  const hrefs = (o: O) => [...navItems(o).main, ...navItems(o).explore].flatMap((i) => (i.href ? [i.href] : []));
+  const ADV = ["/tenders", "/installed-base", "/service", "/support-functions", "/opportunity-radar"];
+
+  it("lists every screen on Advanced, and starts on Advanced", () => {
+    for (const level of [undefined, "advanced"] as const) for (const href of ADV) expect(hrefs({ ...OWNER, level })).toContain(href);
+  });
+
+  it("leaves the Advanced-only screens out of the menu on Basic, keeping the rest", () => {
+    const basic = hrefs({ ...OWNER, level: "basic" });
+    for (const href of ADV) expect(basic).not.toContain(href);
+    for (const href of ["/dashboard", "/finance", "/inventory", "/company-profile", "/sales-force", "/opportunities", "/imports", "/settings"]) expect(basic).toContain(href);
+  });
+
+  it("never takes the tender section away from a department", () => {
+    for (const role of ["tender", "finance"] as const) expect(hrefs({ guest: false, role, level: "basic" })).toEqual(["/tenders"]);
+  });
+});
+
 describe("sample entries", () => {
   it("shows Sample tenders to guests and to business users, and Sample data to signed-in users only", () => {
     const explore = (o: O) => navItems(o).explore.map((i) => i.label).filter((l) => l.startsWith("Sample"));

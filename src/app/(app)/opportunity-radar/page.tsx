@@ -1,3 +1,6 @@
+import { AdvancedGate } from "@/components/advanced-gate";
+import { levelAllows } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
@@ -18,6 +21,7 @@ const n = (v: number) => v.toLocaleString("en-US");
 
 export default async function OpportunityRadarPage() {
   const user = await requireUser();
+  if (!levelAllows(await currentLevel(), user.role, "/opportunity-radar")) return <AdvancedGate title="Opportunity radar" />;
   if (user.guest) {
     return <PageHeading eyebrow="Opportunity radar" title="Opportunity radar" sub="Please sign in with a company account to see this page. It uses the equipment list and the sales you loaded." />;
   }

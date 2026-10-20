@@ -5,6 +5,9 @@ import { AppFrame } from "@/components/app-frame";
 import { DashboardUpdateStatus } from "@/components/dashboard-update-status";
 import { DEMO_AS_OF } from "@/demo/dataset";
 import { lastImportText } from "@/lib/last-import";
+import { LevelSwitch } from "@/components/level-switch";
+import { showsLevelSwitch } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import { navItems } from "@/lib/nav";
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -26,7 +29,8 @@ const initialsOf = (name: string) =>
 async function Shell({ children }: { children: React.ReactNode }) {
   const user = await requireUser("any");
   const integration = user.guest ? undefined : await lastImportText(user.companyId);
-  const { main, explore } = navItems({ guest: user.guest, role: user.role });
+  const level = await currentLevel();
+  const { main, explore } = navItems({ guest: user.guest, role: user.role, level });
 
   const banner = user.guest ? (
     <p className="flex justify-between gap-2.5 border-b border-line bg-[#eef3eb] px-4 py-[9px] text-[11px] text-[#657367] md:px-[18px]">
@@ -47,14 +51,17 @@ async function Shell({ children }: { children: React.ReactNode }) {
       </a>
     </>
   ) : (
-    <form action={logoutAction} className="flex items-center gap-3 text-sm">
-      <span className="hidden text-muted md:inline">
-        {user.fullName} · {user.role}
-      </span>
-      <button type="submit" className="rounded-[7px] border border-line px-3 py-1.5 hover:border-brand hover:bg-[#f0f6f2]">
-        Sign out
-      </button>
-    </form>
+    <>
+      {showsLevelSwitch(user.role) ? <LevelSwitch current={level} /> : null}
+      <form action={logoutAction} className="flex items-center gap-3 text-sm">
+        <span className="hidden text-muted md:inline">
+          {user.fullName} · {user.role}
+        </span>
+        <button type="submit" className="rounded-[7px] border border-line px-3 py-1.5 hover:border-brand hover:bg-[#f0f6f2]">
+          Sign out
+        </button>
+      </form>
+    </>
   );
 
   return (
