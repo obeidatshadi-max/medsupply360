@@ -22,7 +22,7 @@ export async function saveProfileAction(_prev: ProfileFormState, fd: FormData): 
     companyId: user.companyId,
     by: who.name,
     thisYear: Number(businessToday().slice(0, 4)),
-    form: { location: val(fd, "location"), address: val(fd, "address"), founded: val(fd, "founded"), team: val(fd, "team"), audience: val(fd, "audience"), purpose: val(fd, "purpose"), erp: val(fd, "erp"), notes: val(fd, "notes") },
+    form: { companyName: val(fd, "companyName"), location: val(fd, "location"), address: val(fd, "address"), founded: val(fd, "founded"), team: val(fd, "team"), audience: val(fd, "audience"), purpose: val(fd, "purpose"), erp: val(fd, "erp"), notes: val(fd, "notes") },
   });
   if (!r.ok) return { error: r.error };
   await writeAudit({ companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "profile.updated", entityType: "company_profile", entityId: user.companyId });

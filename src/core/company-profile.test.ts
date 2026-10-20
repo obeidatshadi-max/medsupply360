@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cleanProfile, emptyProfile, missingFromProfile, yearsInBusiness, type ProfileForm } from "./company-profile";
 
 const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({
+  companyName: "Sadaf Medical Supplies",
   location: "Jordan",
   address: "67 Amer Bin Malek street\nKhalda, Amman",
   founded: "2008",
@@ -18,13 +19,20 @@ describe("cleanProfile", () => {
     expect(cleanProfile(form(), 2026)).toEqual({ ok: true, value: form() });
   });
 
-  it("accepts an empty profile", () => {
-    expect(cleanProfile(emptyProfile, 2026)).toEqual({ ok: true, value: emptyProfile });
+  it("accepts a profile with only the company name, and refuses one without it", () => {
+    const onlyName = { ...emptyProfile, companyName: "Sadaf" };
+    expect(cleanProfile(onlyName, 2026)).toEqual({ ok: true, value: onlyName });
+    expect(cleanProfile(emptyProfile, 2026).ok).toBe(false);
   });
 
   it("tidies spaces and control characters, and limits blank lines", () => {
     const r = cleanProfile(form({ location: "  Amman   Jordan ", address: "Line one\r\n\r\n\r\n\r\nLine two\u0007", team: "20\tpeople" }), 2026);
     expect(r).toMatchObject({ ok: true, value: { location: "Amman Jordan", address: "Line one\n\nLine two", team: "20 people" } });
+  });
+
+  it("needs a company name, tidies it and limits it", () => {
+    expect(cleanProfile(form({ companyName: "  Sadaf   Medical " }), 2026)).toMatchObject({ ok: true, value: { companyName: "Sadaf Medical" } });
+    for (const bad of ["", "a", "12345", "x".repeat(201)]) expect(cleanProfile(form({ companyName: bad }), 2026).ok, bad).toBe(false);
   });
 
   it("checks the founding year", () => {

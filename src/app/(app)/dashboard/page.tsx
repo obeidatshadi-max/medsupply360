@@ -16,7 +16,6 @@ import { companyStockRisk } from "@/lib/stock-risk";
 import { dateRange, dayText, jod, jodShort, pct, signedPct } from "@/lib/format";
 import { briefAlerts, briefSignals } from "@/lib/owner-brief";
 import { OwnerBrief, type BriefCard } from "@/components/owner-brief";
-import { GuestOverview } from "@/demo/guest-overview";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -24,8 +23,8 @@ const n = (v: number) => v.toLocaleString("en-US");
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  // Guests (open access) see the synthetic demonstration dataset; signed-in users see their own company's data.
-  if (user.guest) return <GuestOverview />;
+  // A signed-out visitor sees no figures: made-up numbers live only under Sample data and Sample tenders (and on the separate demo site).
+  if (user.guest) return <PageHeading eyebrow="Owner overview" title="Owner overview" sub="Please sign in with a company account to see your figures. To look around with made-up numbers, open Sample data or Sample tenders in the menu." />;
 
   const today = businessToday();
   const line = await currentLine();

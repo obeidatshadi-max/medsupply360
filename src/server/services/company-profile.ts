@@ -3,7 +3,7 @@ import type { Db } from "@/db/import-writer";
 import { companies, companyProfiles, products } from "@/db/schema";
 import { cleanProfile, emptyProfile, type ProfileForm, type ProfileValues, type SupplierSummary } from "@/core/company-profile";
 
-export type ProfileRecord = ProfileValues & { companyName: string; updatedBy: string | null; updatedAt: Date | null };
+export type ProfileRecord = ProfileValues & { updatedBy: string | null; updatedAt: Date | null };
 
 /** The company's name and what the owner wrote about it. A company that has written nothing yet gets empty fields. */
 export async function getProfile(db: Db, companyId: string): Promise<ProfileRecord | null> {
@@ -32,11 +32,15 @@ export type SaveResult = { ok: true } | { ok: false; error: string };
 export async function saveProfile(db: Db, input: { companyId: string; form: ProfileForm; by: string; thisYear: number }): Promise<SaveResult> {
   const c = cleanProfile(input.form, input.thisYear);
   if (!c.ok) return c;
-  const v = c.value;
-  await db
-    .insert(companyProfiles)
-    .values({ companyId: input.companyId, ...v, updatedBy: input.by })
-    .onConflictDoUpdate({ target: companyProfiles.companyId, set: { ...v, updatedBy: input.by, updatedAt: sql`now()` } });
+  const { companyName, ...v } = c.value;
+  // The name lives on the company, the rest on its profile; both change together or not at all.
+  await db.transaction(async (tx) => {
+    await tx.update(companies).set({ name: companyName }).where(eq(companies.id, input.companyId));
+    await tx
+      .insert(companyProfiles)
+      .values({ companyId: input.companyId, ...v, updatedBy: input.by })
+      .onConflictDoUpdate({ target: companyProfiles.companyId, set: { ...v, updatedBy: input.by, updatedAt: sql`now()` } });
+  });
   return { ok: true };
 }
 

@@ -121,7 +121,7 @@ export default async function CompanyProfilePage() {
       {edit ? (
         <section aria-label="Edit the profile">
           <h2 className="mb-2 text-sm font-semibold">Edit the profile</h2>
-          <ProfileForm values={{ location: profile.location, address: profile.address, founded: profile.founded, team: profile.team, audience: profile.audience, purpose: profile.purpose, erp: profile.erp, notes: profile.notes }} />
+          <ProfileForm values={{ companyName: profile.companyName, location: profile.location, address: profile.address, founded: profile.founded, team: profile.team, audience: profile.audience, purpose: profile.purpose, erp: profile.erp, notes: profile.notes }} />
           {profile.updatedAt ? (
             <p className="mt-2 text-xs text-muted">
               Last changed {dayText(profile.updatedAt.toISOString().slice(0, 10))}
