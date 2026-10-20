@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { LineFilter } from "@/components/line-filter";
@@ -93,7 +94,7 @@ export default async function InventoryPage() {
                 {r.slowProducts.map((p) => (
                   <tr key={p.productCode} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {p.productName} <span className="text-xs text-muted">{p.productCode}</span>
+                      <Link href={`/inventory/${encodeURIComponent(p.productCode)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{p.productName}</Link> <span className="text-xs text-muted">{p.productCode}</span>
                     </td>
                     <td className="px-3 py-2">{p.line}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{n(p.quantity)}</td>
@@ -128,7 +129,7 @@ export default async function InventoryPage() {
                 {r.expiryRisks.map((x) => (
                   <tr key={`${x.productCode}-${x.batch}`} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {x.productName} <span className="text-xs text-muted">{x.productCode}</span>
+                      <Link href={`/inventory/${encodeURIComponent(x.productCode)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{x.productName}</Link> <span className="text-xs text-muted">{x.productCode}</span>
                     </td>
                     <td className="px-3 py-2">{x.batch || "—"}</td>
                     <td className="px-3 py-2 tabular-nums">

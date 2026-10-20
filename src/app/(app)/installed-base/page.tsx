@@ -105,7 +105,7 @@ export default async function InstalledBasePage() {
                     <ul className="mt-1 space-y-0.5 text-xs text-muted">
                       {a.units.map((u) => (
                         <li key={u.code}>
-                          {u.name} <span>({u.code})</span>
+                          <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{u.name}</Link> <span>({u.code})</span>
                           {u.flags.map((f) => (
                             <span key={f.text} className="ml-2 rounded bg-brand-soft px-1.5 py-0.5 text-[10px] text-ink">
                               {f.text}

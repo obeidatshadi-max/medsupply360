@@ -125,6 +125,9 @@ export function AppFrame({
           <div className="flex items-center gap-2">
             <PageSearch />
             <ExportButton name={crumb} />
+            <Link href="/how-it-works" className="hidden rounded-[7px] border border-line bg-white px-3 py-1.5 text-sm hover:border-brand hover:bg-[#f0f6f2] md:inline-block">
+              How it works
+            </Link>
             {topRight}
           </div>
         </header>

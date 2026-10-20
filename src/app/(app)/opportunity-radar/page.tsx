@@ -114,7 +114,7 @@ export default async function OpportunityRadarPage() {
                         <ul className="mt-1 space-y-0.5 text-xs text-muted">
                           {a.units.map((u) => (
                             <li key={u.code}>
-                              {u.name} ({u.code}){u.age !== null ? `, ${u.age} yr` : ""}
+                              <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{u.name}</Link> ({u.code}){u.age !== null ? `, ${u.age} yr` : ""}
                               {u.serviceFollowUp ? ", no active contract" : ""}
                             </li>
                           ))}

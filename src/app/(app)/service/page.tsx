@@ -119,7 +119,7 @@ export default async function ServicePage() {
               {v.rows.map((r) => (
                 <tr key={`${r.unit.customerCode}-${r.unit.code}`} className="border-t border-line align-top">
                   <td className="px-3 py-2">
-                    {r.unit.name}
+                    <Link href={`/installed-base/${encodeURIComponent(r.unit.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{r.unit.name}</Link>
                     <span className="block text-xs text-muted">{r.unit.code}</span>
                   </td>
                   <td className="px-3 py-2">
