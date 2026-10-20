@@ -14,6 +14,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod, pct } from "@/lib/format";
 import { companyInstalledBase } from "@/lib/installed-base";
+import { isDerivedCode } from "@/core/derived-units";
 
 export const metadata: Metadata = { title: "Installed base" };
 
@@ -56,7 +57,7 @@ export default async function InstalledBasePage() {
   const stats = [
     { label: "Installed units", value: n(t.units), note: `${n(t.customers)} customer${t.customers === 1 ? "" : "s"}${t.unitsWithoutEstimate > 0 ? `; ${n(t.unitsWithoutEstimate)} without an estimate` : ""}` },
     { label: "Expected consumables / month", value: jod(Math.round(t.expectedMonthly)), note: `A typed estimate, or the customer's own earlier purchases; ${n(t.customersWithEstimate)} customer${t.customersWithEstimate === 1 ? "" : "s"} covered` },
-    { label: "Bought / month", value: jod(Math.round(t.actualMonthly)), note: "Consumables sales to the same customers, monthly average" },
+    { label: "Bought / month", value: jod(Math.round(t.actualMonthly)), note: t.customersWithEstimate === 0 ? "No customer has an expected figure yet, so nothing is compared" : `Consumables sales to the ${n(t.customersWithEstimate)} customer${t.customersWithEstimate === 1 ? "" : "s"} with an expected figure, monthly average` },
     { label: "Gap to investigate / month", value: jod(Math.round(t.gapMonthly)), note: "Expected less bought, customers that buy more are not netted off" },
   ];
 
@@ -105,7 +106,7 @@ export default async function InstalledBasePage() {
                     <ul className="mt-1 space-y-0.5 text-xs text-muted">
                       {a.units.map((u) => (
                         <li key={u.code}>
-                          <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{u.name}</Link> <span>({u.code})</span>
+                          <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{u.name}</Link>{isDerivedCode(u.code) ? null : <span> ({u.code})</span>}
                           {u.flags.map((f) => (
                             <span key={f.text} className="ml-2 rounded bg-brand-soft px-1.5 py-0.5 text-[10px] text-ink">
                               {f.text}

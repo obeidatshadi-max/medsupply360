@@ -25,6 +25,39 @@ export const exportFileName = (name: string, today: string): string => `MedSuppl
 
 const visible = (el: Element) => !el.closest(`[${HIDDEN_ATTR}]`);
 
+/** A cell's text with a space between its pieces, so a name and the code under it do not run together ("City ClinicC-002"). */
+function cellText(cell: Element): string {
+  const walker = (cell.ownerDocument ?? document).createTreeWalker(cell, 4 /* SHOW_TEXT */);
+  const parts: string[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const t = clean(n.textContent);
+    if (t !== "") parts.push(t);
+  }
+  return parts.join(" ");
+}
+
+const JOD_CELL = /^JOD\s*(-?[\d,]+(?:\.\d+)?)$/;
+
+/**
+ * A column where every figure is money written as "JOD 1,850" becomes plain numbers under a "(JOD)" heading, so Excel can
+ * add it up. A dash or any other text in the column leaves the whole column as it is shown on the page.
+ */
+function numberMoneyColumns(header: string[], rows: string[][]): { header: string[]; rows: string[][] } {
+  const out = rows.map((r) => [...r]);
+  const head = [...header];
+  for (let c = 0; c < Math.max(head.length, ...rows.map((r) => r.length)); c++) {
+    const cells = rows.map((r) => r[c] ?? "");
+    const figures = cells.filter((v) => v !== "" && v !== "—");
+    if (figures.length === 0 || !figures.every((v) => JOD_CELL.test(v))) continue;
+    out.forEach((r, i) => {
+      const m = JOD_CELL.exec(cells[i] ?? "");
+      if (m) r[c] = m[1]!.replace(/,/g, "");
+    });
+    if (head[c]) head[c] = `${head[c]} (JOD)`;
+  }
+  return { header: head, rows: out };
+}
+
 /** The nearest heading before a table, so each block of the file says what it is. */
 function titleOf(table: Element): string {
   const label = clean(table.closest("section")?.getAttribute("aria-label"));
@@ -53,8 +86,9 @@ export function collectExport(root: ParentNode): string[][] {
     const header = Array.from(table.querySelectorAll("thead th")).map((th) => clean(th.textContent));
     const rows = Array.from(table.querySelectorAll("tbody tr"))
       .filter(visible)
-      .map((tr) => Array.from(tr.querySelectorAll("td, th")).map((td) => clean(td.textContent)));
-    block(titleOf(table), header, rows);
+      .map((tr) => Array.from(tr.querySelectorAll("td, th")).map(cellText));
+    const numbered = numberMoneyColumns(header, rows);
+    block(titleOf(table), numbered.header, numbered.rows);
   }
 
   const cards = Array.from(root.querySelectorAll("article")).filter((el) => visible(el) && !el.closest("table"));

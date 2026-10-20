@@ -14,6 +14,7 @@ import { businessToday } from "@/lib/business-date";
 import { dayText, jod, pct } from "@/lib/format";
 import { currentLevel } from "@/lib/level";
 import { companyUnitDetail } from "@/lib/unit-detail";
+import { isDerivedCode } from "@/core/derived-units";
 
 export const metadata: Metadata = { title: "Installed machine" };
 
@@ -117,7 +118,7 @@ export default async function UnitPage({ params }: { params: Promise<{ code: str
                 <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline underline-offset-2">
                   {u.name}
                 </Link>{" "}
-                <span className="text-xs text-muted">{u.code}</span>
+                {isDerivedCode(u.code) ? null : <span className="text-xs text-muted">{u.code}</span>}
               </li>
             ))}
           </ul>

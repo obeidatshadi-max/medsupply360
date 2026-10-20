@@ -7,6 +7,7 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyDataSummary } from "@/lib/company-data-summary";
+import { companyInstalledBase } from "@/lib/installed-base";
 import { dayText } from "@/lib/format";
 import { getProfile, listSuppliers } from "@/server/services/company-profile";
 import { ProfileForm } from "./profile-form";
@@ -31,7 +32,8 @@ export default async function CompanyProfilePage() {
   }
   const thisYear = Number(businessToday().slice(0, 4));
   const db = getDb();
-  const [profile, suppliers, data] = await Promise.all([getProfile(db, user.companyId), listSuppliers(db, user.companyId), companyDataSummary(user.companyId)]);
+  // Machines come from the imported sales as well as from hand-written details, so count them the way the Installed base page does.
+  const [profile, suppliers, data, machines] = await Promise.all([getProfile(db, user.companyId), listSuppliers(db, user.companyId), companyDataSummary(user.companyId), companyInstalledBase(user.companyId, businessToday(), null)]);
   if (!profile) return <PageHeading eyebrow="Company profile" title="Company profile" sub="This company was not found." />;
   const edit = canEditProfile(user.role);
   const missing = missingFromProfile(profile);
@@ -106,7 +108,7 @@ export default async function CompanyProfilePage() {
         <h2 className="font-semibold">What the app holds for this company</h2>
         <p className="mt-1 text-muted">
           {profile.erp ? `Accounting system: ${profile.erp}. ` : ""}
-          {n(data.products)} products, {n(data.customers)} customers, {n(data.invoices)} invoices, {n(data.installedUnits)} installed units.
+          {n(data.products)} products, {n(data.customers)} customers, {n(data.invoices)} invoices, {n(machines.totals.units)} installed unit{machines.totals.units === 1 ? "" : "s"}.
           {data.latestInvoice ? ` Newest invoice: ${dayText(data.latestInvoice)}.` : ""}{" "}
           {user.role === "owner" ? (
             <Link href="/imports" className="text-brand underline underline-offset-2">

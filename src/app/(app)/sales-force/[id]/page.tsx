@@ -74,7 +74,7 @@ export default async function SalesPersonPage({ params, searchParams }: { params
         {stat(
           "Monthly target so far",
           tp.expected === null ? "—" : jod(tp.expected),
-          tp.ratio === null || accounts.length === 0 ? TARGET_WORD.none : `${pct(tp.ratio)} reached · ${TARGET_WORD[tp.status]}`,
+          tp.ratio === null ? TARGET_WORD.none : accounts.length === 0 ? "Target set; no accounts assigned yet" : `${pct(tp.ratio)} reached · ${TARGET_WORD[tp.status]}`,
         )}
         {stat("New accounts a month", person.newAccountsTarget === null ? "—" : String(person.newAccountsTarget), "Expectation. Not counted by the system yet.")}
         {stat("Visits a week", person.visitsPerWeek === null ? "—" : String(person.visitsPerWeek), "Expectation. Not counted by the system yet.")}

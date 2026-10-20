@@ -38,9 +38,9 @@ describe("collectExport", () => {
       ["Sales", "JOD 100", "This year"],
       [],
       ["Customers"],
-      ["Name", "Sales"],
-      ["Hospital A", "JOD 60"],
-      ["Clinic B", "JOD 40"],
+      ["Name", "Sales (JOD)"],
+      ["Hospital A", "60"],
+      ["Clinic B", "40"],
       [],
       ["Cards"],
       ["On-time deliveries · 88% against 95%"],
@@ -54,6 +54,19 @@ describe("collectExport", () => {
     expect(rows.flat()).toContain("Hospital A");
     expect(rows.flat()).not.toContain("Clinic B");
     expect(rows.flat()).not.toContain("On-time deliveries · 88% against 95%");
+  });
+
+  it("keeps a name and the code under it apart, and leaves a column with a dash as shown", () => {
+    const doc = new JSDOM(`<main><section><h2>Accounts</h2><table><thead><tr><th>Account</th><th>Sales</th><th>Gross profit</th></tr></thead><tbody>
+      <tr><td><a>City Clinic</a><span>C-002 · Irbid</span></td><td>JOD 12,160</td><td>JOD 3,056</td></tr>
+      <tr><td><a>Noor Lab</a><span>C-003</span></td><td>JOD 50</td><td>—</td></tr>
+    </tbody></table></section></main>`).window.document;
+    expect(collectExport(doc)).toEqual([
+      ["Accounts"],
+      ["Account", "Sales (JOD)", "Gross profit (JOD)"],
+      ["City Clinic C-002 · Irbid", "12160", "3056"],
+      ["Noor Lab C-003", "50", "—"],
+    ]);
   });
 
   it("is empty when the screen has nothing to export", () => {

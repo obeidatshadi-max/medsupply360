@@ -14,6 +14,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { jod, pct } from "@/lib/format";
 import { companyInstalledBase } from "@/lib/installed-base";
+import { isDerivedCode } from "@/core/derived-units";
 
 export const metadata: Metadata = { title: "Opportunity radar" };
 
@@ -93,7 +94,19 @@ export default async function OpportunityRadarPage() {
       <section aria-label="Customers to qualify">
         <h2 className="text-sm font-semibold">Customers to qualify, most reasons first</h2>
         {r.accounts.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Nothing stands out: every customer buys close to its estimate, its machines are under contract or in warranty, and none is old.</p>
+          <p className="mt-2 text-sm text-muted">
+            {base.totals.customersWithEstimate === 0 || s.serviceNotRecorded > 0 || s.ageNotRecorded > 0
+              ? "Nothing can be flagged yet, because there is not enough on record to compare: " +
+                [
+                  base.totals.customersWithEstimate === 0 ? "no customer has an expected consumables figure yet" : null,
+                  s.serviceNotRecorded > 0 ? `${n(s.serviceNotRecorded)} machine${s.serviceNotRecorded === 1 ? " has" : "s have"} no service status` : null,
+                  s.ageNotRecorded > 0 ? `${n(s.ageNotRecorded)} machine${s.ageNotRecorded === 1 ? " has" : "s have"} no install date` : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ") +
+                ". Add them under Data, Manual entry, Machine details."
+              : "Nothing stands out: every customer buys close to its estimate, its machines are under contract or in warranty, and none is old."}
+          </p>
         ) : (
           <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-white">
             <table className="w-full text-left text-sm">
@@ -114,7 +127,7 @@ export default async function OpportunityRadarPage() {
                         <ul className="mt-1 space-y-0.5 text-xs text-muted">
                           {a.units.map((u) => (
                             <li key={u.code}>
-                              <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{u.name}</Link> ({u.code}){u.age !== null ? `, ${u.age} yr` : ""}
+                              <Link href={`/installed-base/${encodeURIComponent(u.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{u.name}</Link>{isDerivedCode(u.code) ? "" : ` (${u.code})`}{u.age !== null ? `, ${u.age} yr` : ""}
                               {u.serviceFollowUp ? ", no active contract" : ""}
                             </li>
                           ))}
