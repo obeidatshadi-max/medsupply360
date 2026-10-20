@@ -7,6 +7,7 @@
 import { CHANNELS, CHANNEL_INFO, channelOfKind, channelState, lastUpdateText, type Channel, type ChannelStatus } from "@/core/channels";
 import { SPECS } from "@/core/import/specs";
 import { readWorkbook, type SheetGrid } from "@/core/import/workbook";
+import { SERVICE_OPTIONS } from "@/core/machine-details";
 import { isClosed } from "@/core/tender-flow";
 import { DEMO_AS_OF, units } from "./dataset";
 import { DEMO_SALES_FORCE } from "./sales-force-demo";
@@ -148,11 +149,35 @@ export function samplePreviewHtml(channel: SampleChannel): string {
 const sampleBox = (channel: SampleChannel, blurb: string) =>
   `<section class="panel"><div class="panelhead"><div><h2>Try a sample ${NOUN[channel]}</h2><p class="sub">${esc(blurb)}</p></div><button class="primary" id="chanSample" data-channel="${channel}" style="width:auto">Read the sample ${NOUN[channel]}</button></div><div id="chanPreview" aria-live="polite"></div></section>`;
 
+/** The live app's "Machine details" form: machines come from the imported sales, so one is picked from a list, never retyped. */
+export interface DemoMachine {
+  id: string;
+  name: string;
+  account: string;
+}
+
+/** The caller passes the machines of the customer being presented, so one customer's machines never show under another's name. */
+export function machineDetailsHtml(machines: readonly DemoMachine[]): string {
+  const options = machines.map((u) => `<option value="${esc(u.id)}">${esc(u.account)} · ${esc(u.name)}</option>`).join("");
+  const service = SERVICE_OPTIONS.map((o) => `<option>${esc(o)}</option>`).join("");
+  return (
+    `<form id="demoMachineForm" class="panel" autocomplete="off"><div class="panelhead"><div><h2>Machine details</h2><p class="sub">Machines come from the sales you imported, so there is nothing to retype. Choose one and add what only you know. Leave empty what you do not know; an empty field keeps what is already recorded.</p></div></div>` +
+    `<div class="formgrid">` +
+    `<label>Machine<select name="code"><option value="" disabled selected>Choose a machine…</option>${options}</select></label>` +
+    `<label>Warranty ends<input name="warrantyEnd" type="date"></label>` +
+    `<label>Service contract<select name="service"><option value="">Not known</option>${service}</select></label>` +
+    `<label>Installed on (if different from the first sale)<input name="installedOn" type="date"></label>` +
+    `<label>Consumables it should use a month (JOD)<input name="expectedMonthly" inputmode="decimal" placeholder="Optional"></label>` +
+    `</div><p style="margin-top:12px"><button type="submit" class="primary" style="width:auto">Save the details</button> <span class="mini">The live app saves them after the owner types a name; here it saves nothing.</span></p></form>`
+  );
+}
+
 /** The Manual channel screen. */
-export function manualChannelHtml(): string {
+export function manualChannelHtml(machines: readonly DemoMachine[]): string {
   return (
     `<div class="info">Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV, check what the tool understood, then confirm. A starter file is available for each type.</div>` +
     sampleBox("manual", "A made-up workbook with a guide tab, an equipment list that starts under a title, the sales team, and a tab that is not data.") +
+    `<div style="margin-top:20px">${machineDetailsHtml(machines)}</div>` +
     `<p class="mini"><button class="linkbtn" data-route="salesforce">Sales force and targets</button></p>`
   );
 }
