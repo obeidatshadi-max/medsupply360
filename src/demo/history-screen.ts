@@ -54,6 +54,9 @@ export function demoHistory(limit = 25): DemoHistoryRow[] {
     add(i.invoiceDate, i.invoiceNo, "Rana Khoury", "Finance Department", "tender.invoice_added", {}, i.tenderId);
     if (i.lastCollectedOn) add(i.lastCollectedOn, `${i.invoiceNo}-p`, "Rana Khoury", "Finance Department", "tender.payment_recorded", { collected: jod(i.collected) }, i.tenderId);
   }
+  add("2026-10-06", "sup-1", OWNER.name, OWNER.account, "support.reading_recorded", { name: "Cases solved within the agreed time", reading: "84%" }, null);
+  add("2026-10-05", "sup-2", OWNER.name, OWNER.account, "support.reading_recorded", { name: "On-time deliveries", reading: "88%" }, null);
+  add("2026-09-24", "sup-3", OWNER.name, OWNER.account, "support.indicator_added", { name: "Stock count accuracy" }, null);
   add("2026-10-05", "imp-sales", OWNER.name, OWNER.account, "import.run", { kind: "sales", fileName: "sales-sep-2026.csv", rowsAccepted: 412 }, null);
   add("2026-10-05", "imp-receipts", OWNER.name, OWNER.account, "import.run", { kind: "receipts", fileName: "receipts-sep-2026.csv", rowsAccepted: 138 }, null);
   add("2026-10-01", "imp-stock", OWNER.name, OWNER.account, "import.run", { kind: "stock_snapshot", fileName: "stock-2026-09-30.csv", rowsAccepted: 960 }, null);

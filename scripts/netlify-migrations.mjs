@@ -16,7 +16,12 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const base = "netlify/database/migrations";
     const name = netlifyMigrationDir(file).replace(/^\d+_/, "");
     const existing = existsSync(base) ? readdirSync(base).find((d) => d.replace(/^\d+_/, "") === name) : undefined;
-    const dir = join(base, existing ?? netlifyMigrationDir(file));
+    // A new migration whose Drizzle number is already taken by another Netlify migration goes after the last one.
+    const taken = existsSync(base) ? readdirSync(base) : [];
+    const wanted = netlifyMigrationDir(file);
+    const clash = taken.some((d) => d.slice(0, 4) === wanted.slice(0, 4));
+    const next = String(Math.max(0, ...taken.map((d) => Number(d.slice(0, 4)))) + 1).padStart(4, "0");
+    const dir = join(base, existing ?? (clash ? `${next}_${name}` : wanted));
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "migration.sql"), readFileSync(join("drizzle", file)));
     console.log(`✓ ${dir}/migration.sql`);
