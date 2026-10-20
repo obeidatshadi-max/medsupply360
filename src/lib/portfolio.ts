@@ -2,10 +2,10 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { buildPortfolio, type AreaCoverage, type SalesRow } from "@/core/portfolio";
-import { sameDayLastYear } from "@/core/sales-by-line";
+import { sameDayLastYear, type Line } from "@/core/sales-by-line";
 
 /** Year-to-date sales by therapeutic area and customer type against the same dates last year. `today` is the Jordan business date. */
-export async function companyPortfolio(companyId: string, today: string) {
+export async function companyPortfolio(companyId: string, today: string, line: Line | null = null) {
   const yearStart = `${today.slice(0, 4)}-01-01`;
   const priorStart = `${Number(today.slice(0, 4)) - 1}-01-01`;
   const priorEnd = sameDayLastYear(today);
@@ -19,7 +19,7 @@ export async function companyPortfolio(companyId: string, today: string) {
     join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
     join customers c on c.company_id = i.company_id and c.id = i.customer_id
     join products p on p.company_id = s.company_id and p.id = s.product_id
-    where s.company_id = ${companyId}
+    where s.company_id = ${companyId} and (${line}::text is null or p.line::text = ${line}::text)
       and ((i.invoice_date >= ${yearStart}::date and i.invoice_date <= ${today}::date)
         or (i.invoice_date >= ${priorStart}::date and i.invoice_date <= ${priorEnd}::date))
     group by 1, 2, 3, 4

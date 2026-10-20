@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { salesForLine } from "@/core/line-filter";
+import { currentLine } from "@/lib/line";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { windowEnd } from "@/core/freshness";
 import { PeriodTag } from "@/components/period-tag";
@@ -30,13 +33,16 @@ export default async function FinancePage() {
 
   const today = businessToday();
   const d = await companyDataSummary(user.companyId);
-  const [r, sales, cash] = await Promise.all([
+  const line = await currentLine();
+  const [r, allSales, cash] = await Promise.all([
     companyReceivables(user.companyId),
     companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
     companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
   ]);
+  const sales = salesForLine(allSales, line);
   const salesSection = (
     <>
+      <LineFilter current={line} note="Sales and margin follow the line you choose. Cash collected and unpaid invoices are not split by line." />
       <SalesByLine sales={sales} />
       <CashCollected cash={cash} />
     </>

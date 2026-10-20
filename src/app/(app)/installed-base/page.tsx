@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { PeriodTag } from "@/components/period-tag";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { RecoveryScenario } from "@/components/recovery-scenario";
@@ -19,7 +21,16 @@ export default async function InstalledBasePage() {
   if (user.guest) {
     return <PageHeading eyebrow="Installed base" title="Installed base" sub="Please sign in with a company account to see this page. It uses the equipment list you loaded." />;
   }
-  const r = await companyInstalledBase(user.companyId, businessToday());
+  const line = await currentLine();
+  const r = await companyInstalledBase(user.companyId, businessToday(), line);
+  if (r.totals.units === 0 && line !== null) {
+    return (
+      <div>
+        <PageHeading eyebrow={`${user.companyName} · Installed base`} title="Installed base" sub={`No installed machine belongs to ${line}. Choose another line.`} />
+        <LineFilter current={line} />
+      </div>
+    );
+  }
   if (r.totals.units === 0) {
     return (
       <div>
@@ -52,6 +63,7 @@ export default async function InstalledBasePage() {
         title="Installed base"
         sub="Equipment at customers, and whether they buy the consumables it should use. Sales are recorded per customer, so the comparison is made per customer. A gap is a reason to ask, not proof of a lost sale."
       />
+      <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines. Purchases are the customer's consumables." />
       <PeriodTag from={r.window.from} to={r.window.to} label="Purchases" />
       {t.gapMonthly > 0 ? (
         <p>

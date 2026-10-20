@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { ACTION_GROUPS, GROUP_LABEL, SERVICE_GROUPS, buildServiceView, type ServiceGroup } from "@/core/service-support";
 import { requireUser } from "@/lib/auth/current-user";
@@ -28,7 +30,16 @@ export default async function ServicePage() {
     return <PageHeading eyebrow="Service & support" title="Service & support" sub="Please sign in with a company account to see this page. It uses the equipment list you loaded." />;
   }
   const today = businessToday();
-  const v = buildServiceView(await companyInstalledUnits(user.companyId), today);
+  const line = await currentLine();
+  const v = buildServiceView(await companyInstalledUnits(user.companyId, line), today);
+  if (v.totals.units === 0 && line !== null) {
+    return (
+      <div>
+        <PageHeading eyebrow={`${user.companyName} · Service & support`} title="Service & support" sub={`No installed machine belongs to ${line}. Choose another line.`} />
+        <LineFilter current={line} />
+      </div>
+    );
+  }
 
   if (v.totals.units === 0) {
     return (
@@ -62,6 +73,7 @@ export default async function ServicePage() {
         title="Service & support"
         sub={`Which installed machines are under a service contract, and which are a contract to sell or renew, as recorded on the equipment list on ${dayText(today)}. The most urgent come first: out of warranty with no contract.`}
       />
+      <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines." />
       {t.toFollowUp > 0 ? (
         <p>
           <AssignActionLink role={user.role} title="Convert uncovered service agreements" evidence={`${n(t.toFollowUp)} machine${t.toFollowUp === 1 ? " has" : "s have"} no active service contract or an expiring one. Quote account-specific coverage.`} responsible="Service manager" label="Assign service review →" />

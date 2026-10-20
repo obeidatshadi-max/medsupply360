@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { EXPIRY_WINDOW_DAYS, SLOW_COVER_DAYS } from "@/core/stock-risk";
 import { requireUser } from "@/lib/auth/current-user";
@@ -16,7 +18,8 @@ export default async function InventoryPage() {
   if (user.guest) {
     return <PageHeading eyebrow="Inventory & supply" title="Stock risk" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
-  const r = await companyStockRisk(user.companyId);
+  const line = await currentLine();
+  const r = await companyStockRisk(user.companyId, line);
   if (!r) {
     return (
       <div>
@@ -45,6 +48,7 @@ export default async function InventoryPage() {
         title="Stock risk"
         sub={`Only stock that you own, valued at what it cost to buy, from the stock file of ${r.asOf}. To measure demand, we use the average number of units sent to customers each day in the ${r.windowDays} days before that date.`}
       />
+      <LineFilter current={line} note="Stock risk follows the line you choose." />
       {r.expiryLossEstimate > 0 || r.expiredValue > 0 ? (
         <p className="mb-4">
           <AssignActionLink role={user.role} title="Validate consumable expiry exposure" evidence={`Possible loss from expiry about ${jod(r.expiryLossEstimate)}, expired stock ${jod(r.expiredValue)} (stock file of ${r.asOf}). Confirm demand, lot dates and transfer options.`} responsible="Operations manager" label="Assign stock review →" />

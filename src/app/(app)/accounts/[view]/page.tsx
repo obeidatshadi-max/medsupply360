@@ -6,6 +6,8 @@ import { AccountsScreen } from "@/demo/accounts-screen";
 import { companyAccounts, type CompanyAccountView } from "@/lib/company-accounts";
 import { CompanyAccounts } from "@/components/company-accounts";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { businessToday } from "@/lib/business-date";
 import { companyDataSummary } from "@/lib/company-data-summary";
 import { windowEnd } from "@/core/freshness";
@@ -27,9 +29,11 @@ export default async function AccountsPage({ params, searchParams }: { params: P
   const today = businessToday();
   const summary = await companyDataSummary(user.companyId);
   // Same year-to-date window as the Overview: it ends at the newest invoice, so the two pages never disagree across a year boundary.
-  const report = await companyAccounts(user.companyId, today, view as CompanyAccountView, typeof query === "string" ? query : "", windowEnd(today, summary.latestInvoice));
+  const line = await currentLine();
+  const report = await companyAccounts(user.companyId, today, view as CompanyAccountView, typeof query === "string" ? query : "", windowEnd(today, summary.latestInvoice), line);
   return (
     <div><PageHeading eyebrow={`${user.companyName} · Accounts`} title="Company accounts" sub="Sales, balances and follow-up checks from your imported company records." />
+      <LineFilter current={line} note="Sales and gross profit follow the line you choose. Balances owed are not split by line." />
       <CompanyAccounts report={report} view={view as CompanyAccountView} canImport={user.role === "owner"} ownerLinks={canSeeSalesForce(user.role)} salesThrough={summary.latestInvoice} />
     </div>
   );

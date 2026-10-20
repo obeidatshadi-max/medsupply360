@@ -3,6 +3,9 @@ import { FreshnessBanner } from "@/components/freshness-banner";
 import { Glossary } from "@/components/glossary";
 import { assessFreshness, windowEnd } from "@/core/freshness";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { salesForLine } from "@/core/line-filter";
+import { currentLine } from "@/lib/line";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyCash } from "@/lib/cash";
@@ -25,14 +28,16 @@ export default async function DashboardPage() {
   if (user.guest) return <GuestOverview />;
 
   const today = businessToday();
+  const line = await currentLine();
   const d = await companyDataSummary(user.companyId);
   // Year-to-date windows end at the newest invoice / receipt, so old imports are not compared against a longer last-year window.
-  const [sales, cash, ar, stock] = await Promise.all([
+  const [allSales, cash, ar, stock] = await Promise.all([
     companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
     companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
     companyReceivables(user.companyId),
-    companyStockRisk(user.companyId),
+    companyStockRisk(user.companyId, line),
   ]);
+  const sales = salesForLine(allSales, line);
   const empty = d.products + d.customers + d.invoices + d.receipts + d.stockTransactions + d.installedUnits === 0 && !d.openInvoices && !d.stock;
   const t = sales.total;
   const freshness = assessFreshness({
@@ -202,6 +207,7 @@ export default async function DashboardPage() {
             : "The four things an owner should check first. Click a card for detail. A dash (—) means a file is missing."
         }
       />
+      {empty ? null : <LineFilter current={line} note="Sales, margin and stock follow the line you choose. Cash collected and unpaid invoices are not split by line." />}
       {empty ? null : <FreshnessBanner freshness={freshness} canImport={user.role === "owner"} />}
       {empty ? null : <OwnerBrief cards={cards} alerts={alerts} />}
       <details className="group rounded-[10px] border border-line bg-white p-4 md:p-5">

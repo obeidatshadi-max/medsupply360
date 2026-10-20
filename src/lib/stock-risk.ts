@@ -2,6 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { buildStockRisk, type StockBatch } from "@/core/stock-risk";
+import type { Line } from "@/core/sales-by-line";
 
 export const ISSUE_WINDOW_DAYS = 180;
 
@@ -10,7 +11,7 @@ export const ISSUE_WINDOW_DAYS = 180;
  * Issue quantities are taken as absolute values, so the result does not depend on whether the ERP writes issues as
  * negative or positive; returns are taken off.
  */
-export async function companyStockRisk(companyId: string) {
+export async function companyStockRisk(companyId: string, line: Line | null = null) {
   const db = getDb();
   const latest = await db.execute(sql`select max(snapshot_date)::text as d from stock_snapshots where company_id = ${companyId}`);
   const asOf = (latest.rows[0] as { d: string | null } | undefined)?.d;
@@ -19,7 +20,7 @@ export async function companyStockRisk(companyId: string) {
   const snap = await db.execute(sql`
     select p.code, p.name, p.line::text as line, s.batch, s.quantity::text as quantity, s.unit_cost::text as unit_cost, s.expiry_date::text as expiry_date
     from stock_snapshots s join products p on p.company_id = s.company_id and p.id = s.product_id
-    where s.company_id = ${companyId} and s.snapshot_date = ${asOf}::date and s.owned
+    where s.company_id = ${companyId} and s.snapshot_date = ${asOf}::date and s.owned and (${line}::text is null or p.line::text = ${line}::text)
   `);
   const batches: StockBatch[] = (snap.rows as Record<string, string | null>[]).map((x) => ({
     productCode: String(x.code),
@@ -37,6 +38,7 @@ export async function companyStockRisk(companyId: string) {
         - coalesce(sum(abs(t.quantity)) filter (where t.tx_type = 'customer_return'), 0))::text as net_issued
     from stock_transactions t join products p on p.company_id = t.company_id and p.id = t.product_id
     where t.company_id = ${companyId} and t.tx_date > (${asOf}::date - ${ISSUE_WINDOW_DAYS}::int) and t.tx_date <= ${asOf}::date
+      and (${line}::text is null or p.line::text = ${line}::text)
     group by p.code
   `);
   const daily = new Map((tx.rows as Record<string, string>[]).map((x) => [String(x.code), Math.max(0, Number(x.net_issued)) / ISSUE_WINDOW_DAYS]));
