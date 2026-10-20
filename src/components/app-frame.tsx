@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ExportButton } from "@/components/export-button";
 import { PageSearch } from "@/components/page-search";
 import { crumbFor, isCurrentItem as isCurrent, type NavItem } from "@/lib/nav";
 
@@ -123,6 +124,7 @@ export function AppFrame({
           </div>
           <div className="flex items-center gap-2">
             <PageSearch />
+            <ExportButton name={crumb} />
             {topRight}
           </div>
         </header>

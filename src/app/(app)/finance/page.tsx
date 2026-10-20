@@ -89,7 +89,7 @@ export default async function FinancePage() {
           { label: "Overdue", value: jod(r.overdue), note: "Not paid after the due date" },
           { label: "Due date missing", value: jod(r.dueDateMissing.amount), note: `${r.dueDateMissing.invoices} invoice${r.dueDateMissing.invoices === 1 ? "" : "s"}, age not known` },
         ].map((s) => (
-          <div key={s.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+          <div key={s.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
             <p className="text-[11px] text-muted md:text-xs">{s.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{s.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{s.note}</p>
@@ -216,7 +216,7 @@ function CashCollected({ cash }: { cash: Cash }) {
           { label: "Last 30 days of data", value: jod(cash.last30), note: `${dateRange(addDays(cash.to, -29), cash.to)}` },
           { label: "Not linked to an invoice", value: jod(cash.unlinkedYtd), note: "Money received but not matched to an invoice. It is already in the total above" },
         ].map((x) => (
-          <div key={x.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+          <div key={x.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
             <p className="text-[11px] text-muted md:text-xs">{x.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{x.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{x.note}</p>
