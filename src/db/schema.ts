@@ -594,3 +594,31 @@ export const companyProfiles = pgTable("company_profiles", {
   updatedBy: varchar("updated_by", { length: 80 }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ─── Management actions ─────────────────────────────────────────────────────
+// The owner's tracker of follow-ups. Done means a person confirmed it; it is not proof that money was recovered.
+
+export const actionStatus = pgEnum("action_status", ["open", "done"]);
+
+export const managementActions = pgTable(
+  "management_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    title: varchar("title", { length: 180 }).notNull(),
+    evidence: text("evidence"),
+    /** One of the departments listed in src/core/management-actions.ts. */
+    responsible: varchar("responsible", { length: 40 }).notNull(),
+    due: date("due").notNull(),
+    status: actionStatus("status").notNull().default("open"),
+    /** The typed names of the people who added and who finished it. */
+    createdBy: varchar("created_by", { length: 80 }),
+    completedOn: date("completed_on"),
+    completedBy: varchar("completed_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("management_actions_company_id_uniq").on(t.companyId, t.id), index("management_actions_company_status_idx").on(t.companyId, t.status, t.due)],
+);

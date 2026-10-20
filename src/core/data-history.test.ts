@@ -19,7 +19,7 @@ describe("describeAction", () => {
   it("has a sentence and an area for every listed action", () => {
     for (const a of DATA_ACTIONS) {
       expect(describeAction(a, {}).length).toBeGreaterThan(5);
-      expect(["Tenders", "Uploads", "Support functions", "Company profile"]).toContain(areaOf(a));
+      expect(["Tenders", "Uploads", "Support functions", "Company profile", "Management actions"]).toContain(areaOf(a));
     }
   });
 
@@ -29,6 +29,12 @@ describe("describeAction", () => {
     expect(describeAction("support.indicator_added", { name: "Vacancy days" })).toBe("Added a support indicator (Vacancy days)");
     expect(areaOf("support.indicator_deleted")).toBe("Support functions");
     expect(areaOf("import.run")).toBe("Uploads");
+  });
+
+  it("names the action for management action entries", () => {
+    expect(describeAction("mgmt_action.completed", { title: "Review freight" })).toBe("Marked a management action done (Review freight)");
+    expect(describeAction("mgmt_action.added", {})).toBe("Added a management action");
+    expect(areaOf("mgmt_action.removed")).toBe("Management actions");
   });
 
   it("lists only data actions", () => {

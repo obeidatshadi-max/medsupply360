@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { EXPIRY_WINDOW_DAYS, SLOW_COVER_DAYS } from "@/core/stock-risk";
 import { requireUser } from "@/lib/auth/current-user";
 import { companyStockRisk } from "@/lib/stock-risk";
@@ -44,6 +45,11 @@ export default async function InventoryPage() {
         title="Stock risk"
         sub={`Only stock that you own, valued at what it cost to buy, from the stock file of ${r.asOf}. To measure demand, we use the average number of units sent to customers each day in the ${r.windowDays} days before that date.`}
       />
+      {r.expiryLossEstimate > 0 || r.expiredValue > 0 ? (
+        <p className="mb-4">
+          <AssignActionLink role={user.role} title="Validate consumable expiry exposure" evidence={`Possible loss from expiry about ${jod(r.expiryLossEstimate)}, expired stock ${jod(r.expiredValue)} (stock file of ${r.asOf}). Confirm demand, lot dates and transfer options.`} responsible="Operations manager" label="Assign stock review →" />
+        </p>
+      ) : null}
       {shortHistory ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
           {r.historyDays === null ? "No stock issues have been imported." : `Only ${r.historyDays} days of stock issues have been imported.`} These estimates need about 90 days or more of history to be reliable. Until then, a product may look unused when it is not.

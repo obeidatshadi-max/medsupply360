@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { ACTION_GROUPS, GROUP_LABEL, SERVICE_GROUPS, buildServiceView, type ServiceGroup } from "@/core/service-support";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -61,6 +62,11 @@ export default async function ServicePage() {
         title="Service & support"
         sub={`Which installed machines are under a service contract, and which are a contract to sell or renew, as recorded on the equipment list on ${dayText(today)}. The most urgent come first: out of warranty with no contract.`}
       />
+      {t.toFollowUp > 0 ? (
+        <p>
+          <AssignActionLink role={user.role} title="Convert uncovered service agreements" evidence={`${n(t.toFollowUp)} machine${t.toFollowUp === 1 ? " has" : "s have"} no active service contract or an expiring one. Quote account-specific coverage.`} responsible="Service manager" label="Assign service review →" />
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
 import { PeriodTag } from "@/components/period-tag";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { LOW_SHARE, OLD_UNIT_YEARS, REASON_LABEL, buildRadar } from "@/core/opportunity-radar";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -55,6 +56,11 @@ export default async function OpportunityRadarPage() {
         sub="Where to look first for growth in the installed base. Each signal is a reason to start a conversation, not a sales forecast."
       />
       <PeriodTag from={base.window.from} to={base.window.to} label="Purchases" />
+      {r.accounts.length > 0 ? (
+        <p>
+          <AssignActionLink role={user.role} title="Qualify the customers flagged by the Opportunity radar" evidence={`${n(r.accounts.length)} customer${r.accounts.length === 1 ? "" : "s"} flagged: low purchases, service contracts to sell or renew, or older machines.`} responsible="Sales manager" label="Assign account review →" />
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {stats.map((x) => (
           <div key={x.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">

@@ -92,6 +92,13 @@
       "when": 1792474393148,
       "tag": "0012_company_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792484973198,
+      "tag": "0013_management_actions",
+      "breakpoints": true
     }
   ]
 }

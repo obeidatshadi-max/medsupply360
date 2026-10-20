@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { windowEnd } from "@/core/freshness";
 import { PeriodTag } from "@/components/period-tag";
 import { AGING_BUCKETS } from "@/core/receivables";
@@ -71,6 +72,9 @@ export default async function FinancePage() {
         title="Sales, margin and receivables"
         sub={`Invoices that customers have not paid, on ${r.asOf} (from the unpaid-invoices file, ${r.sourceRows} rows). We count the days after each invoice's due date. An invoice with no due date is shown separately. We do not guess its age.`}
       />
+      <p className="mb-4">
+        <AssignActionLink role={user.role} title="Recover overdue balances" evidence={`Review the unpaid invoices as of ${r.asOf}: confirm acceptance documents and an agreed payment plan.`} responsible="Finance manager" label="Assign collection follow-up →" />
+      </p>
       {salesSection}
       <h2 className="mb-3 mt-8 text-sm font-semibold">Receivables (money customers owe you)</h2>
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-3">

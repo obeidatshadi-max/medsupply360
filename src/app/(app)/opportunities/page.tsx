@@ -10,18 +10,41 @@ import { companyOpportunities } from "@/lib/opportunities";
 import { jod } from "@/lib/format";
 import { companyProductReorders } from "@/lib/product-reorders";
 import { ProductReorders } from "@/components/product-reorders";
+import { ActionList, AddActionForm } from "@/components/action-tracker";
+import { canManageActions } from "@/core/permissions";
+import { prefillFrom, sortActions, summarize } from "@/core/management-actions";
+import { getDb } from "@/db/client";
+import { listActions } from "@/server/services/management-actions";
 
 export const metadata: Metadata = { title: "Management actions" };
 
-export default async function OpportunitiesPage() {
+export default async function OpportunitiesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireUser();
   if (user.guest) {
     return <PageHeading eyebrow="Management actions" title="Opportunities" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
   const today = businessToday();
-  const [r, productReorders] = await Promise.all([
-    companyOpportunities(user.companyId, today), companyProductReorders(user.companyId, today),
+  const [r, productReorders, actionRows] = await Promise.all([
+    companyOpportunities(user.companyId, today), companyProductReorders(user.companyId, today), listActions(getDb(), user.companyId),
   ]);
+  const manage = canManageActions(user.role);
+  const actions = sortActions(actionRows);
+  const t = summarize(actions, today);
+  const prefill = prefillFrom(await searchParams);
+  const tracker = (
+    <section aria-label="Management action tracker" className="mt-6">
+      <h2 className="text-sm font-semibold">Management action tracker</h2>
+      <p className="mt-1 text-xs text-muted">
+        {t.open} open{t.overdue > 0 ? `, ${t.overdue} overdue` : ""} · {t.done} done · {t.departments} department{t.departments === 1 ? "" : "s"} with open work. Actions are company-wide. Done means a person confirmed it: it does not prove that money was recovered.
+      </p>
+      <ActionList actions={actions} today={today} manage={manage} />
+      {manage ? (
+        <div className="mt-4">
+          <AddActionForm today={today} prefill={prefill} />
+        </div>
+      ) : null}
+    </section>
+  );
   if (!r) {
     return (
       <div>
@@ -31,6 +54,7 @@ export default async function OpportunitiesPage() {
             Import data
           </a>
         ) : null}
+        {tracker}
       </div>
     );
   }
@@ -45,7 +69,9 @@ export default async function OpportunitiesPage() {
         sub={`Where to act first, on ${r.asOf}. Each customer has one line. We show the biggest signal and only name the others. We never add them together.`}
       />
 
-      <section aria-label="Ranked opportunities">
+      {tracker}
+
+      <section aria-label="Ranked opportunities" className="mt-6">
         <h2 className="text-sm font-semibold">Biggest opportunities</h2>
         {r.ranked.length === 0 ? (
           <p className="mt-2 text-sm text-muted">Nothing to report now: no customer is late to reorder and no payment is late.</p>
