@@ -99,6 +99,13 @@
       "when": 1792484973198,
       "tag": "0013_management_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792528753548,
+      "tag": "0014_sales_visits",
+      "breakpoints": true
     }
   ]
 }

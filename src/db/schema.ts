@@ -169,6 +169,29 @@ export const salesPeople = pgTable(
   (t) => [unique("sales_people_company_id_uniq").on(t.companyId, t.id), uniqueIndex("sales_people_name_uniq").using("btree", t.companyId, sql`lower(${t.name})`)],
 );
 
+/** One customer visit by a sales person, written down by the owner. The count against `visits_per_week` comes from here. */
+export const salesVisits = pgTable(
+  "sales_visits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    salesPersonId: uuid("sales_person_id").notNull(),
+    /** The customer visited, when it is one of the imported customers. */
+    customerId: uuid("customer_id"),
+    visitedOn: date("visited_on").notNull(),
+    note: varchar("note", { length: 300 }),
+    /** The typed name of the person who wrote the visit down. */
+    recordedBy: varchar("recorded_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.salesPersonId], foreignColumns: [salesPeople.companyId, salesPeople.id] }),
+    index("sales_visits_person_day_idx").on(t.companyId, t.salesPersonId, t.visitedOn),
+  ],
+);
+
 export const products = pgTable(
   "products",
   {

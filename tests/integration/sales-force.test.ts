@@ -16,8 +16,13 @@ import {
   assignAccount,
   assignProduct,
   assignSupplierProducts,
+  addVisit,
   assignTenderOwner,
+  countVisits,
+  firstInvoiceDatesOfAccounts,
   getSalesPerson,
+  listVisits,
+  removeVisit,
   listPersonAccounts,
   listPersonProducts,
   listProductsForAssignment,
@@ -179,5 +184,49 @@ describe("rules and isolation", () => {
     expect((await assignTenderOwner(db, { companyId: a, tenderId: held, ownerId: khaled })).ok).toBe(true);
     expect((await assignTenderOwner(db, { companyId: a, tenderId: fresh, ownerId: khaled })).ok).toBe(false);
     expect((await assignSupplierProducts(db, { companyId: a, supplierName: "BOWA", personId: khaled })).ok).toBe(false);
+  });
+});
+
+describe("visits and new accounts", () => {
+  const visit = (over: Partial<{ visitedOn: string; customerId: string; note: string }> = {}) => ({ visitedOn: "2031-03-05", customerId: "", note: "", ...over });
+
+  it("records a visit, counts it in a date range, lists newest first and removes one written by mistake", async () => {
+    const pid = await add(a, { name: "Visit Person", visitsPerWeek: "3" });
+    const cust = await customer(a, "V1");
+    const r1 = await addVisit(db, { companyId: a, personId: pid, form: visit({ visitedOn: "2031-03-03", customerId: cust, note: "Demo of the analyzer" }), today: "2031-03-06", by: "Test" });
+    const r2 = await addVisit(db, { companyId: a, personId: pid, form: visit({ visitedOn: "2031-03-05" }), today: "2031-03-06", by: "Test" });
+    expect(r1.ok && r2.ok).toBe(true);
+    expect(await countVisits(db, a, pid, "2031-03-03", "2031-03-09")).toBe(2);
+    expect(await countVisits(db, a, pid, "2031-03-04", "2031-03-09")).toBe(1);
+    const list = await listVisits(db, a, pid);
+    expect(list.map((v) => v.visitedOn)).toEqual(["2031-03-05", "2031-03-03"]);
+    expect(list[1]).toMatchObject({ customerName: "Customer V1", customerCode: "V1", note: "Demo of the analyzer", recordedBy: "Test" });
+    expect((await removeVisit(db, { companyId: a, visitId: list[0]!.id })).ok).toBe(true);
+    expect(await countVisits(db, a, pid, "2031-03-01", "2031-03-31")).toBe(1);
+  });
+
+  it("refuses a future date, another company's person or customer, and another company removing a visit", async () => {
+    const pid = await add(a, { name: "Guarded Person" });
+    const foreignCustomer = await customer(b, "FOREIGN");
+    const foreignPerson = await add(b, { name: "Other Company Person" });
+    expect((await addVisit(db, { companyId: a, personId: pid, form: visit({ visitedOn: "2031-04-01" }), today: "2031-03-06", by: "T" })).ok).toBe(false);
+    expect((await addVisit(db, { companyId: a, personId: pid, form: visit({ customerId: foreignCustomer }), today: "2031-03-06", by: "T" })).ok).toBe(false);
+    expect((await addVisit(db, { companyId: a, personId: foreignPerson, form: visit(), today: "2031-03-06", by: "T" })).ok).toBe(false);
+    const ok = await addVisit(db, { companyId: a, personId: pid, form: visit(), today: "2031-03-06", by: "T" });
+    if (!ok.ok) throw new Error(ok.error);
+    const [mine] = await listVisits(db, a, pid);
+    expect((await removeVisit(db, { companyId: b, visitId: mine!.id })).ok).toBe(false);
+    expect((await listVisits(db, b, pid)).length).toBe(0);
+  });
+
+  it("gives the first invoice date of each account a person holds, and null for an account with no invoice", async () => {
+    const pid = await add(a, { name: "Accounts Person" });
+    const c1 = await customer(a, "N1");
+    const c2 = await customer(a, "N2");
+    const c3 = await customer(a, "N3");
+    for (const c of [c1, c2, c3]) await assignAccount(db, { companyId: a, customerId: c, personId: pid });
+    await client.query(`insert into invoices (company_id, invoice_no, customer_id, invoice_date) values ('${a}', 'N-1', '${c1}', '2031-05-20'), ('${a}', 'N-2', '${c1}', '2031-04-02'), ('${a}', 'N-3', '${c2}', '2031-05-03')`);
+    const dates = (await firstInvoiceDatesOfAccounts(db, a, pid)).sort((x, y) => String(x).localeCompare(String(y)));
+    expect(dates).toEqual(["2031-04-02", "2031-05-03", null]);
   });
 });
