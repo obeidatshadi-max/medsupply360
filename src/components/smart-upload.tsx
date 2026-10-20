@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { importAction, type ImportActionState } from "@/server/actions/imports";
 import { CHANNEL_INFO, channelOfKind } from "@/core/channels";
 import { detectKind, IMPORT_ORDER } from "@/core/import/detect";
+import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { readWorkbook, type SheetGrid } from "@/core/import/workbook";
 import { ImportResult } from "@/components/import-result";
@@ -35,6 +36,21 @@ type Run = { id: number; label: string; state: ImportActionState | "skipped" | "
 
 let nextId = 1;
 const label = (i: Item) => (i.sheet ? `${i.source} · ${i.sheet}` : i.source);
+
+/** The codes defined by the customer and product lists in an upload, taken from the rows that pass their own checks. */
+async function announcedCodes(queue: Item[]): Promise<{ customers: string[]; products: string[] }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const out = { customers: [] as string[], products: [] as string[] };
+  for (const item of queue) {
+    if (item.kind !== "customers" && item.kind !== "products") continue;
+    const result = validateImport(item.kind, await item.file.text(), { today, snapshotDate: item.snapshotDate || undefined });
+    for (const row of result.accepted) {
+      const code = row.values.code;
+      if (typeof code === "string" && code !== "") out[item.kind === "customers" ? "customers" : "products"].push(code);
+    }
+  }
+  return out;
+}
 
 export function SmartUpload({ allowed, noun }: { allowed: readonly ImportKind[]; noun: string }) {
   const inputId = useId();
@@ -120,6 +136,9 @@ export function SmartUpload({ allowed, noun }: { allowed: readonly ImportKind[];
     const done: Run[] = [];
     const base = form ? new FormData(form) : new FormData();
     base.delete("files");
+    // A check looks at each file on its own against what is already saved, so tell it which customers and products the
+    // lists in this same upload add. Without this a first load shows every sales file as full of unknown codes.
+    const assumed = mode === "check" ? await announcedCodes(queue) : null;
     try {
       for (const [n, item] of queue.entries()) {
         done.push({ id: item.id, label: label(item), state: "working" });
@@ -130,6 +149,10 @@ export function SmartUpload({ allowed, noun }: { allowed: readonly ImportKind[];
         data.set("kind", item.kind);
         data.set("snapshotDate", item.snapshotDate);
         data.set("file", item.file);
+        if (assumed) {
+          data.set("assumeCustomers", assumed.customers.join("\n"));
+          data.set("assumeProducts", assumed.products.join("\n"));
+        }
         const state = await importAction({}, data);
         done[done.length - 1] = { id: item.id, label: label(item), state };
         setRuns([...done]);
