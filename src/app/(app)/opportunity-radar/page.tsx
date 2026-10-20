@@ -75,7 +75,7 @@ export default async function OpportunityRadarPage() {
       ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {stats.map((x) => (
-          <div key={x.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+          <div key={x.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
             <p className="text-[11px] text-muted md:text-xs">{x.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{x.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{x.note}</p>
