@@ -33,7 +33,9 @@ export async function companyChannelStatus(companyId: string): Promise<Record<Ch
       (select count(*)::int from installed_units where company_id = ${companyId}) as units,
       (select count(*)::int from sales_people where company_id = ${companyId} and active) as people,
       (select count(*)::int from sales_people where company_id = ${companyId} and active and monthly_sales_target is not null) as with_target,
-      (select max(created_at) from sales_people where company_id = ${companyId}) as people_at`),
+      (select max(created_at) from sales_people where company_id = ${companyId}) as people_at,
+      (select count(*)::int from support_indicators where company_id = ${companyId}) as indicators,
+      (select max(updated_at) from support_indicators where company_id = ${companyId}) as indicators_at`),
   ]);
 
   const loaded = new Map((batches.rows as Row[]).map((r) => [String(r.kind), iso(r.at)]));
@@ -62,11 +64,12 @@ export async function companyChannelStatus(companyId: string): Promise<Record<Ch
   const units = Number(m.units);
   const people = Number(m.people);
   const withTarget = Number(m.with_target);
+  const indicators = Number(m.indicators);
   const manual: ChannelStatus = {
     channel: "manual",
-    lastUpdate: newest(...manualKinds.map((k) => loaded.get(k) ?? null), iso(m.people_at)),
+    lastUpdate: newest(...manualKinds.map((k) => loaded.get(k) ?? null), iso(m.people_at), iso(m.indicators_at)),
     by: (byKinds(manualKinds)?.submitted_by as string | null | undefined) ?? null,
-    facts: [`${units} installed unit${units === 1 ? "" : "s"}`, `${people} sales ${people === 1 ? "person" : "people"}`],
+    facts: [`${units} installed unit${units === 1 ? "" : "s"}`, `${people} sales ${people === 1 ? "person" : "people"}`, `${indicators} support indicator${indicators === 1 ? "" : "s"}`],
     missing: [
       ...(units === 0 ? ["No installed equipment"] : []),
       ...(people === 0 ? ["No sales force"] : people > withTarget ? [`${people - withTarget} sales ${people - withTarget === 1 ? "person has" : "people have"} no monthly target`] : []),

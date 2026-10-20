@@ -84,10 +84,10 @@ export function supportHtml({ query }: { query?: string } = {}): string {
     : `<tr><td colspan="7" class="empty">No matching indicator. Change the search.</td></tr>`;
 
   return (
-    `<div class="info">Support indicators cover the whole company, so the business-line filter does not split the shared work of a department. The owner sets each target and who answers for it, and a person records each reading. All figures and targets here are made up.</div>` +
+    `<div class="info">Support indicators cover the whole company, so the business-line filter does not split the shared work of a department. The owner sets each target and who answers for it in Data, Manual entry, and a person records each reading there. All figures and targets here are made up.</div>` +
     `<div class="stats">${tiles}</div>` +
     `<section class="panel"><div class="panelhead"><div><h2>Support function effectiveness</h2><p class="sub">Off-target indicators come first, the biggest miss at the top.</p></div></div>` +
     `<div class="tablewrap"><table><thead><tr><th>Department</th><th>Indicator</th><th>Actual</th><th>Target</th><th>Status</th><th>Business consequence</th><th></th></tr></thead><tbody>${body}</tbody></table></div></section>` +
-    `<p class="mini">In the live app the owner can add an indicator, change a target, or record a reading after typing their name. The Update history lists who recorded what, and when.</p>`
+    `<p class="mini">In the live app the owner adds an indicator, changes a target, or records a reading in Data, Manual entry, after typing their name. The Update history lists who recorded what, and when.</p>`
   );
 }
