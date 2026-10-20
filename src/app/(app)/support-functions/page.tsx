@@ -1,3 +1,6 @@
+import { AdvancedGate } from "@/components/advanced-gate";
+import { levelAllows } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { AssignActionLink } from "@/components/assign-action-link";
@@ -19,6 +22,7 @@ const CLASS: Record<IndicatorStatus, string> = { met: "bg-brand-soft text-ink", 
 
 export default async function SupportFunctionsPage() {
   const user = await requireUser();
+  if (!levelAllows(await currentLevel(), user.role, "/support-functions")) return <AdvancedGate title="Support functions" />;
   if (user.guest) {
     return <PageHeading eyebrow="Support functions" title="Support functions" sub="Please sign in with a company account to see this page." />;
   }

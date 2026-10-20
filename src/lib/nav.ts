@@ -1,3 +1,4 @@
+import { DEFAULT_LEVEL, levelAllows, type Level } from "@/core/level";
 import { canAccess, canSeeHistory, canSeeSalesForce, type Role } from "@/core/permissions";
 
 /**
@@ -18,7 +19,8 @@ export type NavItem = {
   note?: string;
 };
 
-export function navItems({ guest, role }: { guest: boolean; role: Role }): { main: NavItem[]; explore: NavItem[] } {
+/** `level` is the version the person chose (Advanced until they choose): Basic leaves the Advanced-only screens out of the menu. */
+export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolean; role: Role; level?: Level }): { main: NavItem[]; explore: NavItem[] } {
   const owner = role === "owner";
   const tender: NavItem = { label: "Tenders", icon: "▣", href: "/tenders", match: ["/tenders"] };
   // Department users (tender, finance) get the tender section and nothing else.
@@ -48,7 +50,8 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
     ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),
     { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders"] },
   ];
-  return { main, explore };
+  const shown = (i: NavItem) => !i.href || levelAllows(level, role, i.href);
+  return { main: main.filter(shown), explore: explore.filter(shown) };
 }
 
 /** The Accounts page filtered to one customer, for jumping there from a name on another page (the search matches the code). */

@@ -1,3 +1,6 @@
+import { AdvancedGate } from "@/components/advanced-gate";
+import { levelAllows } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CustomerLink } from "@/components/customer-link";
@@ -18,6 +21,7 @@ const n = (v: number) => v.toLocaleString("en-US");
 
 export default async function InstalledBasePage() {
   const user = await requireUser();
+  if (!levelAllows(await currentLevel(), user.role, "/installed-base")) return <AdvancedGate title="Installed base" />;
   if (user.guest) {
     return <PageHeading eyebrow="Installed base" title="Installed base" sub="Please sign in with a company account to see this page. It uses the equipment list you loaded." />;
   }

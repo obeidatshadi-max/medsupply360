@@ -1,3 +1,6 @@
+import { AdvancedGate } from "@/components/advanced-gate";
+import { levelAllows } from "@/core/level";
+import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeading } from "@/components/page-heading";
@@ -19,6 +22,7 @@ const PHASE_FILTERS: { key: PhaseKey; label: string }[] = [...PHASES, { key: "cl
 
 export default async function TendersPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireUser("tender");
+  if (!levelAllows(await currentLevel(), user.role, "/tenders")) return <AdvancedGate title="Tenders" />;
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
   const authority = isAuthority(one(sp.authority)) ? one(sp.authority) : "";

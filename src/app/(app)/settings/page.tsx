@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageHeading } from "@/components/page-heading";
 import { ASSIGNABLE_ROLES, ROLE_LABEL } from "@/core/permissions";
 import { getDb } from "@/db/client";
@@ -23,6 +24,11 @@ export default async function SettingsPage() {
         title="People and access"
         sub="Choose who can sign in and what each person can open. Tender and finance staff see only the tender section. A change takes effect on their next click."
       />
+      <p className="text-sm">
+        <Link href="/settings/compare" className="text-brand underline underline-offset-2">
+          Compare the Basic and Advanced versions
+        </Link>
+      </p>
       <AddUserForm />
       <section aria-label="People with access">
         <h2 className="text-sm font-semibold">People with access</h2>
