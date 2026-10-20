@@ -34,7 +34,7 @@ export default async function InventoryPage() {
     );
   }
 
-  const shortHistory = r.historyDays === null || r.historyDays < 90;
+  const shortHistory = !r.reliable;
   const stats = [
     { label: "Stock value (owned)", value: jod(r.stockValue), note: `${n(r.rows)} stock rows as of ${r.asOf}` },
     { label: "Slow or unused stock", value: jod(r.slowValue), note: `Not used in ${r.windowDays} days, or more than ${SLOW_COVER_DAYS} days of stock left at the current speed of sales` },
@@ -47,7 +47,7 @@ export default async function InventoryPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Inventory & supply`}
         title="Stock risk"
-        sub={`Only stock that you own, valued at what it cost to buy, from the stock file of ${r.asOf}. To measure demand, we use the average number of units sent to customers each day in the ${r.windowDays} days before that date.`}
+        sub={`Only stock that you own, valued at what it cost to buy, from the stock file of ${r.asOf}. To measure demand, we use the average number of units ${r.demandSource === "sales" ? "sold" : "sent to customers"} each day in the ${r.windowDays} days before that date${r.demandSource === "sales" ? ", taken from the sales file because no stock issues were imported" : ""}.`}
       />
       <LineFilter current={line} note="Stock risk follows the line you choose." />
       {r.expiryLossEstimate > 0 || r.expiredValue > 0 ? (
@@ -57,7 +57,7 @@ export default async function InventoryPage() {
       ) : null}
       {shortHistory ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
-          {r.historyDays === null ? "No stock issues have been imported." : `Only ${r.historyDays} days of stock issues have been imported.`} These estimates need about 90 days or more of history to be reliable. Until then, a product may look unused when it is not.
+          {r.historyDays === null ? "No stock issues or sales have been imported." : `Only ${r.historyDays} days of ${r.demandSource === "sales" ? "sales" : "stock issues"} have been imported.`} These estimates need about 90 days or more of history to be reliable. Until then, a product may look unused when it is not.
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">

@@ -17,6 +17,12 @@ describe("owner brief", () => {
     expect(s(0, 0)).toBe("good");
     expect(briefSignals({ receivables: null, stock: null }).overdue).toBe("nodata");
   });
+  it("never says act now on stock when under about 90 days of history are loaded", () => {
+    const st = (reliable: boolean) => briefSignals({ receivables: null, stock: { slow: 100, total: 100, expiryLoss: 0, reliable } }).stock;
+    expect(st(true)).toBe("act");
+    expect(st(false)).toBe("watch");
+  });
+
   it("stock takes the worse of slow share and expiry share", () => {
     const st = (slow: number, expiryLoss: number) => briefSignals({ receivables: null, stock: { slow, total: 100, expiryLoss } }).stock;
     expect(st(5, 1)).toBe("good");

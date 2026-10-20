@@ -55,6 +55,7 @@ export default async function DashboardPage() {
           slow: stock.slowValue,
           total: stock.stockValue,
           expiryLoss: stock.expiryLossEstimate,
+          reliable: stock.reliable,
         }
       : null,
   });
@@ -103,7 +104,7 @@ export default async function DashboardPage() {
       status: sig.stock,
       value: stock ? jodShort(stock.slowValue) : "—",
       verdict: stock
-        ? `Slow or unused. Another ${jodShort(stock.expiryLossEstimate)} may expire unsold (estimate), out of ${jodShort(stock.stockValue)} owned`
+        ? `Slow or unused. Another ${jodShort(stock.expiryLossEstimate)} may expire unsold (estimate), out of ${jodShort(stock.stockValue)} owned${stock.reliable ? "" : `. Rough guide: only ${stock.historyDays ?? 0} days of ${stock.demandSource === "sales" ? "sales" : "stock issues"} are loaded`}`
         : "Import the stock file to see this",
       href: "/inventory",
       when: stock ? { label: "Checked", text: `${dayText(stock.asOf)} (date of the stock file)` } : undefined,
