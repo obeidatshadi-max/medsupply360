@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CHANNELS, CHANNEL_INFO } from "@/core/channels";
-import { channelsHtml, demoChannelStatus, manualChannelHtml, samplePreviewHtml, tenderChannelHtml } from "./channels-screen";
+import { SERVICE_OPTIONS } from "@/core/machine-details";
+import { units } from "./dataset";
+import { channelsHtml, demoChannelStatus, machineDetailsHtml, manualChannelHtml, samplePreviewHtml, tenderChannelHtml } from "./channels-screen";
 
 describe("demo data channels", () => {
   it("shows the three channels, each with a way in", () => {
@@ -43,8 +45,17 @@ describe("demo data channels", () => {
   });
 
   it("has a Manual and a Tender screen", () => {
-    expect(manualChannelHtml()).toContain('data-channel="manual"');
+    expect(manualChannelHtml(units)).toContain('data-channel="manual"');
     expect(tenderChannelHtml()).toContain('data-channel="tender"');
     expect(tenderChannelHtml()).toContain('data-route="tenders"');
+  });
+});
+
+describe("demo machine details form", () => {
+  it("offers every demo machine in a dropdown and the app's service options", () => {
+    const html = manualChannelHtml(units);
+    expect(html).toContain("Choose a machine…");
+    for (const u of units) expect(html).toContain(`value="${u.id}"`);
+    for (const o of SERVICE_OPTIONS) expect(machineDetailsHtml(units)).toContain(`<option>${o}</option>`);
   });
 });

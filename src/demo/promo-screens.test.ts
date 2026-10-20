@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLES, ROLE_LABEL } from "@/core/permissions";
+import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL } from "@/core/permissions";
 import { demoFreshness, freshnessHtml } from "./freshness-demo";
 import { demoHistory, historyCsvRows, historyHtml } from "./history-screen";
 import { DEMO_PEOPLE, settingsCsvRows, settingsHtml } from "./settings-screen";
@@ -13,6 +13,13 @@ describe("demo Settings", () => {
     for (const p of DEMO_PEOPLE) expect(html).toContain(p.name);
     for (const r of ROLES) expect(html).toContain(ROLE_LABEL[r].name);
     expect(settingsCsvRows()).toHaveLength(DEMO_PEOPLE.length + 1);
+  });
+
+  it("shows the add-person form with every assignable access level", () => {
+    const html = settingsHtml();
+    expect(html).toContain("Add a person");
+    for (const r of ASSIGNABLE_ROLES) expect(html).toContain(`value="${r}"`);
+    expect(html).not.toContain(`value="owner"`);
   });
 
   it("uses job titles, never real-looking names", () => {
