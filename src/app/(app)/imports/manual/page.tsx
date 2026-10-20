@@ -6,7 +6,11 @@ import { DataTabs } from "@/components/data-tabs";
 import { SmartUpload } from "@/components/smart-upload";
 import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
+import { SupportEntry } from "@/components/support-entry";
 import { CHANNEL_INFO } from "@/core/channels";
+import { getDb } from "@/db/client";
+import { businessToday } from "@/lib/business-date";
+import { listIndicators } from "@/server/services/support-indicators";
 
 export const metadata: Metadata = { title: "Manual entry channel" };
 
@@ -21,13 +25,14 @@ export default async function ManualChannelPage() {
     );
   }
   const kinds = CHANNEL_INFO.manual.kinds;
+  const indicators = await listIndicators(getDb(), user.companyId);
 
   return (
     <div className="space-y-6">
       <PageHeading
         eyebrow={`${user.companyName} · Data channels`}
         title="Manual entry"
-        sub="Data that Alpha does not hold: installed equipment, and the sales force with their targets and suppliers. Upload a workbook or CSV and the tool reads each tab, recognises what it is, and shows you the result to confirm. A person already on the Sales force page is updated by name; a blank cell never erases what is recorded."
+        sub="Data that Alpha does not hold: installed equipment, the sales force with their targets and suppliers, and the support-function indicators. Upload a workbook or CSV and the tool reads each tab, recognises what it is, and shows you the result to confirm. A person already on the Sales force page is updated by name; a blank cell never erases what is recorded."
       />
       <DataTabs current="imports" owner history />
       <p className="text-sm">
@@ -42,6 +47,7 @@ export default async function ManualChannelPage() {
       <SmartUpload allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
       <TemplateDownloads kinds={kinds} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
+      <SupportEntry indicators={indicators} today={businessToday()} />
     </div>
   );
 }

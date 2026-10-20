@@ -2,16 +2,15 @@ import { AdvancedGate } from "@/components/advanced-gate";
 import { levelAllows } from "@/core/level";
 import { currentLevel } from "@/lib/level";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageHeading } from "@/components/page-heading";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { canManageSupport } from "@/core/permissions";
 import { STATUS_LABEL, indicatorStatus, sortIndicators, summarize, targetText, valueText, type IndicatorStatus } from "@/core/support-indicators";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
-import { businessToday } from "@/lib/business-date";
 import { dayText } from "@/lib/format";
 import { listIndicators } from "@/server/services/support-indicators";
-import { AddIndicatorForm, EditIndicatorForm, ReadingForm, RemoveIndicatorForm } from "./support-forms";
 
 export const metadata: Metadata = { title: "Support functions" };
 
@@ -26,7 +25,6 @@ export default async function SupportFunctionsPage() {
   if (user.guest) {
     return <PageHeading eyebrow="Support functions" title="Support functions" sub="Please sign in with a company account to see this page." />;
   }
-  const today = businessToday();
   const rows = sortIndicators(await listIndicators(getDb(), user.companyId));
   const t = summarize(rows);
   const manage = canManageSupport(user.role);
@@ -43,11 +41,11 @@ export default async function SupportFunctionsPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Support functions`}
         title="Support functions"
-        sub="How the departments that serve the business are doing: logistics, procurement, HR, customer support and tender support. The owner sets each target and who answers for it, and a person records each reading. These figures are typed in, not taken from the ERP."
+        sub="How the departments that serve the business are doing: logistics, procurement, HR, customer support and tender support. The owner sets each target and who answers for it in Data, Manual entry, and a person records each reading there. These figures are typed in, not taken from the ERP."
       />
 
       {rows.length === 0 ? (
-        <p className="rounded-lg border border-line bg-white p-4 text-sm text-muted">{manage ? "No indicator has been defined yet. Add the first one below, for example “Supplier deliveries on time, at least 90%”." : "No indicator has been defined yet. The owner adds them here."}</p>
+        <p className="rounded-lg border border-line bg-white p-4 text-sm text-muted">{manage ? "No indicator has been defined yet. Add the first one in Data, Manual entry, for example “Supplier deliveries on time, at least 90%”." : "No indicator has been defined yet. The owner adds them here."}</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
@@ -96,26 +94,6 @@ export default async function SupportFunctionsPage() {
                         <p className="text-sm">{i.consequence ?? <span className="text-muted">Not written</span>}</p>
                       </div>
                     </div>
-                    {manage ? (
-                      <div className="mt-3 space-y-2 border-t border-line pt-3 text-sm">
-                        <details>
-                          <summary className="cursor-pointer font-medium">Record a reading</summary>
-                          <div className="mt-3">
-                            <ReadingForm id={i.id} today={today} unit={i.unit} />
-                          </div>
-                        </details>
-                        <details>
-                          <summary className="cursor-pointer font-medium">Change the indicator or its target</summary>
-                          <div className="mt-3 space-y-4">
-                            <EditIndicatorForm
-                              id={i.id}
-                              values={{ function: i.department, name: i.name, unit: i.unit, direction: i.direction, target: String(i.target), responsible: i.responsible ?? "", consequence: i.consequence ?? "" }}
-                            />
-                            <RemoveIndicatorForm id={i.id} />
-                          </div>
-                        </details>
-                      </div>
-                    ) : null}
                   </article>
                 );
               })}
@@ -124,7 +102,13 @@ export default async function SupportFunctionsPage() {
         </>
       )}
 
-      {manage ? <AddIndicatorForm /> : null}
+      {manage ? (
+        <p className="text-sm">
+          <Link href="/imports/manual" className="text-brand underline underline-offset-2">
+            Add an indicator or record a reading in Data, Manual entry
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }
