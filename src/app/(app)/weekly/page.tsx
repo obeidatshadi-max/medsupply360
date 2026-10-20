@@ -38,7 +38,7 @@ function Tile({ label, c, money, note, period }: { label: string; c: Change; mon
 export default async function WeeklyPage() {
   const user = await requireUser();
   if (user.guest) {
-    return <PageHeading eyebrow="Alpha ERP data" title="Weekly summary" sub="Please sign in with a company account to see this page. It shows what changed this week in the data you imported." />;
+    return <PageHeading eyebrow="Data" title="Weekly summary" sub="Please sign in with a company account to see this page. It shows what changed this week in the data you imported." />;
   }
   const today = businessToday();
   const d = await companyDataSummary(user.companyId);
@@ -55,7 +55,7 @@ export default async function WeeklyPage() {
   return (
     <div>
       <PageHeading
-        eyebrow={`${user.companyName} · Alpha ERP data`}
+        eyebrow={`${user.companyName} · Data`}
         title="Weekly summary"
         sub={`What changed in the last 7 days of imported data (${dateRange(thisFrom, thisTo)}) compared with the 7 days before (${dateRange(prevFrom, prevTo)}). It uses the files you imported. It is only as new as your last import.`}
       />

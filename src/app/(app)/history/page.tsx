@@ -27,7 +27,7 @@ export default async function HistoryPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        eyebrow={`${user.companyName} · Alpha ERP data`}
+        eyebrow={`${user.companyName} · Data`}
         title="Update history"
         sub="Who entered or changed data, and when. Each person types their name on the form; the date and time are set automatically (Jordan time). The newest 200 changes are shown."
       />
