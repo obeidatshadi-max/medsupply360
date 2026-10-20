@@ -25,6 +25,11 @@
   --color-avatar: #c8ae79;
 }
 
+/* Rows and cards the top-bar search has narrowed away. */
+[data-search-hidden] {
+  display: none !important;
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
