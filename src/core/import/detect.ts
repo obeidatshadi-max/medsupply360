@@ -7,7 +7,7 @@ import { SPECS, type ImportKind } from "./specs";
 import { mapColumns } from "./validate";
 
 /** Master data first: sales, receipts and stock rows point at product and customer codes that must already exist. */
-export const IMPORT_ORDER: ImportKind[] = ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions", "installed_units"];
+export const IMPORT_ORDER: ImportKind[] = ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions", "installed_units", "sales_people", "tenders"];
 
 export type Detection =
   | { kind: ImportKind; certain: true }

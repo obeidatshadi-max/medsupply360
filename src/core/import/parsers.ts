@@ -135,3 +135,28 @@ export function oneOf<T extends string>(
     return onUnknown === "reject" ? fail(`unrecognised ${name}: "${raw}"`) : ok(null, `unrecognised ${name} "${raw}", left unknown`);
   };
 }
+
+/** Whole number from 0 up to `max`, e.g. visits per week. */
+export const wholeNumber =
+  (max: number): Parser =>
+  (raw) => {
+    const s = normalizeDigits(raw).trim();
+    if (!/^\d+$/.test(s)) return fail(`not a whole number: "${raw}"`);
+    return Number(s) > max ? fail(`must be ${max} or less: "${raw}"`) : ok(Number(s));
+  };
+
+/** A list written in one cell, separated by ; | or new lines (Arabic comma too). Kept as one text joined by ";", duplicates dropped. */
+export const semicolonList =
+  (maxItems: number, maxLength: number): Parser =>
+  (raw) => {
+    const seen = new Set<string>();
+    const items: string[] = [];
+    for (const part of raw.split(/[;|\n\r؛،]+/)) {
+      const v = compact(part);
+      if (v === "" || seen.has(v.toLowerCase())) continue;
+      if (v.length > maxLength) return fail(`an item is longer than ${maxLength} characters`);
+      seen.add(v.toLowerCase());
+      items.push(v);
+    }
+    return items.length > maxItems ? fail(`more than ${maxItems} items`) : ok(items.join(";"));
+  };

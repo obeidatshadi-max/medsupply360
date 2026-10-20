@@ -31,7 +31,7 @@ describe("tailored customer demonstration", () => {
   it("discards pending CSV checks when the presenter switches customers", async () => {
     const { w, errors } = setup();
     saveCustomer(w, "Atlas Medical");
-    route(w, "alpha");
+    route(w, "chan-erp");
     const complete: ((value: string) => void)[] = [];
     for (const selector of ["#app-import-file", "#csvFile"]) {
       const input = w.document.querySelector(selector)!;
@@ -40,7 +40,7 @@ describe("tailored customer demonstration", () => {
       input.dispatchEvent(new w.Event("change", { bubbles: true }));
     }
     saveCustomer(w, "Beacon Medical");
-    route(w, "alpha");
+    route(w, "chan-erp");
     for (const resolve of complete) resolve("Atlas confidential header\nx");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(w.document.querySelector("#app-import-result")!.textContent).toBe("");
@@ -52,7 +52,7 @@ describe("tailored customer demonstration", () => {
     saveCustomer(w, "Atlas Medical", "Atlas supplier");
     expect(w.document.title).toContain("Atlas Medical");
     expect(w.document.querySelector(".demo-banner")!.textContent).toContain("Atlas Medical");
-    for (const name of ["company", "catalog", "base", "inventory", "finance", "actions", "data", "alpha"]) {
+    for (const name of ["company", "catalog", "base", "inventory", "finance", "actions", "data", "alpha", "chan-erp", "chan-tender", "chan-manual"]) {
       route(w, name);
       const content = w.document.querySelector("#main")!.cloneNode(true) as HTMLElement;
       content.querySelector("#customer-picker")?.remove(); // The switcher intentionally lists saved customers.
@@ -84,14 +84,14 @@ describe("tailored customer demonstration", () => {
   it("escapes profile content in the company heading, ERP navigation and supplier tables", () => {
     const { w } = setup();
     saveCustomer(w, '<img src=x onerror="window.profileInjected=true">', '<svg onload="window.profileInjected=true">', '<img src=x onerror="window.profileInjected=true">');
-    for (const name of ["catalog", "inventory", "alpha", "company"]) route(w, name);
+    for (const name of ["catalog", "inventory", "alpha", "chan-erp", "chan-manual", "company"]) route(w, name);
     expect(w.document.querySelector("#main img")).toBeNull();
     expect(w.document.querySelector("#nav img")).toBeNull();
     expect(w.eval("window.profileInjected")).toBeUndefined();
   });
   it("demonstrates atomic snapshot rejection, readiness and product reorder parity", () => {
     const { w, errors } = setup();
-    route(w, "alpha");
+    route(w, "chan-erp");
     (w.document.querySelector("#snapshot-bad") as HTMLButtonElement).click();
     expect(w.document.querySelector("#app-import-result")!.textContent).toContain("Replacement blocked");
     expect(w.document.querySelector("#snapshot-value")!.textContent).toContain("10 units");

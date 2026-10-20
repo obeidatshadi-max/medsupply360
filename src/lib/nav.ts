@@ -1,7 +1,7 @@
-import { canAccess, canSeeSalesForce, type Role } from "@/core/permissions";
+import { canAccess, canSeeHistory, canSeeSalesForce, type Role } from "@/core/permissions";
 
 /**
- * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Alpha ERP data" and the
+ * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Data" and the
  * unbuilt "Compare versions" is left out until it has a home inside Settings. An item without an `href` is a screen the
  * demo shows that the app has not built yet: it is listed, greyed out and marked "Soon", never linked to a page that
  * does not exist. What each role sees comes from `canAccess` in core/permissions.
@@ -31,11 +31,10 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
     { label: "Inventory & supply", icon: "▦", href: "/inventory", match: ["/inventory"] },
     { label: "Finance & profitability", icon: "◉", href: "/finance", match: ["/finance"] },
     { label: "Management actions", icon: "✓", href: "/opportunities", match: ["/opportunities"] },
-    // One data group: the owner lands on Import files, everyone else on the Weekly update (see DataTabs).
-    owner && !guest
-      ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports", "/weekly", "/history"] }
-      : { label: "Alpha ERP data", icon: "⇄", href: "/weekly", match: ["/weekly", "/history"] },
   ];
+  // One data group, for the people who feed or audit the data: the owner loads files, the owner and administrators read the update history.
+  if (!guest && owner) main.push({ label: "Data", icon: "⇄", href: "/imports", match: ["/imports", "/history"] });
+  else if (!guest && canSeeHistory(role)) main.push({ label: "Data", icon: "⇄", href: "/history", match: ["/history"] });
   if (canAccess(role, "tender") && !guest) main.push(tender);
   if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });
   // Sample screens use made-up numbers: everyone with business access may open them, guests included.
