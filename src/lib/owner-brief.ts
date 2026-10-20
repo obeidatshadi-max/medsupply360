@@ -43,7 +43,7 @@ export interface BriefInput {
   /** Unpaid invoices: overdue part and total, or null when no file has been imported. */
   receivables: { overdue: number; total: number } | null;
   /** Owned stock: slow/unused value, total value and estimated expiry loss, or null when no file. */
-  stock: { slow: number; total: number; expiryLoss: number } | null;
+  stock: { slow: number; total: number; expiryLoss: number; reliable?: boolean } | null;
 }
 
 export interface BriefSignals {
@@ -62,9 +62,11 @@ export function briefSignals(i: BriefInput): BriefSignals {
   const expiryShare = i.stock ? ratio(i.stock.expiryLoss, i.stock.total) : null;
   // A file with no unpaid invoices at all is good news, not "no data".
   const overdue = !i.receivables ? "nodata" : i.receivables.total === 0 ? "good" : shareStatus(overdueShare, THRESHOLDS.overdueWatch, THRESHOLDS.overdueAct);
-  const stock = !i.stock
+  const rawStock = !i.stock
     ? "nodata"
     : worst(shareStatus(slowShare, THRESHOLDS.slowWatch, THRESHOLDS.slowAct), shareStatus(expiryShare, THRESHOLDS.expiryWatch, THRESHOLDS.expiryAct));
+  // With under about 90 days of history the speed of sales is a rough guess, so never tell the owner to "act now" on it.
+  const stock = rawStock === "act" && i.stock?.reliable === false ? "watch" : rawStock;
   return {
     sales: trendStatus(i.salesGrowth),
     cash: trendStatus(i.cashGrowth),
