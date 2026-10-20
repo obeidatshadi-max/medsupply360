@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHANNELS, CHANNEL_INFO } from "@/core/channels";
-import { channelsHtml, demoChannelStatus, manualChannelHtml, manualPreviewHtml, tenderChannelHtml } from "./channels-screen";
+import { channelsHtml, demoChannelStatus, manualChannelHtml, samplePreviewHtml, tenderChannelHtml } from "./channels-screen";
 
 describe("demo data channels", () => {
   it("shows the three channels, each with a way in", () => {
@@ -25,17 +25,26 @@ describe("demo data channels", () => {
     expect(channelsHtml({ erpName: "Atlas ERP" })).toContain("Atlas ERP exports");
   });
 
-  it("reads the sample workbook like the live upload: guide tab out, equipment found under its title", () => {
-    const html = manualPreviewHtml();
+  it("reads the manual sample like the live upload: guide tab out, equipment found under its title, sales team recognised", () => {
+    const html = samplePreviewHtml("manual");
     expect(html).toContain("Installed equipment (E11 or manual)");
     expect(html).toContain("headings found on row 3");
-    expect(html).toContain("2 rows");
+    expect(html).toContain("Sales force and targets (manual)");
+    expect(html).toContain("This tab explains or shows examples");
+    expect(html).toContain("Confirm and save 2 tabs");
+  });
+
+  it("reads the tender sample: full authority names and stage words are fine, a notes tab is left out", () => {
+    const html = samplePreviewHtml("tender");
+    expect(html).toContain("Tender list (tender department)");
+    expect(html).toContain("3 rows");
     expect(html).toContain("This tab explains or shows examples");
     expect(html).toContain("Confirm and save 1 tab");
   });
 
   it("has a Manual and a Tender screen", () => {
-    expect(manualChannelHtml()).toContain("chanSample");
+    expect(manualChannelHtml()).toContain('data-channel="manual"');
+    expect(tenderChannelHtml()).toContain('data-channel="tender"');
     expect(tenderChannelHtml()).toContain('data-route="tenders"');
   });
 });

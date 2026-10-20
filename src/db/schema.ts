@@ -110,6 +110,8 @@ export const importKind = pgEnum("import_kind", [
   "stock_snapshot", // E06
   "stock_transactions", // E07
   "installed_units", // E11 / manual
+  "tenders", // tender department list
+  "sales_people", // manual sales force and targets
 ]);
 export const importStatus = pgEnum("import_status", ["accepted", "partial", "rejected"]);
 

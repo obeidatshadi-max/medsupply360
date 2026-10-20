@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
 import { SmartUpload } from "@/components/smart-upload";
+import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
 import { CHANNEL_INFO } from "@/core/channels";
 
@@ -26,7 +27,7 @@ export default async function ManualChannelPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Data channels`}
         title="Manual entry"
-        sub="Data that Alpha does not hold. Upload a workbook or CSV and the tool reads each tab, recognises what it is, and shows you the result to confirm. Sales people and their targets are kept on the Sales force page."
+        sub="Data that Alpha does not hold: installed equipment, and the sales force with their targets and suppliers. Upload a workbook or CSV and the tool reads each tab, recognises what it is, and shows you the result to confirm. A person already on the Sales force page is updated by name; a blank cell never erases what is recorded."
       />
       <DataTabs current="imports" owner history />
       <p className="text-sm">
@@ -38,7 +39,8 @@ export default async function ManualChannelPage() {
           Sales force and targets
         </Link>
       </p>
-      <SmartUpload allowed={kinds} noun="your installed-equipment list" />
+      <SmartUpload allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
+      <TemplateDownloads kinds={kinds} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>
   );

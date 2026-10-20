@@ -16,4 +16,4 @@ export { settingsCsvRows, settingsHtml } from "./settings-screen";
 export { freshnessHtml } from "./freshness-demo";
 export { accountHolder, productAssignHtml, salesForceCsvRows, salesForceHtml, salesPersonHtml } from "./sales-force-demo";
 export { historyCsvRows, historyHtml } from "./history-screen";
-export { channelsHtml, manualChannelHtml, manualPreviewHtml, tenderChannelHtml } from "./channels-screen";
+export { channelsHtml, manualChannelHtml, samplePreviewHtml, tenderChannelHtml } from "./channels-screen";

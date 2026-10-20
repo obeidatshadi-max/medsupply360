@@ -37,6 +37,14 @@ describe("demo Data section", () => {
     expect(errors).toEqual([]);
   });
 
+  it("previews the sample tender list on the tender channel", () => {
+    const { w, errors } = setup();
+    route(w, "chan-tender");
+    (w.document.querySelector("#chanSample") as HTMLButtonElement).click();
+    expect(w.document.querySelector("#chanPreview")!.textContent).toContain("Tender list (tender department)");
+    expect(errors).toEqual([]);
+  });
+
   it("keeps the ERP validation tools on the ERP channel and the sidebar says Data", () => {
     const { w, errors } = setup();
     route(w, "chan-erp");

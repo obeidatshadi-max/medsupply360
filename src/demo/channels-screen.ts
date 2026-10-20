@@ -76,8 +76,11 @@ export function channelsHtml({ erpName = "Alpha ERP" }: { erpName?: string } = {
   );
 }
 
-/** A made-up workbook shaped like the Manual-entry template: a guide tab, an equipment tab under a title, and a tab nobody can place. */
-export const SAMPLE_WORKBOOK: SheetGrid[] = [
+/** Made-up workbooks shaped like what each hand-filled channel receives. */
+const day = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d));
+
+/** Manual channel: a guide tab, an equipment list that starts under a title, the sales force, and a tab nobody can place. */
+export const MANUAL_SAMPLE: SheetGrid[] = [
   { sheet: "Read me", data: [["Manual data template"], ["One tab = one file. Fill only the tabs you have data for."]] },
   {
     sheet: "Installed equipment",
@@ -85,16 +88,42 @@ export const SAMPLE_WORKBOOK: SheetGrid[] = [
       ["Equipment list kept by the service team"],
       [],
       ["Unit code", "Customer code", "Product code", "Unit name", "Installed on", "Warranty end", "Service", "Expected monthly consumables"],
-      ["DEMO-U1", "DEMO-C1", "DEMO-P1", "Hematology analyzer", new Date(Date.UTC(2024, 4, 12)), new Date(Date.UTC(2026, 4, 11)), "active", 420],
-      ["DEMO-U2", "DEMO-C2", "DEMO-P2", "Chemistry analyzer", new Date(Date.UTC(2025, 1, 3)), new Date(Date.UTC(2027, 1, 2)), "active", 610],
+      ["DEMO-U1", "DEMO-C1", "DEMO-P1", "Hematology analyzer", day(2024, 5, 12), day(2026, 5, 11), "active", 420],
+      ["DEMO-U2", "DEMO-C2", "DEMO-P2", "Chemistry analyzer", day(2025, 2, 3), day(2027, 2, 2), "active", 610],
+    ],
+  },
+  {
+    sheet: "Sales team",
+    data: [
+      ["Name", "Email", "Suppliers", "Monthly sales target", "New accounts", "Visits per week"],
+      ["Demo Sales Person A", "a@demo-company.example", "Supplier one; Supplier two", 24000, 2, 10],
+      ["Demo Sales Person B", null, "Supplier two", 18000, null, 8],
     ],
   },
   { sheet: "Reminders", data: [["Who", "When"], ["Service team", "Monday"]] },
 ];
 
-/** What the live upload page shows after a workbook is picked, for the sample above. */
-export function manualPreviewHtml(): string {
-  const reads = readWorkbook(SAMPLE_WORKBOOK, CHANNEL_INFO.manual.kinds);
+/** Tender channel: the department's own list, with the authority written out in full the way a hospital names it. */
+export const TENDER_SAMPLE: SheetGrid[] = [
+  {
+    sheet: "Tender list 2026",
+    data: [
+      ["Authority", "Tender number", "Tender title", "Equipment or consumables", "Stage", "Estimated value", "Closing date"],
+      ["Ministry of Health", "DEMO-MOH-14", "Hematology reagents, annual supply", "Consumables", "Announced", 180000, day(2026, 11, 20)],
+      ["King Hussein Cancer Center", "DEMO-KHCC-3", "Chemistry analyzer with service", "Equipment", "Opportunity", 95000, null],
+      ["Royal Medical Services", null, "Blood bank refrigerators", "Equipment", null, null, null],
+    ],
+  },
+  { sheet: "Notes", data: [["Remember to renew registration"]] },
+];
+
+const SAMPLES = { manual: MANUAL_SAMPLE, tender: TENDER_SAMPLE } as const;
+type SampleChannel = keyof typeof SAMPLES;
+const NOUN: Record<SampleChannel, string> = { manual: "workbook", tender: "tender list" };
+
+/** What the live upload page shows after a workbook is picked, for the sample of one channel. */
+export function samplePreviewHtml(channel: SampleChannel): string {
+  const reads = readWorkbook(SAMPLES[channel], CHANNEL_INFO[channel].kinds);
   const rows = reads
     .map((r) => {
       const what =
@@ -110,26 +139,30 @@ export function manualPreviewHtml(): string {
     .join("");
   const used = reads.filter((r) => r.kind && r.skipped === null);
   return (
-    `<div class="info"><b>Preview, nothing saved yet.</b> The sample workbook has ${plural(reads.length, "tab")}. The tool read each tab on its own and found what it is.</div>` +
+    `<div class="info"><b>Preview, nothing saved yet.</b> The sample ${NOUN[channel]} has ${plural(reads.length, "tab")}. The tool read each tab on its own and found what it is.</div>` +
     `<div class="tablewrap"><table><thead><tr><th>Tab</th><th>Understood as</th><th>Used</th></tr></thead><tbody>${rows}</tbody></table></div>` +
     `<p style="margin-top:12px"><button class="primary" id="chanConfirm" style="width:auto">Confirm and save ${plural(used.length, "tab")}</button> <span class="mini">In the live app this saves the rows after the owner types a name; here it saves nothing.</span></p>`
   );
 }
 
+const sampleBox = (channel: SampleChannel, blurb: string) =>
+  `<section class="panel"><div class="panelhead"><div><h2>Try a sample ${NOUN[channel]}</h2><p class="sub">${esc(blurb)}</p></div><button class="primary" id="chanSample" data-channel="${channel}" style="width:auto">Read the sample ${NOUN[channel]}</button></div><div id="chanPreview" aria-live="polite"></div></section>`;
+
 /** The Manual channel screen. */
 export function manualChannelHtml(): string {
   return (
-    `<div class="info">Data that ${esc("Alpha")} does not hold: installed equipment, sales targets and the sales force. Upload a workbook or CSV, check what the tool understood, then confirm.</div>` +
-    `<section class="panel"><div class="panelhead"><div><h2>Try a sample workbook</h2><p class="sub">A made-up workbook with a guide tab, an equipment list that starts under a title, and a tab that is not data.</p></div><button class="primary" id="chanSample" style="width:auto">Read the sample workbook</button></div><div id="chanPreview" aria-live="polite"></div></section>` +
+    `<div class="info">Data that Alpha does not hold: installed equipment, and the sales force with their targets and suppliers. Upload a workbook or CSV, check what the tool understood, then confirm. A starter file is available for each type.</div>` +
+    sampleBox("manual", "A made-up workbook with a guide tab, an equipment list that starts under a title, the sales team, and a tab that is not data.") +
     `<p class="mini"><button class="linkbtn" data-route="salesforce">Sales force and targets</button></p>`
   );
 }
 
-/** The Tender channel screen: who feeds it and what the team has recorded. */
+/** The Tender channel screen: who feeds it, what the team has recorded, and the list upload. */
 export function tenderChannelHtml(): string {
   const s = demoChannelStatus().tender;
   return (
-    `<div class="info">Tenders are recorded by the tender team, one at a time, in the Tenders section. ${esc(lastUpdateText(s, DEMO_NOW))}. ${esc(s.facts.join(" · "))}.</div>` +
+    `<div class="info">The tender team records each tender, its stages, guarantees and payments in the Tenders section. ${esc(lastUpdateText(s, DEMO_NOW))}. ${esc(s.facts.join(" · "))}. To load or catch up a whole list at once, upload it here: a tender already recorded is updated, but its stage is only moved in the Tenders section.</div>` +
+    sampleBox("tender", "A made-up tender list written the way a department keeps it: authority names in full, stages in words, one row without a number, and a notes tab.") +
     `<p class="mini"><button class="linkbtn" data-route="tenders">Open Tenders</button></p>`
   );
 }
