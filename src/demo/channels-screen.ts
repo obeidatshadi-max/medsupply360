@@ -151,7 +151,7 @@ const sampleBox = (channel: SampleChannel, blurb: string) =>
 /** The Manual channel screen. */
 export function manualChannelHtml(): string {
   return (
-    `<div class="info">Data that Alpha does not hold: installed equipment, the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV, check what the tool understood, then confirm. A starter file is available for each type.</div>` +
+    `<div class="info">Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV, check what the tool understood, then confirm. A starter file is available for each type.</div>` +
     sampleBox("manual", "A made-up workbook with a guide tab, an equipment list that starts under a title, the sales team, and a tab that is not data.") +
     `<p class="mini"><button class="linkbtn" data-route="salesforce">Sales force and targets</button></p>`
   );

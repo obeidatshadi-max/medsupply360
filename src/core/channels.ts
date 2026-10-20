@@ -51,7 +51,7 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     key: "manual",
     title: "Manual entry",
     href: "/imports/manual",
-    summary: "Data that is not in Alpha: installed equipment, the sales force and their targets, support-function indicators.",
+    summary: "Data that is not in Alpha: details of the machines (warranty, service), the sales force and their targets, support-function indicators.",
     cadence: "When equipment or the sales team changes",
     feeder: "Owner",
     kinds: ["installed_units", "sales_people"],
