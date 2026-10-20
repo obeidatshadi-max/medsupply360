@@ -42,7 +42,7 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
   const explore: NavItem[] = [
     { label: "Company profile", icon: "▧" },
     { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
-    { label: "Service & support", icon: "⚙" },
+    { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
     { label: "Support functions", icon: "◇" },
     { label: "Opportunity radar", icon: "✧" },
     ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),

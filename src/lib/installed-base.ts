@@ -8,24 +8,14 @@ import { addDays } from "@/lib/format";
 /** Days of purchases that set what a customer "actually" buys per month. Ninety days smooths one-off orders without going stale. */
 export const PURCHASE_WINDOW_DAYS = 90;
 
-/**
- * The installed base of one company against the consumables its customers bought in the 90 days up to the newest
- * invoice (never later than today). Consumables are the product lines marked Consumables; returns are taken off.
- */
-export async function companyInstalledBase(companyId: string, today: string) {
-  const db = getDb();
-  const [unitRows, latest] = await Promise.all([
-    db.execute(sql`
-      select u.code, u.name, c.code as customer_code, c.name as customer_name, u.installed_on::text as installed_on,
-        u.warranty_end::text as warranty_end, u.service::text as service, u.expected_monthly_consumables::text as expected
-      from installed_units u join customers c on c.company_id = u.company_id and c.id = u.customer_id
-      where u.company_id = ${companyId}`),
-    db.execute(sql`select max(invoice_date)::text as d from invoices where company_id = ${companyId} and invoice_date <= ${today}::date`),
-  ]);
-  const to = windowEnd(today, (latest.rows[0] as { d: string | null } | undefined)?.d ?? null);
-  const from = addDays(to, -(PURCHASE_WINDOW_DAYS - 1));
-
-  const units: UnitInput[] = (unitRows.rows as Record<string, string | null>[]).map((r) => ({
+/** Every installed unit of one company with its customer, as recorded on the equipment list. */
+export async function companyInstalledUnits(companyId: string): Promise<UnitInput[]> {
+  const rows = await getDb().execute(sql`
+    select u.code, u.name, c.code as customer_code, c.name as customer_name, u.installed_on::text as installed_on,
+      u.warranty_end::text as warranty_end, u.service::text as service, u.expected_monthly_consumables::text as expected
+    from installed_units u join customers c on c.company_id = u.company_id and c.id = u.customer_id
+    where u.company_id = ${companyId}`);
+  return (rows.rows as Record<string, string | null>[]).map((r) => ({
     code: String(r.code),
     name: String(r.name),
     customerCode: String(r.customer_code),
@@ -35,6 +25,20 @@ export async function companyInstalledBase(companyId: string, today: string) {
     service: r.service as ServiceStatus | null,
     expectedMonthly: r.expected === null ? null : Number(r.expected),
   }));
+}
+
+/**
+ * The installed base of one company against the consumables its customers bought in the 90 days up to the newest
+ * invoice (never later than today). Consumables are the product lines marked Consumables; returns are taken off.
+ */
+export async function companyInstalledBase(companyId: string, today: string) {
+  const db = getDb();
+  const [units, latest] = await Promise.all([
+    companyInstalledUnits(companyId),
+    db.execute(sql`select max(invoice_date)::text as d from invoices where company_id = ${companyId} and invoice_date <= ${today}::date`),
+  ]);
+  const to = windowEnd(today, (latest.rows[0] as { d: string | null } | undefined)?.d ?? null);
+  const from = addDays(to, -(PURCHASE_WINDOW_DAYS - 1));
 
   const bought = new Map<string, number>();
   if (units.length > 0) {
