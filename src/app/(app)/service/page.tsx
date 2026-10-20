@@ -13,6 +13,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, pct } from "@/lib/format";
 import { companyInstalledUnits } from "@/lib/installed-base";
+import { isDerivedCode } from "@/core/derived-units";
 
 export const metadata: Metadata = { title: "Service & support" };
 
@@ -120,7 +121,7 @@ export default async function ServicePage() {
                 <tr key={`${r.unit.customerCode}-${r.unit.code}`} className="border-t border-line align-top">
                   <td className="px-3 py-2">
                     <Link href={`/installed-base/${encodeURIComponent(r.unit.code)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{r.unit.name}</Link>
-                    <span className="block text-xs text-muted">{r.unit.code}</span>
+                    {isDerivedCode(r.unit.code) ? null : <span className="block text-xs text-muted">{r.unit.code}</span>}
                   </td>
                   <td className="px-3 py-2">
                     <CustomerLink code={r.unit.customerCode} name={r.unit.customerName} />
