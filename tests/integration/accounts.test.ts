@@ -67,6 +67,7 @@ const redirected = async (p: Promise<unknown>): Promise<string> => {
 const flush = async () => {
   await Promise.all(h.state.pending.splice(0));
 };
+const attempts = async () => Number((await client.query<{ n: string }>(`select count(*)::int as n from audit_logs where action = 'auth.signup_attempt'`)).rows[0]!.n);
 const INVITE = "pilot-invite-2026";
 const signup = (over: Record<string, string> = {}) =>
   acct.signupAction({}, fd({ fullName: "Shadi O", email: "shadi@example.com", companyName: "Sadaf Medical", password: "blue-Table-92!", inviteCode: INVITE, ...over }));
@@ -145,25 +146,32 @@ describe("sign up", () => {
     expect(await count("users")).toBe(0);
     expect(await count("companies")).toBe(0);
   });
-  it("refuses a wrong or missing code, logs it and throttles guessing", async () => {
+  it("refuses a wrong or missing code, logs the attempt and throttles guessing", async () => {
     expect((await signup({ inviteCode: "nope" })).error).toMatch(/not valid/);
     expect((await signup({ inviteCode: "" })).error).toMatch(/not valid/);
     expect(await count("users")).toBe(0);
     expect(await count("companies")).toBe(0);
-    expect(Number((await client.query<{ n: string }>(`select count(*)::int as n from audit_logs where action = 'auth.signup_refused'`)).rows[0]!.n)).toBe(2);
-    for (let i = 0; i < 3; i++) await signup({ inviteCode: `guess${i}` });
+    expect(await attempts()).toBe(2);
+    for (let i = 0; i < 8; i++) await signup({ inviteCode: `guess${i}` });
     expect((await signup({ inviteCode: "guess-x" })).error).toMatch(/Too many/);
   });
-  it("fails closed on a wrong code when the client address is unknown", async () => {
+  it("refuses even the correct code once the attempt limit is reached", async () => {
+    for (let i = 0; i < 10; i++) await signup({ inviteCode: `guess${i}` });
+    expect((await signup()).error).toMatch(/Too many/);
+    expect(await count("users")).toBe(0);
+    expect(await count("companies")).toBe(0);
+  });
+  it("fails closed when the client address is unknown, even with the right code", async () => {
     h.state.ip = null;
-    expect((await signup({ inviteCode: "nope" })).error).toMatch(/Too many/);
+    expect((await signup()).error).toMatch(/Too many/);
     expect(await count("users")).toBe(0);
   });
-  it("caps wrong-code attempts across all addresses", async () => {
-    for (let i = 0; i < 30; i++)
-      await client.query(`insert into audit_logs (action, details) values ('auth.signup_refused', $1)`, [JSON.stringify({ ip: `9.9.9.${i}` })]);
+  it("caps attempts across all addresses, even with the right code", async () => {
+    for (let i = 0; i < 40; i++)
+      await client.query(`insert into audit_logs (action, details) values ('auth.signup_attempt', $1)`, [JSON.stringify({ ip: `9.9.9.${i}` })]);
     h.state.ip = "8.8.8.8";
-    expect((await signup({ inviteCode: "nope" })).error).toMatch(/Too many/);
+    expect((await signup()).error).toMatch(/Too many/);
+    expect(await count("users")).toBe(0);
   });
   it("treats a code shorter than 16 characters as not configured", async () => {
     process.env.SIGNUP_INVITE_CODE = "short";

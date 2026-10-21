@@ -62,8 +62,9 @@ export function resetState(row: { expiresAt: Date; usedAt: Date | null } | undef
 export const LIMITS = {
   windowMinutes: 60,
   signupPerIp: 5,
-  /** Refused invitation-code attempts, from all addresses together, per window. */
-  signupRefusedTotal: 30,
+  /** Sign-up attempts (right or wrong code) per address, and from all addresses together, per window. */
+  signupAttemptsPerIp: 10,
+  signupAttemptsTotal: 40,
   resetPerEmail: 3,
   resetPerIp: 10,
 } as const;

@@ -56,8 +56,8 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   // Honeypot: real visitors never see or fill this field.
   if (String(formData.get("website") ?? "") !== "") return { error: "Something went wrong. Try again.", values };
 
-  const invite = checkInviteCode(signupInviteCode(), String(formData.get("inviteCode") ?? ""));
-  if (invite === "closed") return { error: "Sign-up is by invitation only. Ask your administrator for access.", values };
+  const expectedCode = signupInviteCode();
+  if (!expectedCode) return { error: "Sign-up is by invitation only. Ask your administrator for access.", values };
 
   const parsed = signupSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form.", values };
@@ -69,17 +69,17 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   const { byIp } = await recentCount("auth.signup", { ip }, LIMITS.windowMinutes);
   if (ip && byIp >= LIMITS.signupPerIp) return { error: "Too many accounts were created from this network. Try again in an hour.", values };
 
-  if (invite === "wrong") {
-    // Guessing the code is throttled. Record the attempt first, then count (this attempt included), so parallel
-    // requests cannot all pass a check made before any of them is written. Without a client address the per-address
-    // limit cannot work, so refuse (fail closed). A global ceiling covers rotating addresses.
-    await writeAudit({ userId: null, action: "auth.signup_refused", details: { email, ip, reason: "invite_code" } });
-    const refused = await recentCount("auth.signup_refused", { ip }, LIMITS.windowMinutes);
-    const refusedAll = await recentTotal("auth.signup_refused", LIMITS.windowMinutes);
-    if (!ip || refused.byIp > LIMITS.signupPerIp || refusedAll > LIMITS.signupRefusedTotal)
-      return { error: "Too many attempts. Try again in an hour.", values };
+  // Every attempt is throttled BEFORE the code is compared, whatever the code is, so guessing cannot continue past the
+  // limit (a correct guess after the limit is refused too). The attempt is recorded first and counted with itself
+  // included, so parallel requests cannot all pass a check made before any of them is written. Without a client
+  // address the per-address limit cannot work, so refuse (fail closed). A global ceiling covers rotating addresses.
+  await writeAudit({ userId: null, action: "auth.signup_attempt", details: { email, ip } });
+  const attempts = await recentCount("auth.signup_attempt", { ip }, LIMITS.windowMinutes);
+  const attemptsAll = await recentTotal("auth.signup_attempt", LIMITS.windowMinutes);
+  if (!ip || attempts.byIp > LIMITS.signupAttemptsPerIp || attemptsAll > LIMITS.signupAttemptsTotal)
+    return { error: "Too many attempts. Try again in an hour.", values };
+  if (checkInviteCode(expectedCode, String(formData.get("inviteCode") ?? "")) !== "ok")
     return { error: "That invitation code is not valid.", values };
-  }
 
   const db = getDb();
   const passwordHash = await bcrypt.hash(password, 12);
