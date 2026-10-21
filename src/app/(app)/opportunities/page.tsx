@@ -66,7 +66,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
       <PageHeading
         eyebrow={`${user.companyName} · Management actions`}
         title="Management actions"
-        sub={`Where to act first, on ${r.asOf}. Each customer has one line. We show the biggest signal and only name the others. We never add them together.`}
+        sub={`Where to act first, on ${r.asOf}. Each customer appears once, with the biggest signal; other signals are only named, never added together.`}
       />
 
       {tracker}

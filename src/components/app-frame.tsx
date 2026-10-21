@@ -113,7 +113,7 @@ export function AppFrame({
               aria-expanded={open}
               aria-controls="sidebar"
               onClick={() => setOpen((o) => !o)}
-              className="rounded-[7px] border border-line bg-white px-3 py-2 text-sm md:hidden"
+              className="min-h-11 min-w-11 rounded-[7px] border border-line bg-white px-3 py-2 text-sm md:hidden"
             >
               ☰
             </button>
