@@ -67,8 +67,9 @@ const redirected = async (p: Promise<unknown>): Promise<string> => {
 const flush = async () => {
   await Promise.all(h.state.pending.splice(0));
 };
+const INVITE = "pilot-invite-2026";
 const signup = (over: Record<string, string> = {}) =>
-  acct.signupAction({}, fd({ fullName: "Shadi O", email: "shadi@example.com", companyName: "Sadaf Medical", password: "blue-Table-92!", ...over }));
+  acct.signupAction({}, fd({ fullName: "Shadi O", email: "shadi@example.com", companyName: "Sadaf Medical", password: "blue-Table-92!", inviteCode: INVITE, ...over }));
 const count = async (table: string) => Number((await client.query<{ n: string }>(`select count(*)::int as n from ${table}`)).rows[0]!.n);
 
 beforeAll(async () => {
@@ -93,6 +94,7 @@ beforeEach(async () => {
   await client.exec("truncate audit_logs, password_resets, users, companies cascade");
   h.jar.clear();
   Object.assign(h.state, { ip: "1.1.1.1", mailOn: true, sent: [], pending: [] });
+  process.env.SIGNUP_INVITE_CODE = INVITE;
 });
 
 describe("sign up", () => {
@@ -134,6 +136,42 @@ describe("sign up", () => {
     const r = await acct.signupAction({}, fd({ fullName: "Bot", email: "bot@example.com", companyName: "Spam", password: "blue-Table-92!", website: "http://spam" }));
     expect(r.error).toBeTruthy();
     expect(await count("users")).toBe(0);
+  });
+  it("is closed when no invitation code is configured", async () => {
+    delete process.env.SIGNUP_INVITE_CODE;
+    expect((await signup()).error).toMatch(/by invitation only/);
+    process.env.SIGNUP_INVITE_CODE = "   ";
+    expect((await signup()).error).toMatch(/by invitation only/);
+    expect(await count("users")).toBe(0);
+    expect(await count("companies")).toBe(0);
+  });
+  it("refuses a wrong or missing code, logs it and throttles guessing", async () => {
+    expect((await signup({ inviteCode: "nope" })).error).toMatch(/not valid/);
+    expect((await signup({ inviteCode: "" })).error).toMatch(/not valid/);
+    expect(await count("users")).toBe(0);
+    expect(await count("companies")).toBe(0);
+    expect(Number((await client.query<{ n: string }>(`select count(*)::int as n from audit_logs where action = 'auth.signup_refused'`)).rows[0]!.n)).toBe(2);
+    for (let i = 0; i < 3; i++) await signup({ inviteCode: `guess${i}` });
+    expect((await signup({ inviteCode: "guess-x" })).error).toMatch(/Too many/);
+  });
+  it("fails closed on a wrong code when the client address is unknown", async () => {
+    h.state.ip = null;
+    expect((await signup({ inviteCode: "nope" })).error).toMatch(/Too many/);
+    expect(await count("users")).toBe(0);
+  });
+  it("caps wrong-code attempts across all addresses", async () => {
+    for (let i = 0; i < 30; i++)
+      await client.query(`insert into audit_logs (action, details) values ('auth.signup_refused', $1)`, [JSON.stringify({ ip: `9.9.9.${i}` })]);
+    h.state.ip = "8.8.8.8";
+    expect((await signup({ inviteCode: "nope" })).error).toMatch(/Too many/);
+  });
+  it("treats a code shorter than 16 characters as not configured", async () => {
+    process.env.SIGNUP_INVITE_CODE = "short";
+    expect((await signup({ inviteCode: "short" })).error).toMatch(/by invitation only/);
+    expect(await count("users")).toBe(0);
+  });
+  it("accepts the code with surrounding spaces", async () => {
+    expect(await redirected(signup({ inviteCode: `  ${INVITE} ` }))).toBe("/dashboard");
   });
   it("limits sign-ups per network address", async () => {
     for (let i = 0; i < 5; i++) await redirected(signup({ email: `u${i}@example.com`, companyName: `Co ${i}` }));
