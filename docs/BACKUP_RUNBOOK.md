@@ -142,7 +142,7 @@ Keep the values in a password manager. After a rebuild, these must exist in Netl
 
 - `DATABASE_URL` (only if not using the site's own Netlify Database)
 - `SESSION_SECRET` (changing it signs everyone out; keep the old one if you want sessions to survive)
-- `SIGNUP_INVITE_CODE` (leave unset to keep sign-up closed)
+- `SIGNUP_INVITE_CODE` (16+ characters, or sign-up stays closed; leave unset to keep it closed)
 - `APP_URL`
 - `BREVO_API_KEY`, `MAIL_SENDER`, `MAIL_SENDER_NAME` (password-reset email)
 - `BOOTSTRAP_OWNER_*`, `BOOTSTRAP_COMPANY_*` (first deploy only; remove after the first login)

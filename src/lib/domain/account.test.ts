@@ -62,7 +62,8 @@ describe("sign-up invitation code", () => {
   it("is closed unless a non-blank code is configured", () => {
     expect(signupInviteCode({})).toBeNull();
     expect(signupInviteCode({ SIGNUP_INVITE_CODE: "  " })).toBeNull();
-    expect(signupInviteCode({ SIGNUP_INVITE_CODE: " abc " })).toBe("abc");
+    expect(signupInviteCode({ SIGNUP_INVITE_CODE: "short-code" })).toBeNull();
+    expect(signupInviteCode({ SIGNUP_INVITE_CODE: " 0123456789abcdef " })).toBe("0123456789abcdef");
     expect(checkInviteCode(null, "anything")).toBe("closed");
   });
   it("accepts only the exact code, ignoring surrounding spaces", () => {

@@ -62,15 +62,23 @@ export function resetState(row: { expiresAt: Date; usedAt: Date | null } | undef
 export const LIMITS = {
   windowMinutes: 60,
   signupPerIp: 5,
+  /** Refused invitation-code attempts, from all addresses together, per window. */
+  signupRefusedTotal: 30,
   resetPerEmail: 3,
   resetPerIp: 10,
 } as const;
 
+export const INVITE_CODE_MIN_LENGTH = 16;
+
 /**
  * Sign-up is closed unless SIGNUP_INVITE_CODE is set; when set, the visitor must type that code.
- * Returns null when sign-up is closed.
+ * A code shorter than INVITE_CODE_MIN_LENGTH is too easy to guess and counts as not set (closed).
+ * Generate one with: openssl rand -base64 18
  */
-export const signupInviteCode = (env: Record<string, string | undefined> = process.env): string | null => env.SIGNUP_INVITE_CODE?.trim() || null;
+export const signupInviteCode = (env: Record<string, string | undefined> = process.env): string | null => {
+  const code = env.SIGNUP_INVITE_CODE?.trim();
+  return code && code.length >= INVITE_CODE_MIN_LENGTH ? code : null;
+};
 
 export type InviteCheck = "closed" | "wrong" | "ok";
 

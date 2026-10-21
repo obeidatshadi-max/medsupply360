@@ -154,6 +154,22 @@ describe("sign up", () => {
     for (let i = 0; i < 3; i++) await signup({ inviteCode: `guess${i}` });
     expect((await signup({ inviteCode: "guess-x" })).error).toMatch(/Too many/);
   });
+  it("fails closed on a wrong code when the client address is unknown", async () => {
+    h.state.ip = null;
+    expect((await signup({ inviteCode: "nope" })).error).toMatch(/Too many/);
+    expect(await count("users")).toBe(0);
+  });
+  it("caps wrong-code attempts across all addresses", async () => {
+    for (let i = 0; i < 30; i++)
+      await client.query(`insert into audit_logs (action, details) values ('auth.signup_refused', $1)`, [JSON.stringify({ ip: `9.9.9.${i}` })]);
+    h.state.ip = "8.8.8.8";
+    expect((await signup({ inviteCode: "nope" })).error).toMatch(/Too many/);
+  });
+  it("treats a code shorter than 16 characters as not configured", async () => {
+    process.env.SIGNUP_INVITE_CODE = "short";
+    expect((await signup({ inviteCode: "short" })).error).toMatch(/by invitation only/);
+    expect(await count("users")).toBe(0);
+  });
   it("accepts the code with surrounding spaces", async () => {
     expect(await redirected(signup({ inviteCode: `  ${INVITE} ` }))).toBe("/dashboard");
   });

@@ -25,7 +25,7 @@ import {
 } from "@/lib/domain/account";
 import { appUrl, mailConfigured, sendMail } from "../services/mailer";
 import { clientIp } from "../services/login-throttle";
-import { recentCount } from "../services/rate-limit";
+import { recentCount, recentTotal } from "../services/rate-limit";
 
 // ─── Sign up ─────────────────────────────────────────────────────────────────
 
@@ -70,10 +70,14 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   if (ip && byIp >= LIMITS.signupPerIp) return { error: "Too many accounts were created from this network. Try again in an hour.", values };
 
   if (invite === "wrong") {
-    // Guessing the code is throttled like signing up: refused attempts count against the same per-address limit.
-    const refused = await recentCount("auth.signup_refused", { ip }, LIMITS.windowMinutes);
-    if (ip && refused.byIp >= LIMITS.signupPerIp) return { error: "Too many attempts from this network. Try again in an hour.", values };
+    // Guessing the code is throttled. Record the attempt first, then count (this attempt included), so parallel
+    // requests cannot all pass a check made before any of them is written. Without a client address the per-address
+    // limit cannot work, so refuse (fail closed). A global ceiling covers rotating addresses.
     await writeAudit({ userId: null, action: "auth.signup_refused", details: { email, ip, reason: "invite_code" } });
+    const refused = await recentCount("auth.signup_refused", { ip }, LIMITS.windowMinutes);
+    const refusedAll = await recentTotal("auth.signup_refused", LIMITS.windowMinutes);
+    if (!ip || refused.byIp > LIMITS.signupPerIp || refusedAll > LIMITS.signupRefusedTotal)
+      return { error: "Too many attempts. Try again in an hour.", values };
     return { error: "That invitation code is not valid.", values };
   }
 
