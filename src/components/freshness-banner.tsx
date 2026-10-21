@@ -22,7 +22,7 @@ export function FreshnessBanner({ freshness, canImport }: { freshness: Freshness
         <span className={`font-semibold ${stale ? "text-bad" : "text-warn"}`}>{stale ? "!! The data is out of date." : "! The data is getting old."}</span>{" "}
         {late.map((i) => `${i.label}: up to ${dayText(i.asOf as string)} (${daysAgo(i.daysOld as number)})`).join(" · ")}.{" "}
         {canImport ? (
-          <a href="/imports" className="font-semibold underline underline-offset-2">
+          <a href="/imports" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 md:min-h-0">
             Import newer files
           </a>
         ) : (
@@ -30,7 +30,7 @@ export function FreshnessBanner({ freshness, canImport }: { freshness: Freshness
         )}
       </p>
       <details className="mt-1 text-xs">
-        <summary className="cursor-pointer text-muted">What this means</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center text-muted md:min-h-0">What this means</summary>
         <p className="mt-1">
           {stale
             ? "Some figures below may look worse than reality, because newer invoices and payments are not loaded yet."

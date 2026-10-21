@@ -33,7 +33,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
   const { main, explore } = navItems({ guest: user.guest, role: user.role, level });
 
   const banner = user.guest ? (
-    <p className="flex justify-between gap-2.5 border-b border-line bg-[#eef3eb] px-4 py-[9px] text-[11px] text-[#657367] md:px-[18px]">
+    <p className="flex justify-between gap-2.5 border-b border-line bg-[#eef3eb] px-4 py-[9px] text-xs text-[#657367] md:px-[18px]">
       <span>
         <b>Open access:</b> you are browsing as a guest. No company data is shown.
       </span>
@@ -46,7 +46,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
   const topRight = user.guest ? (
     <>
       <span className="hidden rounded-[5px] bg-[#f6efdf] px-2 py-[3px] text-[11px] font-semibold text-[#8c6a2e] md:inline">SYNTHETIC DATA</span>
-      <a href="/login" className="rounded-[7px] border border-line px-3 py-1.5 text-sm hover:border-brand hover:bg-[#f0f6f2]">
+      <a href="/login" className="inline-flex min-h-11 items-center rounded-[7px] border border-line px-3 py-1.5 text-sm hover:border-brand hover:bg-[#f0f6f2] md:min-h-0">
         Sign in
       </a>
     </>
@@ -57,7 +57,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
         <span className="hidden text-muted md:inline">
           {user.fullName} · {user.role}
         </span>
-        <button type="submit" className="rounded-[7px] border border-line px-3 py-1.5 hover:border-brand hover:bg-[#f0f6f2]">
+        <button type="submit" className="min-h-11 rounded-[7px] border border-line px-3 py-1.5 hover:border-brand hover:bg-[#f0f6f2] md:min-h-0">
           Sign out
         </button>
       </form>

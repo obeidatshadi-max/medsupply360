@@ -11,13 +11,13 @@ export function DataTabs({ current, owner, history }: { current: (typeof TABS)[n
   const tabs = TABS.filter((t) => allowed[t.needs]);
   if (tabs.length < 2) return null;
   return (
-    <nav aria-label="Data" className="mb-4 flex gap-2 text-sm">
+    <nav aria-label="Data" className="mb-4 flex flex-wrap gap-2 text-sm">
       {tabs.map((t) => (
         <a
           key={t.key}
           href={t.href}
           aria-current={t.key === current ? "page" : undefined}
-          className={`rounded-md border px-3 py-2 ${t.key === current ? "border-brand bg-brand text-brand-ink" : "border-line bg-white hover:border-brand"}`}
+          className={`inline-flex min-h-11 items-center rounded-md border px-4 py-2 ${t.key === current ? "border-brand bg-brand text-brand-ink" : "border-line bg-white hover:border-brand"}`}
         >
           {t.label}
         </a>
