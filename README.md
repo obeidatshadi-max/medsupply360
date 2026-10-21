@@ -25,7 +25,8 @@ Schema changes: `npm run db:generate` then `npm run db:netlify-migrations` (mirr
 
 ## Accounts
 
-- `/signup` creates a company and its owner (free; limited to 5 per network address per hour, honeypot, password policy).
+- `/signup` creates a company and its owner. It is closed unless `SIGNUP_INVITE_CODE` is set; with a code set, the visitor must type it (wrong codes are audited and throttled, 5 per network address per hour, plus honeypot and password policy). Unset the variable to close sign-up again; the login page then hides the link.
+- Backups and restore: see `docs/BACKUP_RUNBOOK.md`.
 - `/forgot-password` emails a one-time link (valid 60 minutes, only its hash is stored); `/reset-password` sets the new password and signs out every older session.
 - Email goes through Brevo: set `BREVO_API_KEY` and `MAIL_SENDER` (a verified sender). Without them the forgot-password page says it is not set up. Links use `APP_URL` (or Netlify's `URL`), never request headers.
 - Tests run the real migrations on an in-process Postgres (PGlite): `tests/integration/accounts.test.ts`.

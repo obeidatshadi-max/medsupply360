@@ -17,7 +17,9 @@ import {
   newResetToken,
   normalizeEmail,
   passwordProblem,
+  checkInviteCode,
   resetState,
+  signupInviteCode,
   slugify,
   withSuffix,
 } from "@/lib/domain/account";
@@ -54,6 +56,9 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   // Honeypot: real visitors never see or fill this field.
   if (String(formData.get("website") ?? "") !== "") return { error: "Something went wrong. Try again.", values };
 
+  const invite = checkInviteCode(signupInviteCode(), String(formData.get("inviteCode") ?? ""));
+  if (invite === "closed") return { error: "Sign-up is by invitation only. Ask your administrator for access.", values };
+
   const parsed = signupSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form.", values };
   const { fullName, email, companyName, password } = parsed.data;
@@ -63,6 +68,14 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   const ip = await clientIp();
   const { byIp } = await recentCount("auth.signup", { ip }, LIMITS.windowMinutes);
   if (ip && byIp >= LIMITS.signupPerIp) return { error: "Too many accounts were created from this network. Try again in an hour.", values };
+
+  if (invite === "wrong") {
+    // Guessing the code is throttled like signing up: refused attempts count against the same per-address limit.
+    const refused = await recentCount("auth.signup_refused", { ip }, LIMITS.windowMinutes);
+    if (ip && refused.byIp >= LIMITS.signupPerIp) return { error: "Too many attempts from this network. Try again in an hour.", values };
+    await writeAudit({ userId: null, action: "auth.signup_refused", details: { email, ip, reason: "invite_code" } });
+    return { error: "That invitation code is not valid.", values };
+  }
 
   const db = getDb();
   const passwordHash = await bcrypt.hash(password, 12);

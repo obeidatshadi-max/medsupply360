@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIMITS, hashToken, newResetToken, normalizeEmail, passwordProblem, resetState, slugify, withSuffix } from "./account";
+import { LIMITS, checkInviteCode, signupInviteCode, hashToken, newResetToken, normalizeEmail, passwordProblem, resetState, slugify, withSuffix } from "./account";
 
 describe("passwordProblem", () => {
   it("accepts a reasonable password", () => {
@@ -55,5 +55,19 @@ describe("misc", () => {
   it("normalizes emails and exposes sane limits", () => {
     expect(normalizeEmail("  Shadi@Example.COM ")).toBe("shadi@example.com");
     expect(LIMITS.resetPerEmail).toBeLessThan(LIMITS.resetPerIp);
+  });
+});
+
+describe("sign-up invitation code", () => {
+  it("is closed unless a non-blank code is configured", () => {
+    expect(signupInviteCode({})).toBeNull();
+    expect(signupInviteCode({ SIGNUP_INVITE_CODE: "  " })).toBeNull();
+    expect(signupInviteCode({ SIGNUP_INVITE_CODE: " abc " })).toBe("abc");
+    expect(checkInviteCode(null, "anything")).toBe("closed");
+  });
+  it("accepts only the exact code, ignoring surrounding spaces", () => {
+    expect(checkInviteCode("abc-123", " abc-123 ")).toBe("ok");
+    expect(checkInviteCode("abc-123", "ABC-123")).toBe("wrong");
+    expect(checkInviteCode("abc-123", "")).toBe("wrong");
   });
 });
