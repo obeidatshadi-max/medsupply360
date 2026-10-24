@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { importBatches } from "@/db/schema";
@@ -51,6 +52,15 @@ export default async function ImportsPage() {
       />
       <DataTabs current="imports" owner history />
       <ImportForm />
+      <section aria-label="Tender results" className="rounded-lg border border-line bg-surface p-4">
+        <h2 className="text-sm font-semibold">Tender results are imported here too</h2>
+        <p className="mt-1 max-w-2xl text-xs text-muted">
+          Award results from the authorities and your own bids go in the same way, as the file type &ldquo;Tender results&rdquo;. They feed the tender Price history page and do not change the Alpha ERP figures or the &ldquo;Data last integrated&rdquo; line.{" "}
+          <Link href="/tenders/prices" className="underline">How to prepare the file</Link>
+          {" · "}
+          <a href="/tenders/prices/download?file=template" download className="underline">Empty template</a>
+        </p>
+      </section>
       <DataReadiness report={readiness} />
       <section aria-label="Recent imports">
         <h2 className="text-sm font-semibold">Recent imports</h2>

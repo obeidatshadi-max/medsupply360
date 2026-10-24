@@ -1,7 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { SPECS, type ImportKind } from "@/core/import/specs";
+import { ERP_KINDS, SPECS, type ImportKind } from "@/core/import/specs";
 import { isIsoDate } from "@/core/calc";
 
 interface Batch {
@@ -35,7 +35,7 @@ export async function companyDataReadiness(companyId: string, today: string) {
   ]);
   const lastAttempt = new Map((attempts.rows as unknown as Batch[]).map((r) => [r.kind, r]));
   const lastLoaded = new Map((loaded.rows as unknown as Batch[]).map((r) => [r.kind, r]));
-  const datasets = (Object.keys(SPECS) as ImportKind[]).map((kind) => ({ kind, title: SPECS[kind].title,
+  const datasets = ERP_KINDS.map((kind) => ({ kind, title: SPECS[kind].title,
     latestAttempt: lastAttempt.get(kind) ?? null, lastLoaded: lastLoaded.get(kind) ?? null }));
   const c = coverage.rows[0] as { first_sale: string | null; last_sale: string | null; unclassified: number; missing_units: number };
   return { asOf: today, datasets, firstSale: c.first_sale, lastSale: c.last_sale,

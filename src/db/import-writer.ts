@@ -28,6 +28,10 @@ import {
   salesLines,
   stockSnapshots,
   stockTransactions,
+  tenderArchive,
+  tenderArchiveLines,
+  tenderBids,
+  tenders,
 } from "./schema";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -137,8 +141,15 @@ async function resolve(tx: Tx, companyId: string, kind: ImportKind, input: RowRe
 
   const needsCustomers = ["sales", "receipts", "open_invoices", "installed_units"].includes(kind);
   const needsProducts = ["sales", "stock_snapshot", "stock_transactions", "installed_units"].includes(kind);
+  // Tender results name items by the authority's own code, which is often not in our product list: such an item is kept
+  // as text and a warning says so, instead of rejecting years of history.
+  const looksUpItems = kind === "tender_results";
   const customerIds = needsCustomers ? await idsByCode(tx, customers, companyId, values("customerCode")) : new Map<string, string>();
-  const productIds = needsProducts ? await idsByCode(tx, products, companyId, values("productCode")) : new Map<string, string>();
+  const productIds = needsProducts
+    ? await idsByCode(tx, products, companyId, values("productCode"))
+    : looksUpItems
+      ? await idsByCode(tx, products, companyId, values("itemCode"))
+      : new Map<string, string>();
   const invoiceIds =
     kind === "sales" || kind === "open_invoices" || kind === "receipts"
       ? await invoicesByNo(tx, companyId, values("invoiceNo"))
@@ -146,8 +157,13 @@ async function resolve(tx: Tx, companyId: string, kind: ImportKind, input: RowRe
 
   const headers = new Map<string, { customerCode: string; invoiceDate: string }>();
   const rows: RowRef[] = [];
+  const unknownItemCodes = new Set<string>();
   for (const r of input) {
     const v = r.values;
+    if (looksUpItems && typeof v.itemCode === "string" && !productIds.has(v.itemCode) && !unknownItemCodes.has(v.itemCode)) {
+      unknownItemCodes.add(v.itemCode);
+      warnings.push({ row: r.row, reason: `item code "${v.itemCode}" is not in the product list; the item is kept by its name and not linked to a product` });
+    }
     const customerCode = strOrNull(v.customerCode);
     const productCode = strOrNull(v.productCode);
     if (needsCustomers && customerCode && !customerIds.has(customerCode)) {
@@ -447,6 +463,141 @@ async function write(tx: Tx, companyId: string, batchId: string, kind: ImportKin
           .then(() => undefined),
       );
       return;
+
+    case "tender_results": {
+      // Tenders: one per authority and number. The date is the latest any row of that tender gives.
+      const tenderRows = new Map<string, { authority: string; tenderNo: string; title: string | null; awardDate: string }>();
+      for (const r of rows) {
+        const key = `${str(r.values.authority)}\u0000${str(r.values.tenderNo)}`;
+        const prev = tenderRows.get(key);
+        tenderRows.set(key, {
+          authority: str(r.values.authority),
+          tenderNo: str(r.values.tenderNo),
+          title: strOrNull(r.values.tenderTitle) ?? prev?.title ?? null,
+          awardDate: prev && prev.awardDate > str(r.values.awardDate) ? prev.awardDate : str(r.values.awardDate),
+        });
+      }
+      // A tender we also follow in the Tenders section is linked to it, so its history can be reached from there.
+      const live = await tx.select({ id: tenders.id, authority: tenders.authority, tenderNo: tenders.tenderNo }).from(tenders).where(eq(tenders.companyId, companyId));
+      const liveId = new Map(live.filter((t) => t.tenderNo).map((t) => [`${t.authority}\u0000${t.tenderNo}`, t.id]));
+      const archiveIds = new Map<string, string>();
+      await inChunks([...tenderRows.entries()], async (chunk) => {
+        const out = await tx
+          .insert(tenderArchive)
+          .values(
+            chunk.map(([key, t]) => ({
+              companyId,
+              authority: t.authority as (typeof tenderArchive.$inferInsert)["authority"],
+              tenderNo: t.tenderNo,
+              title: t.title,
+              awardDate: t.awardDate,
+              tenderId: liveId.get(key) ?? null,
+              importBatchId: batchId,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [tenderArchive.companyId, tenderArchive.authority, tenderArchive.tenderNo],
+            set: {
+              title: sql`coalesce(excluded."title", ${tenderArchive.title})`,
+              awardDate: ex(tenderArchive.awardDate),
+              tenderId: sql`coalesce(excluded."tender_id", ${tenderArchive.tenderId})`,
+              importBatchId: ex(tenderArchive.importBatchId),
+            },
+          })
+          .returning({ id: tenderArchive.id, authority: tenderArchive.authority, tenderNo: tenderArchive.tenderNo });
+        for (const o of out) archiveIds.set(`${o.authority}\u0000${o.tenderNo}`, o.id);
+      });
+
+      // Items: a product match fills in the therapeutic area when the file did not say.
+      const productArea = new Map<string, string | null>();
+      const matchedIds = [...new Set(rows.map((r) => (r.values.itemCode == null ? undefined : res.productIds.get(str(r.values.itemCode)))).filter((x): x is string => !!x))];
+      for (let i = 0; i < matchedIds.length; i += 1000) {
+        for (const p of await tx.select({ id: products.id, area: products.therapeuticArea }).from(products).where(and(eq(products.companyId, companyId), inArray(products.id, matchedIds.slice(i, i + 1000))))) {
+          productArea.set(p.id, p.area);
+        }
+      }
+      const lineValues = new Map<string, typeof tenderArchiveLines.$inferInsert>();
+      for (const r of rows) {
+        const archiveId = archiveIds.get(`${str(r.values.authority)}\u0000${str(r.values.tenderNo)}`)!;
+        const lineRef = str(r.values.lineRef);
+        const productId = r.values.itemCode == null ? null : (res.productIds.get(str(r.values.itemCode)) ?? null);
+        const prev = lineValues.get(`${archiveId}\u0000${lineRef}`);
+        lineValues.set(`${archiveId}\u0000${lineRef}`, {
+          companyId,
+          archiveId,
+          lineRef,
+          itemCode: strOrNull(r.values.itemCode) ?? prev?.itemCode ?? null,
+          itemName: str(r.values.itemName),
+          productId: productId ?? prev?.productId ?? null,
+          therapeuticArea: strOrNull(r.values.therapeuticArea) ?? (productId ? (productArea.get(productId) ?? null) : null) ?? prev?.therapeuticArea ?? null,
+          quantity: strOrNull(r.values.quantity) ?? prev?.quantity ?? null,
+          unit: strOrNull(r.values.unit) ?? prev?.unit ?? null,
+          importBatchId: batchId,
+        });
+      }
+      const lineIds = new Map<string, string>();
+      await inChunks([...lineValues.values()], async (chunk) => {
+        const out = await tx
+          .insert(tenderArchiveLines)
+          .values(chunk)
+          .onConflictDoUpdate({
+            target: [tenderArchiveLines.companyId, tenderArchiveLines.archiveId, tenderArchiveLines.lineRef],
+            // A file that leaves a column empty must not erase what an earlier file knew.
+            set: {
+              itemName: ex(tenderArchiveLines.itemName),
+              itemCode: sql`coalesce(excluded."item_code", ${tenderArchiveLines.itemCode})`,
+              productId: sql`coalesce(excluded."product_id", ${tenderArchiveLines.productId})`,
+              therapeuticArea: sql`coalesce(excluded."therapeutic_area", ${tenderArchiveLines.therapeuticArea})`,
+              quantity: sql`coalesce(excluded."quantity", ${tenderArchiveLines.quantity})`,
+              unit: sql`coalesce(excluded."unit", ${tenderArchiveLines.unit})`,
+              importBatchId: ex(tenderArchiveLines.importBatchId),
+            },
+          })
+          .returning({ id: tenderArchiveLines.id, archiveId: tenderArchiveLines.archiveId, lineRef: tenderArchiveLines.lineRef });
+        for (const o of out) lineIds.set(`${o.archiveId}\u0000${o.lineRef}`, o.id);
+      });
+
+      await inChunks(rows, (chunk) =>
+        tx
+          .insert(tenderBids)
+          .values(
+            chunk.map((r) => {
+              const archiveId = archiveIds.get(`${str(r.values.authority)}\u0000${str(r.values.tenderNo)}`)!;
+              return {
+                companyId,
+                lineId: lineIds.get(`${archiveId}\u0000${str(r.values.lineRef)}`)!,
+                bidder: str(r.values.bidder),
+                bidderKey: str(r.values.bidder).toLowerCase(),
+                isOwn: r.values.ourBid === true,
+                unitPrice: strOrNull(r.values.unitPrice),
+                currency: str(r.values.currency ?? "JOD"),
+                outcome: str(r.values.result ?? "unknown") as (typeof tenderBids.$inferInsert)["outcome"],
+                technicalPass: r.values.technicalPass == null ? null : r.values.technicalPass === true,
+                awardedQuantity: strOrNull(r.values.awardedQuantity),
+                brand: strOrNull(r.values.brand),
+                importBatchId: batchId,
+              };
+            }),
+          )
+          .onConflictDoUpdate({
+            target: [tenderBids.companyId, tenderBids.lineId, tenderBids.bidderKey],
+            // Two files can describe the same bid (our own sheet and the award notice): neither may blank what the other knew.
+            set: {
+              bidder: ex(tenderBids.bidder),
+              isOwn: sql`${tenderBids.isOwn} or excluded."is_own"`,
+              unitPrice: sql`coalesce(excluded."unit_price", ${tenderBids.unitPrice})`,
+              currency: sql`case when excluded."unit_price" is null then ${tenderBids.currency} else excluded."currency" end`,
+              outcome: sql`case when excluded."outcome" = 'unknown' then ${tenderBids.outcome} else excluded."outcome" end`,
+              technicalPass: sql`coalesce(excluded."technical_pass", ${tenderBids.technicalPass})`,
+              awardedQuantity: sql`coalesce(excluded."awarded_quantity", ${tenderBids.awardedQuantity})`,
+              brand: sql`coalesce(excluded."brand", ${tenderBids.brand})`,
+              importBatchId: ex(tenderBids.importBatchId),
+            },
+          })
+          .then(() => undefined),
+      );
+      return;
+    }
 
     case "installed_units":
       await inChunks(rows, (chunk) =>

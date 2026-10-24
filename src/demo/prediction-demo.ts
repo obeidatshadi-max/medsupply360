@@ -1,6 +1,6 @@
 import { buildProductReorders, type ProductOrder } from "@/core/product-reorders";
 import { validateImport } from "@/core/import/validate";
-import { SPECS, type ImportKind } from "@/core/import/specs";
+import { ERP_KINDS, SPECS, type ImportKind } from "@/core/import/specs";
 import { DEMO_AS_OF } from "./dataset";
 
 const days = ["2026-05-01", "2026-05-31", "2026-06-30", "2026-07-30"];
@@ -17,7 +17,7 @@ export function demoProductReorders() {
 }
 
 export function demoReadiness() {
-  return (Object.keys(SPECS) as ImportKind[]).map((kind) => ({ kind, title: SPECS[kind].title,
+  return ERP_KINDS.map((kind) => ({ kind, title: SPECS[kind].title,
     loadedOn: ["products", "customers", "sales", "open_invoices", "stock_snapshot"].includes(kind) ? "2026-10-08" : null,
     snapshotDate: SPECS[kind].snapshot ? "2026-10-08" : null,
     load: kind === "sales" ? "Partial sample: 2 rejected rows" : ["products", "customers", "open_invoices", "stock_snapshot"].includes(kind) ? "Sample rows accepted" : "Missing in this scenario",
@@ -45,6 +45,7 @@ export function currentAppTemplate(kind: ImportKind) {
     stock_snapshot: { snapshotDate: DEMO_AS_OF, productCode: "DEMO-P1", warehouse: "Demo main", batch: "DEMO-B1", quantity: "10", unitCost: "6", expiryDate: "2027-10-01", owned: "Owned" },
     stock_transactions: { transactionId: "DEMO-T1", txDate: "2026-09-01", productCode: "DEMO-P1", warehouse: "Demo main", batch: "DEMO-B1", txType: "customer_issue", quantity: "-10" },
     installed_units: { code: "DEMO-U1", customerCode: "DEMO-C1", name: "Example installed equipment", installedOn: "2025-01-01", warrantyEnd: "2027-01-01", service: "Active" },
+    tender_results: { authority: "MOH", tenderNo: "DEMO-T-001", awardDate: "2026-06-30", itemName: "Example analyzer reagent", bidder: "Demo Medical Co", ourBid: "yes", unitPrice: "12.500", currency: "JOD", result: "won" },
   };
   const headers = SPECS[kind].fields.map((f) => f.key);
   return [headers, headers.map((key) => values[kind][key] ?? "")].map((row) => row.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\r\n");

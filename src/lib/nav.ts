@@ -40,8 +40,8 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
   if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });
   // Sample screens use made-up numbers: everyone with business access may open them, guests included.
   const explore: NavItem[] = [
-    ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),
-    { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders"] },
+    ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders", "/sample/tender-prices"] }]),
+    { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders", "/sample/tender-prices"] },
   ];
   return { main, explore };
 }

@@ -5,6 +5,8 @@
  * names. When the Alpha sample arrives, adjust the `aliases` here; nothing else in the importer depends on them.
  * Day-first dates (D/M/YYYY) and the document / transaction wording are likewise to be confirmed against the sample.
  */
+import { AUTHORITIES, type AuthorityCode } from "../tender-flow";
+import { itemKeyOf } from "../tender-prices";
 import { bool, code, date, days, money, nonNegativeMoney, oneOf, positiveDecimal, quantity, text, type Parser, type Value } from "./parsers";
 
 export type ImportKind =
@@ -15,7 +17,8 @@ export type ImportKind =
   | "open_invoices"
   | "stock_snapshot"
   | "stock_transactions"
-  | "installed_units";
+  | "installed_units"
+  | "tender_results";
 
 export type Values = Record<string, Value>;
 
@@ -111,6 +114,35 @@ const serviceStatus = oneOf(
   { Active: ["active", "in contract", "ساري"], Expiring: ["expiring", "renewal due"], "No contract": ["none", "no agreement", "expired", "بدون عقد"] },
   "null",
 );
+
+/** How the authorities are written in award notices and in the accountant's files. The code and full name always match. */
+const AUTHORITY_WORDS: Record<AuthorityCode, string[]> = {
+  MOH: ["ministry of health", "moh jordan", "وزارة الصحة"],
+  KHCC: ["king hussein cancer center", "king hussein cancer centre", "مركز الحسين للسرطان"],
+  DRMS: ["royal medical services", "rms", "jordan armed forces medical services", "الخدمات الطبية الملكية"],
+  JUH: ["jordan university hospital", "ju hospital", "مستشفى الجامعة الأردنية"],
+  KAUH: ["king abdullah university hospital", "king abdullah i university hospital", "مستشفى الملك عبدالله المؤسس"],
+};
+const tenderAuthority = oneOf(
+  "authority",
+  Object.fromEntries(AUTHORITIES.map((a) => [a.code, [a.name, ...AUTHORITY_WORDS[a.code]]])) as Record<AuthorityCode, string[]>,
+  "reject",
+);
+
+const bidResult = oneOf(
+  "result",
+  {
+    won: ["awarded", "winner", "winning", "successful", "accepted", "فائز", "ترسية"],
+    lost: ["not awarded", "unsuccessful", "loser", "خاسر"],
+    disqualified: ["rejected", "technically rejected", "failed", "excluded", "non compliant", "مستبعد"],
+    withdrawn: ["withdrew", "withdraw", "سحب"],
+    unknown: ["n a", "not stated", "not known", "غير معروف"],
+  },
+  "reject",
+);
+
+/** Prices are compared only within one currency: no exchange rate is stored, so none is guessed. */
+const bidCurrency = oneOf("currency", { JOD: ["jd", "dinar", "jordanian dinar", "دينار"], USD: ["us dollar", "dollar"], EUR: ["euro"] }, "reject");
 
 /** Own stock is valued; consignment / third-party stock is kept but excluded from values. */
 const ownership: Parser = (raw) => {
@@ -294,4 +326,40 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     check: (v) =>
       v.installedOn != null && v.warrantyEnd != null && String(v.warrantyEnd) < String(v.installedOn) ? "warranty ends before the installation date" : null,
   },
+  tender_results: {
+    kind: "tender_results",
+    title: "Tender results (award notices and our bids)",
+    // One row per bidder per item. The same tender, item and bidder twice is a mistake; a re-import updates by this key.
+    key: (v) => k(v.authority, v.tenderNo, String(v.lineRef).toLowerCase(), String(v.bidder).toLowerCase()),
+    notFuture: ["awardDate"],
+    fields: [
+      f("authority", ["authority", "institution", "entity", "buyer", "hospital", "الجهة"], true, tenderAuthority),
+      f("tenderNo", ["tender no", "tender number", "tender ref", "rfq no", "rfp no", "tender", "رقم العطاء"], true, code(80)),
+      f("tenderTitle", ["tender title", "title", "tender name", "subject", "اسم العطاء"], false, text(300)),
+      f("awardDate", ["award date", "date", "decision date", "closing date", "tender date", "تاريخ الإحالة"], true, date),
+      f("itemCode", ["item code", "product code", "our code", "sku", "رقم الصنف"], false, code(80)),
+      f("itemName", ["item", "item name", "item description", "description", "product name", "product description", "اسم الصنف"], true, text(300)),
+      f("therapeuticArea", ["therapeutic area", "area", "clinical area", "specialty", "class", "المجال العلاجي"], false, text(100)),
+      f("quantity", ["quantity", "qty", "required quantity", "tender quantity", "الكمية"], false, positiveDecimal),
+      f("unit", ["unit", "uom", "unit of measure"], false, text(30)),
+      f("bidder", ["bidder", "supplier", "company", "vendor", "bidder name", "المورد"], true, text(200)),
+      f("ourBid", ["our bid", "ours", "is ours", "our offer", "sadaf", "عرضنا"], false, bool, false),
+      f("unitPrice", ["unit price", "price", "bid price", "offered price", "price per unit", "سعر الوحدة"], false, positiveDecimal),
+      f("lineTotal", ["line total", "total price", "total", "total bid", "إجمالي السعر"], false, positiveDecimal),
+      f("currency", ["currency", "cur", "العملة"], false, bidCurrency, "JOD"),
+      f("result", ["result", "outcome", "award result", "status", "النتيجة"], false, bidResult, "unknown"),
+      f("technicalPass", ["technical pass", "technically accepted", "technical result", "technical"], false, bool),
+      f("awardedQuantity", ["awarded quantity", "awarded qty", "quantity awarded"], false, positiveDecimal),
+      f("brand", ["brand", "make", "origin", "manufacturer", "country of origin"], false, text(200)),
+    ],
+    derive: (v) => {
+      v.lineRef = v.itemCode != null ? String(v.itemCode) : itemKeyOf(null, String(v.itemName)).slice(2);
+      // Many notices print only the line total; the unit price is worked out, never guessed when the quantity is missing.
+      if (v.unitPrice == null && v.lineTotal != null && v.quantity != null) v.unitPrice = (Number(v.lineTotal) / Number(v.quantity)).toFixed(3);
+    },
+    check: (v) => (v.result === "won" && v.technicalPass === false ? "a bid that failed the technical review cannot be the winner" : null),
+  },
 };
+
+/** The Alpha ERP exports. Tender results come from the authorities and our own bid sheets, so they are not part of ERP readiness. */
+export const ERP_KINDS = (Object.keys(SPECS) as ImportKind[]).filter((kind) => kind !== "tender_results");

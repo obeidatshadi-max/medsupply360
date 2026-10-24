@@ -110,6 +110,7 @@ export const importKind = pgEnum("import_kind", [
   "stock_snapshot", // E06
   "stock_transactions", // E07
   "installed_units", // E11 / manual
+  "tender_results", // award results from the authorities, plus our own bids
 ]);
 export const importStatus = pgEnum("import_status", ["accepted", "partial", "rejected"]);
 
@@ -536,5 +537,94 @@ export const tenderInvoices = pgTable(
   (t) => [
     uniqueIndex("tender_invoices_no_uniq").on(t.companyId, t.tenderId, t.invoiceNo),
     foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
+
+// ─── Tender price history ───────────────────────────────────────────────────
+// What the authorities awarded, item by item, and who bid what. Kept apart from `tenders` (the live workflow) so a
+// four-year archive never shows up in the pipeline or the owner's overview. Filled only by the "Tender results" import.
+// Missing is NULL: an authority that publishes only the winner leaves the other bidders' prices unknown, not zero.
+
+export const tenderBidOutcome = pgEnum("tender_bid_outcome", ["won", "lost", "disqualified", "withdrawn", "unknown"]);
+
+/** One tender as the authority ran it. Created by the import from the rows that mention it. */
+export const tenderArchive = pgTable(
+  "tender_archive",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    authority: tenderAuthority("authority").notNull(),
+    tenderNo: varchar("tender_no", { length: 80 }).notNull(),
+    title: varchar("title", { length: 300 }),
+    awardDate: date("award_date").notNull(),
+    /** The live tender this belongs to, when we recorded it in the Tenders section. */
+    tenderId: uuid("tender_id"),
+    importBatchId: uuid("import_batch_id").references(() => importBatches.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("tender_archive_company_id_uniq").on(t.companyId, t.id),
+    uniqueIndex("tender_archive_authority_no_uniq").on(t.companyId, t.authority, t.tenderNo),
+    index("tender_archive_date_idx").on(t.companyId, t.awardDate),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
+
+/** One item the authority asked for. `lineRef` is the item code, or the item name when there is no code. */
+export const tenderArchiveLines = pgTable(
+  "tender_archive_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    archiveId: uuid("archive_id").notNull(),
+    lineRef: varchar("line_ref", { length: 300 }).notNull(),
+    itemCode: varchar("item_code", { length: 80 }),
+    itemName: varchar("item_name", { length: 300 }).notNull(),
+    /** Set when the item code is in the product list; the price history for a product reads from here. */
+    productId: uuid("product_id"),
+    therapeuticArea: varchar("therapeutic_area", { length: 100 }),
+    quantity: numeric("quantity", { precision: 14, scale: 3 }),
+    unit: varchar("unit", { length: 30 }),
+    importBatchId: uuid("import_batch_id").references(() => importBatches.id),
+  },
+  (t) => [
+    unique("tender_archive_lines_company_id_uniq").on(t.companyId, t.id),
+    uniqueIndex("tender_archive_lines_ref_uniq").on(t.companyId, t.archiveId, t.lineRef),
+    index("tender_archive_lines_product_idx").on(t.companyId, t.productId),
+    foreignKey({ columns: [t.companyId, t.archiveId], foreignColumns: [tenderArchive.companyId, tenderArchive.id] }),
+    foreignKey({ columns: [t.companyId, t.productId], foreignColumns: [products.companyId, products.id] }),
+  ],
+);
+
+/** One bidder's offer on one item. `isOwn` marks our own bids. */
+export const tenderBids = pgTable(
+  "tender_bids",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    lineId: uuid("line_id").notNull(),
+    bidder: varchar("bidder", { length: 200 }).notNull(),
+    /** The bidder's name in lower case: "Ibn Sina" and "IBN SINA" in two files are one bidder. */
+    bidderKey: varchar("bidder_key", { length: 200 }).notNull(),
+    isOwn: boolean("is_own").notNull().default(false),
+    unitPrice: numeric("unit_price", { precision: 14, scale: 3 }),
+    /** JOD unless the authority priced in something else. Prices in different currencies are never compared. */
+    currency: varchar("currency", { length: 3 }).notNull().default("JOD"),
+    outcome: tenderBidOutcome("outcome").notNull().default("unknown"),
+    technicalPass: boolean("technical_pass"),
+    awardedQuantity: numeric("awarded_quantity", { precision: 14, scale: 3 }),
+    brand: varchar("brand", { length: 200 }),
+    importBatchId: uuid("import_batch_id").references(() => importBatches.id),
+  },
+  (t) => [
+    uniqueIndex("tender_bids_bidder_uniq").on(t.companyId, t.lineId, t.bidderKey),
+    index("tender_bids_line_idx").on(t.companyId, t.lineId),
+    foreignKey({ columns: [t.companyId, t.lineId], foreignColumns: [tenderArchiveLines.companyId, tenderArchiveLines.id] }),
   ],
 );

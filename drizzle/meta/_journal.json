@@ -71,6 +71,13 @@
       "when": 1792384229872,
       "tag": "0009_sales_force",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792832118454,
+      "tag": "0010_tender_price_history",
+      "breakpoints": true
     }
   ]
 }

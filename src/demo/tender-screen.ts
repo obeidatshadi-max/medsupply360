@@ -142,6 +142,7 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     `<div class="info">Made-up tenders on ${dayText(DEMO_TENDER_AS_OF)}. ${
       generic ? "Authority names are neutral placeholders for this customer." : "They use the real authority names, but the titles, numbers and amounts are invented."
     } In the live app the tender department and finance enter these as each tender moves, the CEO assigns each tender an owner, and the CEO follows them here.</div>` +
+    `<p class="mini"><button class="linkbtn" data-route="tenderprices">Price history: what the authorities paid in past tenders →</button></p>` +
     `<div class="ob-row">Where the tenders stand</div>` +
     phaseCards +
     `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. Win rate: ${winRate}.</p>` +
