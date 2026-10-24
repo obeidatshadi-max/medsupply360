@@ -329,3 +329,54 @@ describe("accounts and tenancy", () => {
     }
   });
 });
+
+describe("change own password", () => {
+  const NEW = "green-Chair-77!";
+  const change = async (over: Record<string, string> = {}) => {
+    const { changePasswordAction } = await import("@/server/actions/change-password");
+    return changePasswordAction({}, fd({ current: "blue-Table-92!", password: NEW, confirm: NEW, ...over }));
+  };
+
+  it("changes the password, keeps this browser signed in and voids older sessions and reset links", async () => {
+    await redirected(signup());
+    const oldSession = h.jar.get("sadaf_session")!;
+    await acct.requestResetAction({}, fd({ email: "shadi@example.com" }));
+    await flush();
+    const token = /token=([A-Za-z0-9_-]+)/.exec(h.state.sent.at(-1)!.text)![1]!;
+
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 5_000);
+    expect(await change()).toEqual({ done: true });
+
+    expect((await currentUser.getCurrentUser())?.email).toBe("shadi@example.com"); // fresh session issued
+    h.jar.set("sadaf_session", oldSession);
+    expect(await currentUser.getCurrentUser()).toBeNull();
+    h.jar.clear();
+    expect((await auth.loginAction({}, fd({ email: "shadi@example.com", password: "blue-Table-92!" }))).error).toBe("invalid");
+    expect(await redirected(auth.loginAction({}, fd({ email: "shadi@example.com", password: NEW })))).toBe("/dashboard");
+    expect((await acct.resetPasswordAction({}, fd({ token, password: "third-Pass-123!", confirm: "third-Pass-123!" }))).error).toMatch(/invalid or has expired/);
+  });
+  it("refuses a wrong current password and changes nothing", async () => {
+    await redirected(signup());
+    expect((await change({ current: "wrong-Pass-11!" })).error).toMatch(/current password is not correct/);
+    h.jar.clear();
+    expect(await redirected(auth.loginAction({}, fd({ email: "shadi@example.com", password: "blue-Table-92!" })))).toBe("/dashboard");
+  });
+  it("refuses mismatch, same-as-current and weak new passwords", async () => {
+    await redirected(signup());
+    expect((await change({ confirm: "other-Pass-55!" })).error).toMatch(/do not match/);
+    expect((await change({ password: "blue-Table-92!", confirm: "blue-Table-92!" })).error).toMatch(/different/);
+    expect((await change({ password: "short", confirm: "short" })).error).toMatch(/at least 10/);
+  });
+  it("limits guessing of the current password", async () => {
+    await redirected(signup());
+    for (let i = 0; i < 5; i++) expect((await change({ current: "wrong-Pass-11!" })).error).toMatch(/not correct/);
+    expect((await change({ current: "wrong-Pass-11!" })).error).toMatch(/Too many attempts/);
+    expect((await change()).error).toMatch(/Too many attempts/); // even the right password is held back
+  });
+  it("needs a signed-in user", async () => {
+    await redirected(signup());
+    h.jar.clear();
+    await expect(change()).rejects.toThrow(/REDIRECT/);
+  });
+});
