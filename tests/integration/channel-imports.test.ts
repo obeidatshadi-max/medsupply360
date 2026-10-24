@@ -104,6 +104,17 @@ describe("tender list", () => {
     ]);
   });
 
+  it("loads the date submitted and the bid opening date", async () => {
+    const out = await imp(
+      a,
+      "tenders",
+      ["authority,tender no,title,product line,status,bid value,date submitted,bid opening date", "KAUH,KAUH-D1,Dated bid,equipment,submitted,500,2026-10-01,03/10/2026"].join("\n"),
+    );
+    expect(out).toMatchObject({ status: "accepted", rowsAccepted: 1 });
+    const [row] = await q<{ submitted_on: string; bid_opening_date: string }>(`select submitted_on::text, bid_opening_date::text from tenders where company_id = $1 and tender_no = 'KAUH-D1'`, [a]);
+    expect(row).toEqual({ submitted_on: "2026-10-01", bid_opening_date: "2026-10-03" });
+  });
+
   it("rejects a lost tender with no reason, and a reason that does not fit its ending", async () => {
     const H = "authority,tender no,title,product line,status,reason code";
     const out = await imp(a, "tenders", [H, "JUH,JUH-X1,No reason,equipment,lost,", "JUH,JUH-X2,Wrong reason,equipment,lost,no budget", "JUH,JUH-X3,Unknown reason,equipment,cancelled,because"].join("\n"));

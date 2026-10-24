@@ -67,3 +67,42 @@ describe("companyTenderOverview", () => {
     expect((await companyTenderOverview(db, "00000000-0000-0000-0000-000000000000", TODAY)).total).toBe(0);
   });
 });
+
+describe("time from submission to decision", () => {
+  let c: string;
+  beforeAll(async () => {
+    c = (await q<{ id: string }>(`insert into companies (slug, name) values ('c', 'C') returning id`))[0]!.id;
+    const t = async (authority: string, title: string, status: string, submittedOn?: string) =>
+      (await q<{ id: string }>(`insert into tenders (company_id, authority, title, product_line, status${submittedOn ? ", submitted_on" : ""}) values ('${c}', '${authority}', '${title}', 'equipment', '${status}'${submittedOn ? `, '${submittedOn}'` : ""}) returning id`))[0]!.id;
+    const log = (tender: string, to: string, at: string) =>
+      client.exec(`insert into tender_status_log (company_id, tender_id, to_status, created_at) values ('${c}', '${tender}', '${to}', '${at}')`);
+    // no typed date: the day it entered Submitted is used; 22:30 UTC is already the next day in Amman
+    const lost = await t("MOH", "Lost, log dates only", "lost");
+    await log(lost, "submitted", "2026-06-01T08:00:00Z");
+    await log(lost, "lost", "2026-06-30T22:30:00Z");
+    // a typed submission date wins over the day someone clicked Submitted
+    const won = await t("KHCC", "Won, typed date", "contracted", "2026-06-10");
+    await log(won, "submitted", "2026-06-05T08:00:00Z");
+    await log(won, "won", "2026-06-20T08:00:00Z");
+    await log(won, "contracted", "2026-07-20T08:00:00Z");
+    // decided but never submitted in the log and no typed date: counted as missing, not as zero
+    const nodate = await t("JUH", "Lost, no submission date", "lost");
+    await log(nodate, "lost", "2026-06-15T08:00:00Z");
+    // not decided: ignored
+    const waiting = await t("DRMS", "Waiting", "submitted");
+    await log(waiting, "submitted", "2026-09-01T08:00:00Z");
+  });
+
+  it("measures days from the submission date to the decision, in Jordan time, and says how many tenders it left out", async () => {
+    const o = await companyTenderOverview(db, c, TODAY);
+    expect(o.timeToDecision).toEqual({ count: 2, average: 20, median: 20, fastest: 10, slowest: 30, missing: 1 });
+    expect(o.authorities.find((x) => x.code === "MOH")!.avgDaysToDecision).toBe(30);
+    expect(o.authorities.find((x) => x.code === "KHCC")!.avgDaysToDecision).toBe(10);
+    expect(o.authorities.find((x) => x.code === "JUH")!.avgDaysToDecision).toBeNull();
+    expect(o.authorities.find((x) => x.code === "DRMS")!.avgDaysToDecision).toBeNull();
+  });
+
+  it("is empty for a company with no decided tender", async () => {
+    expect((await companyTenderOverview(db, b, TODAY)).timeToDecision).toEqual({ count: 0, average: null, median: null, fastest: null, slowest: null, missing: 0 });
+  });
+});

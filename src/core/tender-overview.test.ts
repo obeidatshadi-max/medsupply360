@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTenderOverview, tenderValue, type OverviewTender } from "./tender-overview";
+import { buildTenderOverview, daysToDecision, tenderValue, type OverviewTender } from "./tender-overview";
 
 const T = (over: Partial<OverviewTender> & { id: string }): OverviewTender => ({
   title: `Tender ${over.id}`,
@@ -16,6 +16,8 @@ const T = (over: Partial<OverviewTender> & { id: string }): OverviewTender => ({
   winnerName: null,
   winningPrice: null,
   expectedAwardDate: null,
+  submittedOn: null,
+  decidedOn: null,
   ...over,
 });
 
@@ -171,5 +173,47 @@ describe("lost reasons and expected awards", () => {
     expect(o.awards.overdue.map((x) => [x.id, x.daysAgo])).toEqual([["late", 8]]);
     expect(o.awards.expected.map((x) => [x.id, x.daysLeft])).toEqual([["today", 0], ["soon", 7]]);
     expect(o.awards.withoutDate).toBe(1);
+  });
+});
+
+describe("time from submission to decision", () => {
+  it("counts whole days, and is unknown when a date is missing or the order is wrong", () => {
+    expect(daysToDecision({ submittedOn: "2026-06-01", decidedOn: "2026-07-01" })).toBe(30);
+    expect(daysToDecision({ submittedOn: "2026-06-01", decidedOn: "2026-06-01" })).toBe(0);
+    expect(daysToDecision({ submittedOn: null, decidedOn: "2026-07-01" })).toBeNull();
+    expect(daysToDecision({ submittedOn: "2026-06-01", decidedOn: null })).toBeNull();
+    expect(daysToDecision({ submittedOn: "2026-07-02", decidedOn: "2026-07-01" })).toBeNull();
+  });
+
+  it("averages over decided tenders that have both dates and says how many it left out", () => {
+    const o = build([
+      T({ id: "a", status: "lost", submittedOn: "2026-06-01", decidedOn: "2026-06-11" }),
+      T({ id: "b", status: "won", submittedOn: "2026-06-01", decidedOn: "2026-06-21" }),
+      T({ id: "c", status: "contracted", submittedOn: "2026-06-01", decidedOn: "2026-07-01", authority: "KHCC" }),
+      T({ id: "d", status: "lost", submittedOn: null, decidedOn: "2026-07-01" }),
+      T({ id: "e", status: "submitted", submittedOn: "2026-06-01" }),
+    ]);
+    expect(o.timeToDecision).toEqual({ count: 3, average: 20, median: 20, fastest: 10, slowest: 30, missing: 1 });
+    expect(o.authorities.find((x) => x.code === "MOH")!.avgDaysToDecision).toBe(15);
+    expect(o.authorities.find((x) => x.code === "KHCC")!.avgDaysToDecision).toBe(30);
+    expect(o.authorities.find((x) => x.code === "KAUH")!.avgDaysToDecision).toBeNull();
+  });
+
+  it("takes the middle of an even count as the median and rounds the average to one decimal", () => {
+    const o = build([
+      T({ id: "a", status: "lost", submittedOn: "2026-06-01", decidedOn: "2026-06-04" }),
+      T({ id: "b", status: "lost", submittedOn: "2026-06-01", decidedOn: "2026-06-06" }),
+      T({ id: "c", status: "lost", submittedOn: "2026-06-01", decidedOn: "2026-06-08" }),
+    ]);
+    expect(o.timeToDecision).toMatchObject({ count: 3, average: 5, median: 5 });
+    const even = build([
+      T({ id: "a", status: "lost", submittedOn: "2026-06-01", decidedOn: "2026-06-04" }),
+      T({ id: "b", status: "lost", submittedOn: "2026-06-01", decidedOn: "2026-06-09" }),
+    ]);
+    expect(even.timeToDecision).toMatchObject({ average: 5.5, median: 5.5 });
+  });
+
+  it("reports nothing rather than zero when no tender is decided", () => {
+    expect(build([T({ id: "a", status: "submitted", submittedOn: "2026-06-01" })]).timeToDecision).toEqual({ count: 0, average: null, median: null, fastest: null, slowest: null, missing: 0 });
   });
 });

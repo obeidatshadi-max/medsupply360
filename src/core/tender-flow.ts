@@ -165,6 +165,10 @@ export interface TenderFields {
   winningPrice: number | null;
   /** When the authority is expected to announce the award. Optional. */
   expectedAwardDate: string | null;
+  /** The day the bid was actually handed in (not the day someone clicked Submitted). Optional. */
+  submittedOn: string | null;
+  /** The day the authority opens the bids, when it announces one. Optional. */
+  bidOpeningDate: string | null;
   contractNo: string | null;
   contractValue: number | null;
   deliveredOn: string | null;
@@ -189,7 +193,11 @@ const NEEDED: Partial<Record<TenderStatus, { key: keyof TenderFields; label: str
 
 /** Details worth asking for on a move but never required. */
 const OPTIONAL: Partial<Record<TenderStatus, { key: keyof TenderFields; label: string }[]>> = {
-  submitted: [{ key: "expectedAwardDate", label: "expected award date" }],
+  submitted: [
+    { key: "submittedOn", label: "date submitted" },
+    { key: "bidOpeningDate", label: "bid opening date" },
+    { key: "expectedAwardDate", label: "expected award date" },
+  ],
   lost: [
     { key: "winnerName", label: "winning company" },
     { key: "winningPrice", label: "winning price" },

@@ -79,6 +79,13 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
       ? "not known yet (no tender has been decided)"
       : `${pct(o.results.winRate)} (${o.results.won} won, ${o.results.lost} lost${o.results.wonValue > 0 ? `, ${jod(o.results.wonValue)} awarded` : ""})`;
 
+  const td = o.timeToDecision;
+  const timeToDecision =
+    (td.count === 0
+      ? "not known yet (no decided tender has both dates)"
+      : `${td.average} days on average, ${td.median} typical, from ${td.fastest} to ${td.slowest} (${plural(td.count, "tender")}).`) +
+    (td.missing > 0 ? ` ${plural(td.missing, "decided tender")} without both dates left out.` : "");
+
   const deadlines =
     list(
       o.deadlines.upcoming.map((d) => item(`${ref(d.id, d.title)} <span class="cellsub">${a(d.authority)} · ${STATUS_LABEL[d.status]}</span>`, `${dayText(d.deadline)} · ${d.daysLeft === 0 ? "today" : plural(d.daysLeft, "day") + " left"}`)),
@@ -130,8 +137,8 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     );
 
   const byAuthority = table(
-    ["Authority", "Active", "Active value", "Won", "Lost"],
-    o.authorities.map((x) => [`<b>${a(x.code)}</b>`, String(x.active), x.activeValue === 0 ? "—" : jod(x.activeValue), String(x.won), String(x.lost)]),
+    ["Authority", "Active", "Active value", "Won", "Lost", "Days to decision"],
+    o.authorities.map((x) => [`<b>${a(x.code)}</b>`, String(x.active), x.activeValue === 0 ? "—" : jod(x.activeValue), String(x.won), String(x.lost), x.avgDaysToDecision === null ? "—" : String(x.avgDaysToDecision)]),
   );
   const longest = list(
     o.longestInStage.map((t) => item(`${ref(t.id, t.title)} <span class="cellsub">${a(t.authority)} · ${STATUS_LABEL[t.status]}</span>`, plural(t.days, "day"))),
@@ -170,6 +177,7 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     `<div class="ob-row">Where the tenders stand</div>` +
     phaseCards +
     `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. Win rate: ${winRate}.</p>` +
+    `<p class="mini">Time from handing in the bid to the decision: ${timeToDecision}</p>` +
     `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines + awards)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("Still unpaid by the authorities", "Tender invoices not yet collected", unpaid)}${panel("Why bids were lost", "The reason recorded when a tender is marked lost", lost)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("By authority", "Active = not lost, cancelled or collected", byAuthority)}${panel("Longest in their current stage", "A plain count of days, not a deadline: some stages are slow by nature.", longest)}</div>` +
@@ -226,6 +234,8 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     ["Products", LINE_LABEL[t.productLine]],
     ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
     ["Submission deadline", t.deadline ? dayText(t.deadline) : "—"],
+    ["Bid opening", t.bidOpeningDate ? dayText(t.bidOpeningDate) : "—"],
+    ["Date submitted", t.submittedOn ? dayText(t.submittedOn) : "—"],
     ["Expected award date", t.expectedAwardDate ? dayText(t.expectedAwardDate) : "—"],
     ["Our bid", t.bidValue === null ? "—" : jod(t.bidValue)],
     ...(t.winnerName || t.winningPrice !== null ? ([["Winner", `${t.winnerName ?? "Not recorded"}${t.winningPrice === null ? "" : ` · ${jod(t.winningPrice)}`}`]] as [string, string][]) : []),

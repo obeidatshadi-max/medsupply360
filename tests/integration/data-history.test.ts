@@ -19,7 +19,7 @@ let b: string;
 let account: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
-const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "Analyzer for central lab", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
+const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "Analyzer for central lab", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
 
 beforeAll(async () => {
   client = new PGlite();
