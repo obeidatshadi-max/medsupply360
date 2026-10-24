@@ -11,12 +11,15 @@ import {
   isAuthority,
   isClosed,
   isLegalMove,
+  closeReasonProblem,
+  closeReasonsFor,
   missingFor,
+  optionalFor,
   phaseOf,
   type TenderFields,
 } from "./tender-flow";
 
-const none: TenderFields = { tenderNo: null, estimatedValue: null, deadline: null, bidValue: null, awardAmount: null, closeReason: null, contractNo: null, contractValue: null, deliveredOn: null };
+const none: TenderFields = { tenderNo: null, estimatedValue: null, deadline: null, bidValue: null, awardAmount: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, contractNo: null, contractValue: null, deliveredOn: null };
 
 describe("tender flow", () => {
   it("knows the five authorities", () => {
@@ -70,10 +73,36 @@ describe("tender flow", () => {
     expect(missingFor("open", { ...none, tenderNo: "T-1", estimatedValue: 5000, deadline: "2026-11-01" })).toEqual([]);
     expect(missingFor("submitted", none)).toEqual(["bid value"]);
     expect(missingFor("won", none)).toEqual(["award amount"]);
-    expect(missingFor("lost", { ...none, closeReason: "  " })).toEqual(["reason it was lost"]);
+    expect(missingFor("lost", { ...none, closeReason: "a note alone is not a coded reason" })).toEqual(["reason it was lost"]);
+    expect(missingFor("lost", { ...none, closeReasonCode: "price" })).toEqual([]);
+    expect(missingFor("cancelled", none)).toEqual(["reason it was cancelled or dropped"]);
     expect(missingFor("contracted", { ...none, contractNo: "PO-9" })).toEqual(["contract value"]);
     expect(missingFor("delivered", none)).toEqual(["delivery date"]);
     expect(missingFor("preparing", none)).toEqual([]);
+  });
+
+  it("asks for a note when the reason is Other, because the code alone says nothing", () => {
+    expect(missingFor("lost", { ...none, closeReasonCode: "other" })).toEqual(["a note explaining the reason"]);
+    expect(missingFor("lost", { ...none, closeReasonCode: "other", closeReason: "Tender re-issued with new scope" })).toEqual([]);
+    expect(missingFor("cancelled", { ...none, closeReasonCode: "other", closeReason: " " })).toEqual(["a note explaining the reason"]);
+  });
+
+  it("offers each ending only the reasons that fit it, and refuses a mismatch", () => {
+    expect(closeReasonsFor("lost").map((r) => r.code)).toEqual(["price", "technical", "documents", "guarantee", "other"]);
+    expect(closeReasonsFor("cancelled").map((r) => r.code)).toEqual(["authority_cancelled", "no_budget", "not_bidding", "other"]);
+    expect(closeReasonProblem("lost", "price")).toBeNull();
+    expect(closeReasonProblem("lost", "no_budget")).toMatch(/does not fit a tender that is lost/);
+    expect(closeReasonProblem("cancelled", "price")).toMatch(/does not fit a tender that is cancelled/);
+    expect(closeReasonProblem("lost", "made-up")).toMatch(/not one of the listed/);
+    expect(closeReasonProblem("lost", null)).toBeNull();
+    expect(closeReasonProblem("won", "price")).toBeNull();
+  });
+
+  it("never requires the winner, the winning price or the expected award date", () => {
+    expect(optionalFor("lost").map((o) => o.key)).toEqual(["winnerName", "winningPrice"]);
+    expect(optionalFor("submitted").map((o) => o.key)).toEqual(["expectedAwardDate"]);
+    expect(missingFor("submitted", { ...none, bidValue: 10 })).toEqual([]);
+    expect(missingFor("lost", { ...none, closeReasonCode: "price" })).toEqual([]);
   });
 
   it("accepts a zero amount as filled in", () => {

@@ -5,7 +5,7 @@
  * names. When the Alpha sample arrives, adjust the `aliases` here; nothing else in the importer depends on them.
  * Day-first dates (D/M/YYYY) and the document / transaction wording are likewise to be confirmed against the sample.
  */
-import { AUTHORITIES, missingFor, type AuthorityCode, type TenderFields, type TenderStatus } from "../tender-flow";
+import { AUTHORITIES, closeReasonProblem, missingFor, type AuthorityCode, type TenderFields, type TenderStatus } from "../tender-flow";
 import { itemKeyOf } from "../tender-prices";
 import { EMAIL_MAX, NAME_MAX, NEW_ACCOUNTS_MAX, SUPPLIERS_MAX, SUPPLIER_NAME_MAX, VISITS_MAX } from "../sales-force";
 import { bool, code, date, days, money, nonNegativeMoney, oneOf, positiveDecimal, quantity, semicolonList, text, wholeNumber, type Parser, type Value } from "./parsers";
@@ -184,6 +184,25 @@ const tenderStatus = oneOf(
   },
   "reject",
 );
+
+/** A coded close reason. The code itself (price, technical...) is always accepted; these are the words people also write. */
+const closeReasonCode = oneOf(
+  "close reason code",
+  {
+    price: ["higher price", "price too high", "too expensive", "السعر"],
+    technical: ["technical specification", "specification", "not compliant", "technically rejected"],
+    documents: ["documents", "registration", "late documents", "missing documents"],
+    guarantee: ["bid bond", "guarantee problem"],
+    authority_cancelled: ["authority cancelled", "withdrawn by authority", "cancelled by authority", "tender cancelled"],
+    no_budget: ["no budget", "budget"],
+    not_bidding: ["not bidding", "we did not bid", "dropped"],
+    other: ["others"],
+  },
+  "reject",
+);
+
+/** A lost or cancelled tender in a file that gives only a free-text reason is coded "other" with that text as the note. */
+const codeFor = (v: Record<string, Value | undefined>) => asText(v.closeReasonCode) ?? (asText(v.closeReason) ? "other" : null);
 
 const asNumber = (v: Value | undefined) => (v == null ? null : Number(v));
 const asText = (v: Value | undefined) => (v == null ? null : String(v));
@@ -375,7 +394,11 @@ export const SPECS: Record<ImportKind, FileSpec> = {
       f("deadline", ["deadline", "submission deadline", "closing date", "due date", "آخر موعد"], false, date),
       f("bidValue", ["bid value", "our bid", "offer value", "bid amount"], false, nonNegativeMoney),
       f("awardAmount", ["award amount", "awarded amount", "award value"], false, nonNegativeMoney),
-      f("closeReason", ["close reason", "reason lost", "reason cancelled", "loss reason", "reason"], false, text(1000)),
+      f("closeReasonCode", ["close reason code", "reason code", "reason category", "loss category"], false, closeReasonCode),
+      f("closeReason", ["close reason", "reason lost", "reason cancelled", "loss reason", "reason", "reason note"], false, text(1000)),
+      f("winnerName", ["winner", "winning company", "winning bidder", "awarded to"], false, text(200)),
+      f("winningPrice", ["winning price", "winning bid", "winner price", "award price"], false, nonNegativeMoney),
+      f("expectedAwardDate", ["expected award date", "award expected", "expected award", "decision expected"], false, date),
       f("contractNo", ["contract no", "contract number", "po no", "po number", "contract or po number"], false, code(80)),
       f("contractValue", ["contract value", "po value"], false, nonNegativeMoney),
       f("deliveredOn", ["delivered on", "delivery date", "date delivered"], false, date),
@@ -390,12 +413,18 @@ export const SPECS: Record<ImportKind, FileSpec> = {
         bidValue: asNumber(v.bidValue),
         awardAmount: asNumber(v.awardAmount),
         closeReason: asText(v.closeReason),
+        closeReasonCode: codeFor(v),
+        winnerName: asText(v.winnerName),
+        winningPrice: asNumber(v.winningPrice),
+        expectedAwardDate: asText(v.expectedAwardDate),
         contractNo: asText(v.contractNo),
         contractValue: asNumber(v.contractValue),
         deliveredOn: asText(v.deliveredOn),
       };
-      const missing = missingFor((asText(v.status) ?? "pipeline") as TenderStatus, fields);
-      return missing.length > 0 ? `a tender at this stage also needs: ${missing.join(", ")}` : null;
+      const status = (asText(v.status) ?? "pipeline") as TenderStatus;
+      const missing = missingFor(status, fields);
+      if (missing.length > 0) return `a tender at this stage also needs: ${missing.join(", ")}`;
+      return closeReasonProblem(status, fields.closeReasonCode);
     },
   },
 

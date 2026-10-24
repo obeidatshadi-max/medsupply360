@@ -19,7 +19,7 @@ let b: string;
 let userA: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
-const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
+const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
 const form = (over: Partial<TenderForm> = {}): TenderForm => ({ ...blank, title: "Analyzer for central lab", ...over });
 
 beforeAll(async () => {
@@ -124,15 +124,50 @@ describe("moving tenders", () => {
     const id = await create({ tenderNo: "JUMP-1", estimatedValue: "1", deadline: "2026-12-01" });
     expect(await move(id, "won", "pipeline")).toEqual({ ok: false, error: "A tender cannot go from Pipeline to Won." });
     await move(id, "open", "pipeline", { tenderNo: "JUMP-1", estimatedValue: "1", deadline: "2026-12-01" });
-    expect(await move(id, "cancelled", "pipeline", { closeReason: "x" })).toEqual({ ok: false, error: "Someone already moved this tender to Open. Reload the page." });
+    expect(await move(id, "cancelled", "pipeline", { closeReasonCode: "other", closeReason: "x" })).toEqual({ ok: false, error: "Someone already moved this tender to Open. Reload the page." });
   });
 
   it("needs a reason to mark a tender lost or cancelled, and keeps it final", async () => {
     const id = await create({ tenderNo: "LOST-1", estimatedValue: "1", deadline: "2026-12-01" });
     expect(await move(id, "cancelled", "pipeline")).toEqual({ ok: false, error: "Before moving to Cancelled, enter: reason it was cancelled or dropped." });
-    expect((await move(id, "cancelled", "pipeline", { closeReason: "Authority withdrew the tender" })).ok).toBe(true);
-    expect((await getTender(db, a, id))!.tender).toMatchObject({ status: "cancelled", closeReason: "Authority withdrew the tender" });
+    expect(await move(id, "cancelled", "pipeline", { closeReason: "A note alone is not enough" })).toEqual({ ok: false, error: "Before moving to Cancelled, enter: reason it was cancelled or dropped." });
+    expect((await move(id, "cancelled", "pipeline", { closeReasonCode: "authority_cancelled", closeReason: "Authority withdrew the tender" })).ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender).toMatchObject({ status: "cancelled", closeReasonCode: "authority_cancelled", closeReason: "Authority withdrew the tender" });
     expect((await move(id, "pipeline", "cancelled")).ok).toBe(false);
+  });
+
+  it("refuses a reason that does not fit the ending, an unknown reason, and Other without a note", async () => {
+    const id = await create({ tenderNo: "REASON-1", estimatedValue: "1", deadline: "2026-12-01" });
+    expect(await move(id, "cancelled", "pipeline", { closeReasonCode: "price" })).toEqual({ ok: false, error: '"Our price was higher" does not fit a tender that is cancelled.' });
+    expect(await move(id, "cancelled", "pipeline", { closeReasonCode: "made-up" })).toEqual({ ok: false, error: "Choose one of the listed reasons." });
+    expect(await move(id, "cancelled", "pipeline", { closeReasonCode: "other" })).toEqual({ ok: false, error: "Before moving to Cancelled, enter: a note explaining the reason." });
+    expect((await getTender(db, a, id))!.tender.status).toBe("pipeline");
+  });
+
+  it("records who won and at what price when a bid is lost, and both stay optional", async () => {
+    const mk = async (no: string) => {
+      const id = await create({ tenderNo: no, estimatedValue: "1", deadline: "2026-12-01" });
+      await client.exec(`update tenders set status = 'financial_review' where id = '${id}'`);
+      return id;
+    };
+    const full = await mk("WIN-1");
+    expect((await move(full, "lost", "financial_review", { closeReasonCode: "price", winnerName: " Rival Co ", winningPrice: "1,250.500" })).ok).toBe(true);
+    expect((await getTender(db, a, full))!.tender).toMatchObject({ status: "lost", closeReasonCode: "price", winnerName: "Rival Co", winningPrice: 1250.5 });
+    const bare = await mk("WIN-2");
+    expect((await move(bare, "lost", "financial_review", { closeReasonCode: "technical" })).ok).toBe(true);
+    expect((await getTender(db, a, bare))!.tender).toMatchObject({ winnerName: null, winningPrice: null });
+    const bad = await mk("WIN-3");
+    expect((await move(bad, "lost", "financial_review", { closeReasonCode: "price", winningPrice: "lots" })).ok).toBe(false);
+  });
+
+  it("keeps the expected award date from the Submitted step and refuses a malformed one", async () => {
+    const id = await create({ tenderNo: "AWD-1", estimatedValue: "1", deadline: "2026-12-01" });
+    await client.exec(`update tenders set status = 'preparing' where id = '${id}'`);
+    expect((await move(id, "submitted", "preparing", { bidValue: "5", expectedAwardDate: "2027-01-15" })).ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender.expectedAwardDate).toBe("2027-01-15");
+    expect((await move(id, "technical_review", "submitted", { bidValue: "5", expectedAwardDate: "2027-01-15" })).ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender.expectedAwardDate).toBe("2027-01-15");
+    expect((await move(id, "financial_review", "technical_review", { bidValue: "5", expectedAwardDate: "15/01/2027" })).ok).toBe(false);
   });
 
   it("lets a tender step back one stage without asking for anything", async () => {

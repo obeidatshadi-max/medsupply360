@@ -6,7 +6,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/page-heading";
 import { canAccess, canEditGuarantees, canEditPayments, canEditTender, canMoveTender } from "@/core/permissions";
-import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, backMove, daysInStage, forwardMoves } from "@/core/tender-flow";
+import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, backMove, closeReasonLabel, daysInStage, forwardMoves } from "@/core/tender-flow";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -50,7 +50,9 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
     ["Products", LINE_LABEL[t.productLine]],
     ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
     ["Submission deadline", t.deadline ? dayText(t.deadline) : "—"],
+    ["Expected award date", t.expectedAwardDate ? dayText(t.expectedAwardDate) : "—"],
     ["Our bid", t.bidValue === null ? "—" : jod(t.bidValue)],
+    ...(t.winnerName || t.winningPrice !== null ? ([["Winner", `${t.winnerName ?? "Not recorded"}${t.winningPrice === null ? "" : ` · ${jod(t.winningPrice)}`}`]] as [string, string][]) : []),
     ["Award amount", t.awardAmount === null ? "—" : jod(t.awardAmount)],
     ["Contract", t.contractNo ? `${t.contractNo}${t.contractValue === null ? "" : ` · ${jod(t.contractValue)}`}` : "—"],
     ["Delivered", t.deliveredOn ? dayText(t.deliveredOn) : "—"],
@@ -73,7 +75,11 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
         <p className="mt-1 text-xs text-muted">
           {daysInStage(t.statusChangedAt, today)} days in this stage · since {when.format(t.statusChangedAt)} Jordan time
         </p>
-        {t.closeReason ? <p className="mt-3 text-sm">Reason: {t.closeReason}</p> : null}
+        {t.closeReasonCode || t.closeReason ? (
+          <p className="mt-3 text-sm">
+            Reason: {[closeReasonLabel(t.closeReasonCode), t.closeReason].filter(Boolean).join(" · ")}
+          </p>
+        ) : null}
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3">
           {facts.map(([k, v]) => (
             <div key={k}>

@@ -12,6 +12,10 @@ const T = (over: Partial<OverviewTender> & { id: string }): OverviewTender => ({
   contractValue: null,
   deadline: null,
   closeReason: null,
+  closeReasonCode: null,
+  winnerName: null,
+  winningPrice: null,
+  expectedAwardDate: null,
   ...over,
 });
 
@@ -66,7 +70,7 @@ describe("buildTenderOverview", () => {
     ]);
     expect(o.results).toMatchObject({ won: 2, lost: 1, wonValue: 400 });
     expect(o.results.winRate).toBeCloseTo(2 / 3);
-    expect(o.results.recentLost).toEqual([{ id: "3", title: "Tender 3", authority: "MOH", reason: "Price" }]);
+    expect(o.results.recentLost).toMatchObject([{ id: "3", title: "Tender 3", authority: "MOH", reason: "Price" }]);
   });
 
   it("lists upcoming deadlines soonest first, only before submission, and shows passed ones apart", () => {
@@ -124,5 +128,48 @@ describe("buildTenderOverview", () => {
       T({ id: "lost", status: "lost", statusChangedAt: "2026-01-01T08:00:00Z" }),
     ]);
     expect(o.longestInStage.map((x) => [x.id, x.days])).toEqual([["old", 78], ["new", 1]]);
+  });
+});
+
+describe("lost reasons and expected awards", () => {
+  it("counts lost tenders by coded reason and flags those closed before codes existed", () => {
+    const o = build([
+      T({ id: "a", status: "lost", closeReasonCode: "price" }),
+      T({ id: "b", status: "lost", closeReasonCode: "price" }),
+      T({ id: "c", status: "lost", closeReasonCode: "technical" }),
+      T({ id: "d", status: "lost", closeReason: "typed before codes" }),
+      T({ id: "e", status: "cancelled", closeReasonCode: "no_budget" }),
+    ]);
+    expect(o.results.lostByReason).toEqual([
+      { code: "price", label: "Our price was higher", count: 2 },
+      { code: "technical", label: "Did not meet the technical specification", count: 1 },
+    ]);
+    expect(o.results.uncodedLost).toBe(1);
+  });
+
+  it("shows how far our bid was from the winner, only when both prices are known", () => {
+    const o = build([
+      T({ id: "a", status: "lost", closeReasonCode: "price", closeReason: "Too high", bidValue: 1090, winningPrice: 1000, winnerName: "Rival" }),
+      T({ id: "b", status: "lost", closeReasonCode: "price", bidValue: 900, winningPrice: 1000 }),
+      T({ id: "c", status: "lost", closeReasonCode: "technical", bidValue: 900 }),
+    ]);
+    const by = Object.fromEntries(o.results.recentLost.map((l) => [l.id, l]));
+    expect(by.a).toMatchObject({ winner: "Rival", winningPrice: 1000, aboveWinnerPct: 9, reason: "Our price was higher · Too high" });
+    expect(by.b!.aboveWinnerPct).toBe(-10);
+    expect(by.c!.aboveWinnerPct).toBeNull();
+  });
+
+  it("lists bids waiting for a decision by expected award date, overdue first, and counts those without a date", () => {
+    const o = build([
+      T({ id: "soon", status: "submitted", expectedAwardDate: "2026-10-25" }),
+      T({ id: "late", status: "technical_review", expectedAwardDate: "2026-10-10" }),
+      T({ id: "none", status: "financial_review" }),
+      T({ id: "today", status: "submitted", expectedAwardDate: TODAY }),
+      T({ id: "ignored", status: "preparing", expectedAwardDate: "2026-10-20" }),
+      T({ id: "decided", status: "lost", expectedAwardDate: "2026-10-12" }),
+    ]);
+    expect(o.awards.overdue.map((x) => [x.id, x.daysAgo])).toEqual([["late", 8]]);
+    expect(o.awards.expected.map((x) => [x.id, x.daysLeft])).toEqual([["today", 0], ["soon", 7]]);
+    expect(o.awards.withoutDate).toBe(1);
   });
 });

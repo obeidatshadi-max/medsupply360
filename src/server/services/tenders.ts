@@ -5,6 +5,9 @@ import {
   PRODUCT_LINES,
   STATUS_LABEL,
   isAuthority,
+  isCloseReason,
+  closeReasonProblem,
+  optionalFor,
   backMove,
   isLegalMove,
   missingFor,
@@ -54,6 +57,10 @@ const toRow = (r: Raw, ownerName: string | null = null): TenderRow => ({
   bidValue: num(r.bidValue),
   awardAmount: num(r.awardAmount),
   closeReason: r.closeReason,
+  closeReasonCode: r.closeReasonCode,
+  winnerName: r.winnerName,
+  winningPrice: num(r.winningPrice),
+  expectedAwardDate: r.expectedAwardDate,
   contractNo: r.contractNo,
   contractValue: num(r.contractValue),
   deliveredOn: r.deliveredOn,
@@ -84,6 +91,10 @@ export function formOf(t: TenderRow): TenderForm {
     bidValue: amountText(t.bidValue),
     awardAmount: amountText(t.awardAmount),
     closeReason: t.closeReason ?? "",
+    closeReasonCode: t.closeReasonCode ?? "",
+    winnerName: t.winnerName ?? "",
+    winningPrice: amountText(t.winningPrice),
+    expectedAwardDate: t.expectedAwardDate ?? "",
     contractNo: t.contractNo ?? "",
     contractValue: amountText(t.contractValue),
     deliveredOn: t.deliveredOn ?? "",
@@ -100,7 +111,9 @@ export function formForMove(role: Role, stored: TenderRow, posted: TenderForm, t
   if (canEditTender(role)) return posted;
   const merged: TenderForm = formOf(stored);
   if (backMove(stored.status) === to) return merged;
-  for (const { key } of neededFor(to)) (merged as Record<string, string>)[key] = (posted as Record<string, string>)[key];
+  const keys: string[] = [...neededFor(to), ...optionalFor(to)].map((n) => n.key);
+  if (to === "lost" || to === "cancelled") keys.push("closeReason");
+  for (const key of keys) (merged as Record<string, string>)[key] = (posted as Record<string, string>)[key];
   return merged;
 }
 
@@ -115,6 +128,10 @@ export type TenderForm = {
   bidValue: string;
   awardAmount: string;
   closeReason: string;
+  closeReasonCode: string;
+  winnerName: string;
+  winningPrice: string;
+  expectedAwardDate: string;
   contractNo: string;
   contractValue: string;
   deliveredOn: string;
@@ -128,20 +145,24 @@ function clean(form: TenderForm): { ok: true; value: Clean } | { ok: false; erro
   const title = text(form.title, 300);
   if (!title) return { ok: false, error: "Enter a short title for the tender." };
   if (!(PRODUCT_LINES as readonly string[]).includes(form.productLine)) return { ok: false, error: "Choose equipment, consumables or both." };
-  const money = {} as Record<"estimatedValue" | "bidValue" | "awardAmount" | "contractValue", number | null>;
+  const code = form.closeReasonCode.trim();
+  if (code !== "" && !isCloseReason(code)) return { ok: false, error: "Choose one of the listed reasons." };
+  const money = {} as Record<"estimatedValue" | "bidValue" | "awardAmount" | "winningPrice" | "contractValue", number | null>;
   for (const [key, label] of [
     ["estimatedValue", "estimated value"],
     ["bidValue", "bid value"],
     ["awardAmount", "award amount"],
+    ["winningPrice", "winning price"],
     ["contractValue", "contract value"],
   ] as const) {
     const v = parseJod(form[key]);
     if (v === "invalid") return { ok: false, error: `The ${label} must be a number in JOD, for example 12500 or 12,500.250.` };
     money[key] = v;
   }
-  const dates = {} as Record<"deadline" | "deliveredOn", string | null>;
+  const dates = {} as Record<"deadline" | "expectedAwardDate" | "deliveredOn", string | null>;
   for (const [key, label] of [
     ["deadline", "submission deadline"],
+    ["expectedAwardDate", "expected award date"],
     ["deliveredOn", "delivery date"],
   ] as const) {
     const v = form[key].trim();
@@ -160,6 +181,10 @@ function clean(form: TenderForm): { ok: true; value: Clean } | { ok: false; erro
       bidValue: money.bidValue,
       awardAmount: money.awardAmount,
       closeReason: text(form.closeReason, 2000),
+      closeReasonCode: code === "" ? null : code,
+      winnerName: text(form.winnerName, 200),
+      winningPrice: money.winningPrice,
+      expectedAwardDate: dates.expectedAwardDate,
       contractNo: text(form.contractNo, 80),
       contractValue: money.contractValue,
       deliveredOn: dates.deliveredOn,
@@ -230,6 +255,10 @@ export async function createTender(db: Db, input: { companyId: string; userId: s
           bidValue: money3(v.bidValue),
           awardAmount: money3(v.awardAmount),
           closeReason: v.closeReason,
+          closeReasonCode: v.closeReasonCode,
+          winnerName: v.winnerName,
+          winningPrice: money3(v.winningPrice),
+          expectedAwardDate: v.expectedAwardDate,
           contractNo: v.contractNo,
           contractValue: money3(v.contractValue),
           deliveredOn: v.deliveredOn,
@@ -266,6 +295,10 @@ export async function updateTender(db: Db, input: { companyId: string; tenderId:
         bidValue: money3(v.bidValue),
         awardAmount: money3(v.awardAmount),
         closeReason: v.closeReason,
+        closeReasonCode: v.closeReasonCode,
+        winnerName: v.winnerName,
+        winningPrice: money3(v.winningPrice),
+        expectedAwardDate: v.expectedAwardDate,
         contractNo: v.contractNo,
         contractValue: money3(v.contractValue),
         deliveredOn: v.deliveredOn,
@@ -300,6 +333,8 @@ export async function moveTender(
   const v = c.value;
   const missing = missingFor(input.to, v, from);
   if (missing.length) return { ok: false, error: `Before moving to ${STATUS_LABEL[input.to]}, enter: ${missing.join(", ")}.` };
+  const badReason = closeReasonProblem(input.to, v.closeReasonCode);
+  if (badReason) return { ok: false, error: badReason };
 
   if (input.to === "collected") {
     const blocker = collectionBlocker(await listInvoices(db, input.companyId, input.tenderId));
@@ -322,6 +357,10 @@ export async function moveTender(
           bidValue: money3(v.bidValue),
           awardAmount: money3(v.awardAmount),
           closeReason: v.closeReason,
+          closeReasonCode: v.closeReasonCode,
+          winnerName: v.winnerName,
+          winningPrice: money3(v.winningPrice),
+          expectedAwardDate: v.expectedAwardDate,
           contractNo: v.contractNo,
           contractValue: money3(v.contractValue),
           deliveredOn: v.deliveredOn,

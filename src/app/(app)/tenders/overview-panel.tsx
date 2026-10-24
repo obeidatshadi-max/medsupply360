@@ -76,6 +76,38 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
               ))}
             </ul>
           )}
+          <div className="mt-3 border-t border-dashed border-line pt-2">
+            <p className="text-xs font-semibold">Awards expected</p>
+            {o.awards.expected.length === 0 && o.awards.overdue.length === 0 ? (
+              <p className="mt-1 text-xs text-muted">{o.awards.withoutDate === 0 ? "No bid is waiting for a decision." : "No expected award date entered yet."}</p>
+            ) : (
+              <ul className="mt-1 space-y-1 text-sm">
+                {o.awards.overdue.map((d) => (
+                  <li key={d.id} className="flex flex-wrap justify-between gap-x-3">
+                    <Ref base={base} id={d.id}>
+                      {d.title} <span className="text-xs text-muted">{d.authority}</span>
+                    </Ref>
+                    <span className="text-xs tabular-nums text-bad">
+                      expected {dayText(d.expectedOn)} · {plural(d.daysAgo, "day")} ago
+                    </span>
+                  </li>
+                ))}
+                {o.awards.expected.map((d) => (
+                  <li key={d.id} className="flex flex-wrap justify-between gap-x-3">
+                    <Ref base={base} id={d.id}>
+                      {d.title} <span className="text-xs text-muted">{d.authority}</span>
+                    </Ref>
+                    <span className="text-xs tabular-nums text-muted">
+                      {dayText(d.expectedOn)} · {d.daysLeft === 0 ? "today" : plural(d.daysLeft, "day") + " left"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {o.awards.withoutDate > 0 && (o.awards.expected.length > 0 || o.awards.overdue.length > 0) ? (
+              <p className="mt-1 text-[11px] text-muted">{plural(o.awards.withoutDate, "waiting bid")} without an expected date.</p>
+            ) : null}
+          </div>
           {o.deadlines.passed.length > 0 ? (
             <div className="mt-3 border-t border-dashed border-line pt-2">
               <p className="text-xs font-semibold text-bad">Deadline passed, not yet submitted</p>
@@ -148,7 +180,22 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
           {o.results.recentLost.length === 0 ? (
             <Empty>No tender has been marked lost.</Empty>
           ) : (
-            <ul className="mt-2 space-y-1.5 text-sm">
+            <>
+              <ul className="mt-2 space-y-0.5 text-sm">
+                {o.results.lostByReason.map((r) => (
+                  <li key={r.code} className="flex justify-between gap-x-3">
+                    <span>{r.label}</span>
+                    <span className="tabular-nums">{r.count}</span>
+                  </li>
+                ))}
+                {o.results.uncodedLost > 0 ? (
+                  <li className="flex justify-between gap-x-3 text-muted">
+                    <span>Closed before reasons were coded</span>
+                    <span className="tabular-nums">{o.results.uncodedLost}</span>
+                  </li>
+                ) : null}
+              </ul>
+              <ul className="mt-3 space-y-1.5 border-t border-dashed border-line pt-2 text-sm">
               {o.results.recentLost.map((l) => (
                 <li key={l.id}>
                   <Ref base={base} id={l.id}>
@@ -156,9 +203,17 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
                   </Ref>{" "}
                   <span className="text-xs text-muted">{l.authority}</span>
                   <span className="block text-xs text-muted">{l.reason ?? "No reason recorded"}</span>
+                  {l.winner || l.winningPrice !== null ? (
+                    <span className="block text-xs text-muted">
+                      Won by {l.winner ?? "an unnamed bidder"}
+                      {l.winningPrice !== null ? ` at ${jod(l.winningPrice)}` : ""}
+                      {l.aboveWinnerPct !== null ? ` · our bid was ${Math.abs(l.aboveWinnerPct)}% ${l.aboveWinnerPct >= 0 ? "above" : "below"}` : ""}
+                    </span>
+                  ) : null}
                 </li>
               ))}
-            </ul>
+              </ul>
+            </>
           )}
         </div>
       </div>

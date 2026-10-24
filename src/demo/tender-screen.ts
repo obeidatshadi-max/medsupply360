@@ -7,7 +7,7 @@
  * so one customer's buyers are never presented as another's.
  */
 import { ROLE_LABEL } from "@/core/permissions";
-import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, type AuthorityCode } from "@/core/tender-flow";
+import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, closeReasonLabel, type AuthorityCode } from "@/core/tender-flow";
 import { GUARANTEE_LABEL } from "@/core/tender-money";
 import { tenderValue } from "@/core/tender-overview";
 import { dayText, jod, pct } from "@/lib/format";
@@ -87,6 +87,14 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
         o.deadlines.passed.map((d) => item(`${ref(d.id, d.title)} <span class="cellsub">${a(d.authority)}</span>`, `${dayText(d.deadline)} · ${plural(d.daysAgo, "day")} ago`)).join("")
       : "");
 
+  const awards =
+    `<p class="mini" style="font-weight:600;margin-top:12px">Awards expected</p>` +
+    (o.awards.expected.length === 0 && o.awards.overdue.length === 0
+      ? `<p class="mini">${o.awards.withoutDate === 0 ? "No bid is waiting for a decision." : "No expected award date entered yet."}</p>`
+      : o.awards.overdue.map((d) => item(`${ref(d.id, d.title)} <span class="cellsub">${a(d.authority)}</span>`, `<span style="color:var(--red)">expected ${dayText(d.expectedOn)} · ${plural(d.daysAgo, "day")} ago</span>`)).join("") +
+        o.awards.expected.map((d) => item(`${ref(d.id, d.title)} <span class="cellsub">${a(d.authority)}</span>`, `${dayText(d.expectedOn)} · ${d.daysLeft === 0 ? "today" : plural(d.daysLeft, "day") + " left"}`)).join("") +
+        (o.awards.withoutDate > 0 ? `<p class="mini">${plural(o.awards.withoutDate, "waiting bid")} without an expected date.</p>` : ""));
+
   const guarantees =
     `<div class="value" style="font-size:26px">${jod(o.guarantees.active)}</div><p class="mini">Held by guarantees that are not returned and not expired.</p>` +
     (o.guarantees.expiredNotReturned > 0 ? `<p class="mini" style="color:var(--red)">${jod(o.guarantees.expiredNotReturned)} is on guarantees that expired but were not returned. Ask the bank.</p>` : "") +
@@ -100,10 +108,24 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     `<div class="value" style="font-size:26px">${jod(o.payments.unpaid)}</div><p class="mini">Invoiced ${jod(o.payments.invoiced)} · collected ${jod(o.payments.collected)}</p>` +
     list(owed.map((x) => item(a(x.code), jod(x.unpaid))), "Nothing is waiting to be collected.");
 
-  const lost = list(
-    o.results.recentLost.map((l) => item(`${ref(l.id, l.title)} <span class="cellsub">${a(l.authority)} · ${esc(l.reason ?? "No reason recorded")}</span>`, "Lost")),
-    "No tender has been marked lost.",
-  );
+  const lost =
+    (o.results.recentLost.length
+      ? o.results.lostByReason.map((r) => item(esc(r.label), String(r.count))).join("") +
+        (o.results.uncodedLost > 0 ? item("Closed before reasons were coded", String(o.results.uncodedLost)) : "") +
+        `<div style="height:10px"></div>`
+      : "") +
+    list(
+      o.results.recentLost.map((l) =>
+        item(
+          `${ref(l.id, l.title)} <span class="cellsub">${a(l.authority)} · ${esc(l.reason ?? "No reason recorded")}</span>` +
+            (l.winner || l.winningPrice !== null
+              ? `<span class="cellsub">Won by ${esc(l.winner ?? "an unnamed bidder")}${l.winningPrice !== null ? ` at ${jod(l.winningPrice)}` : ""}${l.aboveWinnerPct !== null ? ` · our bid was ${Math.abs(l.aboveWinnerPct)}% ${l.aboveWinnerPct >= 0 ? "above" : "below"}` : ""}</span>`
+              : ""),
+          "Lost",
+        ),
+      ),
+      "No tender has been marked lost.",
+    );
 
   const byAuthority = table(
     ["Authority", "Active", "Active value", "Won", "Lost"],
@@ -146,7 +168,7 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     `<div class="ob-row">Where the tenders stand</div>` +
     phaseCards +
     `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. Win rate: ${winRate}.</p>` +
-    `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
+    `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines + awards)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("Still unpaid by the authorities", "Tender invoices not yet collected", unpaid)}${panel("Why bids were lost", "The reason recorded when a tender is marked lost", lost)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("By authority", "Active = not lost, cancelled or collected", byAuthority)}${panel("Longest in their current stage", "A plain count of days, not a deadline: some stages are slow by nature.", longest)}</div>` +
     `<div style="margin-top:20px">${panel("All tenders", `${plural(rows.length, "tender")} · search by owner, authority or product · select one for its guarantees, invoices and history`, table(["Authority", "Tender", "Owner", "Products", "Stage", "Value", "Deadline", "Days in stage"], rows))}</div>` +
@@ -172,7 +194,9 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     ["Products", LINE_LABEL[t.productLine]],
     ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
     ["Submission deadline", t.deadline ? dayText(t.deadline) : "—"],
+    ["Expected award date", t.expectedAwardDate ? dayText(t.expectedAwardDate) : "—"],
     ["Our bid", t.bidValue === null ? "—" : jod(t.bidValue)],
+    ...(t.winnerName || t.winningPrice !== null ? ([["Winner", `${t.winnerName ?? "Not recorded"}${t.winningPrice === null ? "" : ` · ${jod(t.winningPrice)}`}`]] as [string, string][]) : []),
     ["Award amount", t.awardAmount === null ? "—" : jod(t.awardAmount)],
     ["Contract", t.contractNo ? `${neutral(t.contractNo, t, generic)}${t.contractValue === null ? "" : ` · ${jod(t.contractValue)}`}` : "—"],
     ["Delivered", t.deliveredOn ? dayText(t.deliveredOn) : "—"],
@@ -190,7 +214,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     `<div class="eyebrow">TENDER · ${esc(authorityLabel(t.authority, generic))}${no ? ` · ${esc(no)}` : ""}</div><h1 id="drawerTitle">${esc(t.title)}</h1>` +
     `<p class="sub">Stage ${STAGE[t.status].no} of 10 · ${STAGE[t.status].name}</p>` +
     `<div class="detailstats"><div><small>Status</small><strong>${STATUS_LABEL[t.status]}</strong></div><div><small>Days in this stage</small><strong>${d.daysInStage}</strong></div></div>` +
-    (t.closeReason ? `<div class="info">Reason: ${esc(t.closeReason)}</div>` : "") +
+    (t.closeReasonCode || t.closeReason ? `<div class="info">Reason: ${esc([closeReasonLabel(t.closeReasonCode), t.closeReason].filter(Boolean).join(" · "))}</div>` : "") +
     facts.map(([k, v]) => item(k, esc(v))).join("") +
     `<h3 style="margin-top:22px">Guarantees</h3>` +
     list(
