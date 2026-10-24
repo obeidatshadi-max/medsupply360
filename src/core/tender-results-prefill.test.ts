@@ -58,6 +58,25 @@ describe("prefilled award results", () => {
     expect(row2![h2!.indexOf("Tender no")]).toBe("'=cmd|' /C calc'!A0");
   });
 
+  it("fills one row per item line from the tender's lines, with our price, and the winner's rows without a price", () => {
+    const items = [
+      { itemName: "Anaesthesia workstation", quantity: 2, unit: "unit", estimatedUnitPrice: 240000, ourUnitPrice: 224375 },
+      { itemName: "Breathing circuits", quantity: 500, unit: null, estimatedUnitPrice: null, ourUnitPrice: null },
+    ];
+    const rows = prefillRows(base, "Sadaf Medical", items);
+    const h = rows[0]!;
+    const cell = (r: string[], heading: string) => r[h.indexOf(heading)];
+    expect(rows).toHaveLength(1 + 2 + 2);
+    expect([cell(rows[1]!, "Item"), cell(rows[1]!, "Quantity"), cell(rows[1]!, "Unit"), cell(rows[1]!, "Unit price"), cell(rows[1]!, "Bidder")]).toEqual(["Anaesthesia workstation", "2", "unit", "224375.000", "Sadaf Medical"]);
+    expect([cell(rows[2]!, "Item"), cell(rows[2]!, "Unit price")]).toEqual(["Breathing circuits", ""]); // our price not known: left empty
+    expect([cell(rows[3]!, "Bidder"), cell(rows[3]!, "Item"), cell(rows[3]!, "Quantity"), cell(rows[3]!, "Unit price"), cell(rows[3]!, "Our bid")]).toEqual(["Competitor A", "Anaesthesia workstation", "2", "", "No"]);
+    // without a known winner there are no winner rows
+    expect(prefillRows({ ...base, winnerName: null }, "Sadaf Medical", items)).toHaveLength(1 + 2);
+    // item names typed by people are defused like the other text cells
+    const evil = prefillRows(base, "Co", [{ itemName: "=1+1", quantity: 1, unit: "@x", estimatedUnitPrice: null, ourUnitPrice: 1 }]);
+    expect([cell(evil[1]!, "Item"), cell(evil[1]!, "Unit")]).toEqual(["'=1+1", "'@x"]);
+  });
+
   it("quotes commas and builds a safe file name", () => {
     expect(rowsToCsv([["a,b", 'c"d']])).toBe('﻿"a,b","c""d"\r\n');
     expect(prefillFileName({ authority: "MOH", tenderNo: "MOH/26 7" })).toBe("tender-results-MOH-MOH_26_7.csv");

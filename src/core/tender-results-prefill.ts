@@ -6,6 +6,7 @@
 import { headingOf } from "./import/template";
 import { SPECS } from "./import/specs";
 import { type AuthorityCode, type TenderStatus } from "./tender-flow";
+import type { TenderItem } from "./tender-items";
 
 /** Statuses from which a tender's award result is known: it was won (and may have moved on) or lost. */
 export const RESULT_STATUSES: readonly TenderStatus[] = ["won", "contracted", "delivered", "collected", "lost"];
@@ -29,14 +30,23 @@ export const defuse = (v: string): string => (/^[=+\-@\t\r]/.test(v) ? `'${v}` :
 
 const quote = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
-/** Headings, then our bid row, then (for a lost tender whose winner is known) the winner's row. Item and price cells are left empty. */
-export function prefillRows(t: PrefillTender, ourCompany: string): string[][] {
+/**
+ * Headings, then our bid, then (for a lost tender whose winner is known) the winner's bid. With item lines on the tender
+ * there is one row per item and bidder: the item, quantity, unit and our price are filled from the lines, and the winner's
+ * rows carry the item and quantity but no price (that comes from the award notice). Without item lines the item and
+ * price cells are left empty to be typed.
+ */
+export function prefillRows(t: PrefillTender, ourCompany: string, items: readonly TenderItem[] = []): string[][] {
   const keys = SPECS.tender_results.fields.map((f) => f.key);
   const row = (v: Record<string, string>) => keys.map((k) => v[k] ?? "");
   const lost = t.status === "lost";
   const common = { authority: t.authority, tenderNo: defuse(t.tenderNo ?? ""), tenderTitle: defuse(t.title), awardDate: t.awardDate ?? "", currency: "JOD" };
-  const rows = [keys.map((k) => headingOf("tender_results", k)), row({ ...common, bidder: defuse(ourCompany), ourBid: "Yes", result: lost ? "lost" : "won" })];
-  if (lost && t.winnerName) rows.push(row({ ...common, bidder: defuse(t.winnerName), ourBid: "No", result: "won" }));
+  const head = keys.map((k) => headingOf("tender_results", k));
+  const itemCells = (i: TenderItem | undefined, withPrice: boolean): Record<string, string> =>
+    i ? { itemName: defuse(i.itemName), quantity: String(i.quantity), unit: defuse(i.unit ?? ""), unitPrice: withPrice && i.ourUnitPrice !== null ? i.ourUnitPrice.toFixed(3) : "" } : {};
+  const lines: (TenderItem | undefined)[] = items.length ? [...items] : [undefined];
+  const rows = [head, ...lines.map((i) => row({ ...common, ...itemCells(i, true), bidder: defuse(ourCompany), ourBid: "Yes", result: lost ? "lost" : "won" }))];
+  if (lost && t.winnerName) for (const i of lines) rows.push(row({ ...common, ...itemCells(i, false), bidder: defuse(t.winnerName), ourBid: "No", result: "won" }));
   return rows;
 }
 

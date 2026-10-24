@@ -29,11 +29,24 @@ describe("demo tender screen", () => {
     }
     const lost = tenderResultsPrefillRows("d10", false)!;
     const h = lost[0]!;
-    expect(lost).toHaveLength(3);
+    expect(lost).toHaveLength(5); // head, our two item lines, the winner's two item lines
     expect(lost[1]![h.indexOf("Bidder")]).toBe("Sadaf Medical");
     expect(lost[1]![h.indexOf("Award date")]).toBe("2026-09-05");
-    expect(lost[2]![h.indexOf("Bidder")]).toBe("Competitor A");
+    expect(lost[1]![h.indexOf("Item")]).toBe("Anaesthesia workstation");
+    expect(lost[1]![h.indexOf("Unit price")]).toBe("59875.000");
+    expect(lost[3]![h.indexOf("Bidder")]).toBe("Competitor A");
+    expect(lost[3]![h.indexOf("Unit price")]).toBe("");
     expect(tenderResultsPrefillRows("nope", false)).toBeNull();
+  });
+
+  it("shows a tender's item lines and totals in its drawer, and nothing for a tender without lines", () => {
+    const html = tenderDetailHtml("d10", false)!;
+    expect(html).toContain("Item lines");
+    expect(html).toContain("Anaesthesia workstation");
+    expect(html).toContain(`Our bid total ${jod(448750)}.`);
+    expect(html).toContain(`Authority estimate total ${jod(468300)}.`);
+    expect(tenderDetailHtml("d1", false)).toContain("Our bid total is not complete: 2 lines without our price.");
+    expect(tenderDetailHtml("d11", false)).not.toContain("Item lines");
   });
 
   it("names the real authorities only for the Sadaf preset", () => {

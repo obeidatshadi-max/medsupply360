@@ -10,6 +10,7 @@ import { ROLE_LABEL } from "@/core/permissions";
 import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, closeReasonLabel, type AuthorityCode } from "@/core/tender-flow";
 import { GUARANTEE_LABEL } from "@/core/tender-money";
 import { tenderValue } from "@/core/tender-overview";
+import { itemTotals, lineTotal } from "@/core/tender-items";
 import { hasAwardResult, prefillRows } from "@/core/tender-results-prefill";
 import { dayText, jod, pct } from "@/lib/format";
 import { DEMO_TENDERS, DEMO_TENDER_AS_OF, demoTenderDetail, demoTenderOverview, type DemoTender } from "./tender-demo";
@@ -190,10 +191,26 @@ export function tenderResultsPrefillRows(id: string, generic: boolean): string[]
   const rows = prefillRows(
     { authority: t.authority, tenderNo: tenderNo(t, generic), title: t.title, status: t.status, awardDate: decided?.on ?? null, winnerName: t.winnerName },
     generic ? "Our company" : "Sadaf Medical",
+    t.items,
   );
   // Another customer's file never names the Sadaf preset's real authorities.
   const col = rows[0]!.indexOf("Authority");
   return generic ? rows.map((r, i) => (i === 0 ? r : r.map((c, j) => (j === col ? authorityLabel(t.authority, true) : c)))) : rows;
+}
+
+/** The item lines of a demo tender with the same totals rule as the live page. Empty text when the tender has none. */
+function itemsHtml(t: DemoTender): string {
+  if (t.items.length === 0) return "";
+  const totals = itemTotals(t.items);
+  const cells = t.items.map((i) => {
+    const total = lineTotal(i.quantity, i.ourUnitPrice);
+    return [esc(i.itemName), `${i.quantity}${i.unit ? ` ${esc(i.unit)}` : ""}`, i.estimatedUnitPrice === null ? "—" : jod(i.estimatedUnitPrice), i.ourUnitPrice === null ? "—" : jod(i.ourUnitPrice), total === null ? "—" : jod(total)];
+  });
+  return (
+    `<h3 style="margin-top:22px">Item lines</h3>` +
+    table(["Item", "Quantity", "Authority estimate", "Our price", "Our line total"], cells) +
+    `<p class="mini">${totals.bid === null ? `Our bid total is not complete: ${totals.unpriced} line${totals.unpriced === 1 ? "" : "s"} without our price.` : `Our bid total ${jod(totals.bid)}.`}${totals.estimated === null ? "" : ` Authority estimate total ${jod(totals.estimated)}.`} In the live app the tender's bid and estimated values follow the lines once every line has the price.</p>`
+  );
 }
 
 /** The drawer for one tender: where it stands, its facts, guarantees, invoices and history. Null for an unknown id. */
@@ -231,6 +248,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     `<div class="detailstats"><div><small>Status</small><strong>${STATUS_LABEL[t.status]}</strong></div><div><small>Days in this stage</small><strong>${d.daysInStage}</strong></div></div>` +
     (t.closeReasonCode || t.closeReason ? `<div class="info">Reason: ${esc([closeReasonLabel(t.closeReasonCode), t.closeReason].filter(Boolean).join(" · "))}</div>` : "") +
     facts.map(([k, v]) => item(k, esc(v))).join("") +
+    itemsHtml(t) +
     `<h3 style="margin-top:22px">Guarantees</h3>` +
     list(
       guarantees.map((g) => item(`${GUARANTEE_LABEL[g.kind]} · ${esc(g.reference)}<span class="cellsub">${g.issuedOn ? `Issued ${dayText(g.issuedOn)} · ` : ""}Expires ${dayText(g.expiresOn)}${g.returnedOn ? ` · Returned ${dayText(g.returnedOn)}` : ""}</span>`, `${jod(g.amount)} · ${gState(g.state)}`)),

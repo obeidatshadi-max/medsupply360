@@ -14,11 +14,13 @@ import { dayText, jod } from "@/lib/format";
 import { erpFactsByInvoiceNo, listGuarantees, listInvoices } from "@/server/services/tender-finance";
 import { hasAwardResult } from "@/core/tender-results-prefill";
 import { archivedBidCount } from "@/server/services/tender-prices";
+import { listTenderItems } from "@/server/services/tender-items";
 import { getTender } from "@/server/services/tenders";
 import { valuesOf } from "../tender-fields";
 import { listSalesPeople } from "@/server/services/sales-force";
 import { DetailsForm } from "./details-form";
 import { Guarantees } from "./guarantees";
+import { ItemsEditor, ItemsTable } from "./items";
 import { MovePanel } from "./move-panel";
 import { OwnerForm } from "./owner-form";
 import { Payments } from "./payments";
@@ -35,7 +37,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
   const found = await getTender(getDb(), user.companyId, id);
   if (!found) notFound();
   const { tender: t, history } = found;
-  const [guarantees, invoices] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id)]);
+  const [guarantees, invoices, items] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id), listTenderItems(getDb(), user.companyId, t.id)]);
   // The ERP check reads receivables, which the tender and finance roles may not open, so only business roles get it.
   const erp = canAccess(user.role, "business") ? Object.fromEntries(await erpFactsByInvoiceNo(getDb(), user.companyId, invoices.map((i) => i.invoiceNo))) : null;
 
@@ -97,8 +99,9 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
       {user.role === "owner" ? <OwnerForm tenderId={t.id} currentId={t.ownerId} choices={await listSalesPeople(getDb(), user.companyId)} /> : null}
       {moves.length > 0 || canEditTender(user.role) ? <MovePanel tenderId={t.id} status={t.status} values={valuesOf(t)} moves={moves} /> : null}
       {canEditTender(user.role) ? <DetailsForm tenderId={t.id} values={valuesOf(t)} /> : null}
+      {canEditTender(user.role) ? <ItemsEditor tenderId={t.id} items={items} /> : <ItemsTable items={items} />}
 
-      {hasAwardResult(t.status) ? <PriceHistoryPanel tenderId={t.id} archived={await archivedBidCount(getDb(), user.companyId, t.authority, t.tenderNo)} hasNumber={t.tenderNo !== null} canUpload={canAccess(user.role, "tender")} /> : null}
+      {hasAwardResult(t.status) ? <PriceHistoryPanel tenderId={t.id} archived={await archivedBidCount(getDb(), user.companyId, t.authority, t.tenderNo)} hasNumber={t.tenderNo !== null} canUpload={canAccess(user.role, "tender")} itemCount={items.length} /> : null}
 
       <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
       <Payments tenderId={t.id} rows={invoices} erp={erp}canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
