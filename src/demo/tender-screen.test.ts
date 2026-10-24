@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AUTHORITIES } from "@/core/tender-flow";
 import { jod, pct } from "@/lib/format";
 import { DEMO_TENDERS, demoTenderOverview } from "./tender-demo";
-import { authorityLabel, tenderCsvRows, tenderDetailHtml, tenderScreenHtml } from "./tender-screen";
+import { authorityLabel, tenderCsvRows, tenderDetailHtml, tenderResultsPrefillRows, tenderScreenHtml } from "./tender-screen";
 
 describe("demo tender screen", () => {
   const o = demoTenderOverview();
@@ -17,9 +17,28 @@ describe("demo tender screen", () => {
     for (const t of DEMO_TENDERS) expect(html).toContain(t.title);
   });
 
+  it("offers the prefilled Price history file for decided tenders only, with our row and the known winner", () => {
+    const decided = DEMO_TENDERS.filter((t) => ["won", "contracted", "delivered", "collected", "lost"].includes(t.status));
+    expect(decided.length).toBeGreaterThan(0);
+    for (const t of DEMO_TENDERS) {
+      const isDecided = decided.includes(t);
+      const html = tenderDetailHtml(t.id, false)!;
+      if (isDecided) expect(html).toContain(`data-prefill="${t.id}"`);
+      else expect(html).not.toContain("data-prefill");
+      expect(tenderResultsPrefillRows(t.id, false) !== null).toBe(isDecided);
+    }
+    const lost = tenderResultsPrefillRows("d10", false)!;
+    const h = lost[0]!;
+    expect(lost).toHaveLength(3);
+    expect(lost[1]![h.indexOf("Bidder")]).toBe("Sadaf Medical");
+    expect(lost[1]![h.indexOf("Award date")]).toBe("2026-09-05");
+    expect(lost[2]![h.indexOf("Bidder")]).toBe("Competitor A");
+    expect(tenderResultsPrefillRows("nope", false)).toBeNull();
+  });
+
   it("names the real authorities only for the Sadaf preset", () => {
     const sadaf = tenderScreenHtml({ generic: false });
-    const other = tenderScreenHtml({ generic: true }) + DEMO_TENDERS.map((t) => tenderDetailHtml(t.id, true)).join("") + JSON.stringify(tenderCsvRows(true));
+    const other = tenderScreenHtml({ generic: true }) + DEMO_TENDERS.map((t) => tenderDetailHtml(t.id, true)).join("") + JSON.stringify(tenderCsvRows(true)) + JSON.stringify(DEMO_TENDERS.map((t) => tenderResultsPrefillRows(t.id, true)));
     for (const a of AUTHORITIES) {
       expect(sadaf).toContain(a.code);
       expect(other).not.toContain(a.code);

@@ -10,6 +10,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
 import { runImport, type Db, type ImportOutcome, type RunImportInput } from "@/db/import-writer";
 import type { ImportKind } from "@/core/import/specs";
+import { prefillRows, rowsToCsv } from "@/core/tender-results-prefill";
+import { archivedBidCount } from "@/server/services/tender-prices";
 
 let client: PGlite;
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -105,5 +107,27 @@ describe("tender results import", () => {
     await imp(b, "tender_results", [HEAD, "MOH,MOH-2025-14,,2025-03-01,,Lancets,,10,Rival Co,no,0.100,won"].join("\n"));
     expect(await count("tender_archive", b)).toBe(1);
     expect(await count("tender_archive", a)).toBeGreaterThan(1);
+  });
+});
+
+describe("results file prefilled from a decided tender", () => {
+  it("imports once items and prices are added, and the tender then shows its bids in Price history", async () => {
+    const tender = { authority: "DRMS", tenderNo: "DRMS-26-7", title: "Gloves", status: "lost", awardDate: "2026-09-05", winnerName: "Rival Co" } as const;
+    expect(await archivedBidCount(db as unknown as Db, a, "DRMS", "DRMS-26-7")).toBe(0);
+    const [head, ours, theirs] = prefillRows(tender, "A");
+    const fill = (r: string[], price: string) => r.map((c, i) => (i === head!.indexOf("Item") ? "Nitrile gloves M" : i === head!.indexOf("Unit price") ? price : c));
+    const out = await imp(a, "tender_results", rowsToCsv([head!, fill(ours!, "0.050"), fill(theirs!, "0.044")]));
+    expect(out).toMatchObject({ status: "accepted", rowsAccepted: 2, wrote: true });
+    expect(await archivedBidCount(db as unknown as Db, a, "DRMS", "DRMS-26-7")).toBe(2);
+    expect(await archivedBidCount(db as unknown as Db, b, "DRMS", "DRMS-26-7")).toBe(0); // other company
+    expect(await archivedBidCount(db as unknown as Db, a, "DRMS", null)).toBe(0);
+    const bids = await q<{ bidder: string; is_own: boolean; outcome: string }>(
+      `select bidder, is_own, outcome from tender_bids where company_id = $1 and line_id in (select id from tender_archive_lines where item_name = 'Nitrile gloves M') order by bidder`,
+      [a],
+    );
+    expect(bids).toEqual([
+      { bidder: "A", is_own: true, outcome: "lost" },
+      { bidder: "Rival Co", is_own: false, outcome: "won" },
+    ]);
   });
 });

@@ -10,6 +10,7 @@ import { ROLE_LABEL } from "@/core/permissions";
 import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, closeReasonLabel, type AuthorityCode } from "@/core/tender-flow";
 import { GUARANTEE_LABEL } from "@/core/tender-money";
 import { tenderValue } from "@/core/tender-overview";
+import { hasAwardResult, prefillRows } from "@/core/tender-results-prefill";
 import { dayText, jod, pct } from "@/lib/format";
 import { DEMO_TENDERS, DEMO_TENDER_AS_OF, demoTenderDetail, demoTenderOverview, type DemoTender } from "./tender-demo";
 
@@ -181,6 +182,20 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
   );
 }
 
+/** The Price history results file for one decided demo tender, as rows for the demo's download. Null for an undecided or unknown tender. */
+export function tenderResultsPrefillRows(id: string, generic: boolean): string[][] | null {
+  const t = DEMO_TENDERS.find((x) => x.id === id);
+  if (!t || !hasAwardResult(t.status)) return null;
+  const decided = [...t.history].reverse().find((h) => h.to === "won" || h.to === "lost");
+  const rows = prefillRows(
+    { authority: t.authority, tenderNo: tenderNo(t, generic), title: t.title, status: t.status, awardDate: decided?.on ?? null, winnerName: t.winnerName },
+    generic ? "Our company" : "Sadaf Medical",
+  );
+  // Another customer's file never names the Sadaf preset's real authorities.
+  const col = rows[0]!.indexOf("Authority");
+  return generic ? rows.map((r, i) => (i === 0 ? r : r.map((c, j) => (j === col ? authorityLabel(t.authority, true) : c)))) : rows;
+}
+
 /** The drawer for one tender: where it stands, its facts, guarantees, invoices and history. Null for an unknown id. */
 export function tenderDetailHtml(id: string, generic: boolean): string | null {
   const d = demoTenderDetail(id);
@@ -227,6 +242,9 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
         `<p class="mini">Invoiced ${jod(payments.invoiced)} · collected ${jod(payments.collected)} · still unpaid ${jod(payments.outstanding)}</p>`
       : `<p class="mini">${["contracted", "delivered", "collected"].includes(t.status) ? "No invoice recorded yet." : "Finance records invoices once the tender is contracted."}</p>`) +
     (invoices.length ? `<p class="mini">In the live app each invoice is also checked by its number against the ERP files, and flagged when the ERP shows a different amount unpaid.</p>` : "") +
+    (hasAwardResult(t.status)
+      ? `<h3 style="margin-top:22px">Add the award result to Price history</h3><p class="mini">The file comes with the authority, tender number, title, award date, our company and the result already filled in. Add one row per item and bidder (item, quantity, unit price), then upload it on the Tender department page.</p><p><button class="linkbtn" data-prefill="${esc(t.id)}">Download the prefilled file</button></p>`
+      : "") +
     `<h3 style="margin-top:22px">History</h3>` +
     [...t.history]
       .reverse()
