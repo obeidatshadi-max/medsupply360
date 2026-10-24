@@ -309,7 +309,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
       ? invoices.map((i) => item(`${esc(i.invoiceNo)}<span class="cellsub">${dayText(i.invoiceDate)}${i.lastCollectedOn ? ` · last payment ${dayText(i.lastCollectedOn)}` : ""}${dueText(i)}</span>`, `${jod(i.collected)} of ${jod(i.amount)} collected`)).join("") +
         `<p class="mini">Invoiced ${jod(payments.invoiced)} · collected ${jod(payments.collected)} · still unpaid ${jod(payments.outstanding)}</p>`
       : `<p class="mini">${["contracted", "delivered", "collected"].includes(t.status) ? "No invoice recorded yet." : "Finance records invoices once the tender is contracted."}</p>`) +
-    (invoices.length ? `<p class="mini">In the live app each invoice is also checked by its number against the ERP files, and flagged when the ERP shows a different amount unpaid.</p>` : "") +
+    (invoices.length ? `<p class="mini">In the live app each invoice is also checked by its number against the ERP files, and flagged when the ERP shows a different amount unpaid or a different invoice or due date. The owner can also fill a new invoice's date and due date from the ERP files by typing its number.</p>` : "") +
     (hasAwardResult(t.status)
       ? `<h3 style="margin-top:22px">Add the award result to Price history</h3><p class="mini">The file comes with the authority, tender number, title, award date, our company and the result already filled in. Add one row per item and bidder (item, quantity, unit price), then upload it on the Tender department page.</p><p><button class="linkbtn" data-prefill="${esc(t.id)}">Download the prefilled file</button></p>`
       : "") +

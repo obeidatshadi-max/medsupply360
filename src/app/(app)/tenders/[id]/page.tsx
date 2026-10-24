@@ -118,7 +118,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
       ) : null}
 
       <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
-      <Payments tenderId={t.id} rows={invoices} erp={erp} termsDays={t.paymentTermsDays} today={today} canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
+      <Payments tenderId={t.id} rows={invoices} erp={erp} termsDays={t.paymentTermsDays} today={today} canLookupErp={erp !== null && canEditPayments(user.role)} canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
 
       <section aria-label="History">
         <h2 className="text-sm font-semibold">History</h2>

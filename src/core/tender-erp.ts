@@ -10,6 +10,11 @@ export interface ErpInvoiceFacts {
   snapshotDate: string | null;
   /** Amount still unpaid on that date, or null when the invoice is not listed in that file. */
   remaining: number | null;
+  /** The ERP invoice's own date, its contractual due date (null until the ERP supplies one), the customer and the net sales (before tax). */
+  invoiceDate: string | null;
+  dueDate: string | null;
+  customerName: string | null;
+  netSales: number | null;
 }
 
 export type ErpCheck =
@@ -27,4 +32,30 @@ export function checkAgainstErp(unpaid: number, erp: ErpInvoiceFacts | undefined
   // An invoice missing from the newest unpaid file is fully paid as far as the ERP is concerned.
   const remaining = erp.remaining ?? 0;
   return { kind: fils(remaining) === fils(unpaid) ? "agrees" : "differs", remaining, snapshotDate: erp.snapshotDate };
+}
+
+/**
+ * Where the tender record and the ERP file disagree about the invoice's dates. Amounts are NOT compared: the ERP keeps net
+ * sales before tax while a tender invoice is usually entered with tax, so a difference there would be noise. `dueDate` is
+ * the tender invoice's effective due date. A date the ERP does not hold is never a difference.
+ */
+export function erpDifferences(inv: { invoiceDate: string; dueDate: string | null }, erp: ErpInvoiceFacts | undefined): string[] {
+  if (!erp || !erp.found) return [];
+  const out: string[] = [];
+  if (erp.invoiceDate && erp.invoiceDate !== inv.invoiceDate) out.push(`the ERP dates this invoice ${erp.invoiceDate}`);
+  if (erp.dueDate && inv.dueDate && erp.dueDate !== inv.dueDate) out.push(`the ERP due date is ${erp.dueDate}`);
+  return out;
+}
+
+/** What the "Fill from ERP" button hands back for the add-invoice form. Only the fields that are safe to prefill. */
+export interface ErpPrefill {
+  invoiceDate: string | null;
+  dueDate: string | null;
+  customerName: string | null;
+  netSales: number | null;
+}
+
+export function prefillFromErp(erp: ErpInvoiceFacts | undefined): ErpPrefill | null {
+  if (!erp || !erp.found) return null;
+  return { invoiceDate: erp.invoiceDate, dueDate: erp.dueDate, customerName: erp.customerName, netSales: erp.netSales };
 }

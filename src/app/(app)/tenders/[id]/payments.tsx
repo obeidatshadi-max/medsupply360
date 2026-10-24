@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { addInvoiceAction, deleteInvoiceAction, setCollectedAction, type FinanceFormState } from "@/server/actions/tender-finance";
+import { useActionState, useState, useTransition } from "react";
+import { addInvoiceAction, deleteInvoiceAction, lookupErpInvoiceAction, setCollectedAction, type FinanceFormState } from "@/server/actions/tender-finance";
 import { SubmitterField } from "@/components/submitter-field";
-import { checkAgainstErp, type ErpCheck, type ErpInvoiceFacts } from "@/core/tender-erp";
+import { checkAgainstErp, erpDifferences, type ErpCheck, type ErpInvoiceFacts } from "@/core/tender-erp";
 import { dueState, effectiveDueDate, paymentSummary } from "@/core/tender-money";
 import type { InvoiceRow } from "@/server/services/tender-finance";
 import { dayText, jod } from "@/lib/format";
@@ -68,6 +68,13 @@ function InvoiceItem({ tenderId, inv, erp, checked, canEdit, termsDays, today }:
       </p>
       <DueLine inv={inv} termsDays={termsDays} today={today} />
       {checked ? <ErpNote check={checkAgainstErp(left, erp)} /> : null}
+      {checked
+        ? erpDifferences({ invoiceDate: inv.invoiceDate, dueDate: effectiveDueDate(inv, termsDays) }, erp).map((d) => (
+            <p key={d} className="mt-1 text-xs text-warn">
+              ERP differs: {d}. Check which record is right.
+            </p>
+          ))
+        : null}
       {canEdit ? (
         <details className="mt-3">
           <summary className="cursor-pointer text-xs underline underline-offset-2">Record payment or remove</summary>
@@ -112,8 +119,31 @@ function InvoiceItem({ tenderId, inv, erp, checked, canEdit, termsDays, today }:
   );
 }
 
-export function Payments({ tenderId, rows, erp, canEdit, canAdd, termsDays, today }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts> | null; canEdit: boolean; canAdd: boolean; termsDays: number | null; today: string }) {
-  const [state, action, pending] = useActionState<FinanceFormState, FormData>(addInvoiceAction, {});
+export function Payments({ tenderId, rows, erp, canEdit, canAdd, termsDays, today, canLookupErp = false }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts> | null; canEdit: boolean; canAdd: boolean; termsDays: number | null; today: string; canLookupErp?: boolean }) {
+  const [form, setForm] = useState({ invoiceNo: "", invoiceDate: "", amount: "", dueDate: "" });
+  const [erpNote, setErpNote] = useState<string | null>(null);
+  // A saved invoice clears the form (a controlled form is not reset by the action the way an uncontrolled one is).
+  const [state, action, pending] = useActionState<FinanceFormState, FormData>(async (prev, fd) => {
+    const result = await addInvoiceAction(prev, fd);
+    if (result.saved) {
+      setForm({ invoiceNo: "", invoiceDate: "", amount: "", dueDate: "" });
+      setErpNote(null);
+    }
+    return result;
+  }, {});
+  const [looking, startLookup] = useTransition();
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const lookUp = () =>
+    startLookup(async () => {
+      const r = await lookupErpInvoiceAction(form.invoiceNo);
+      if (!r.ok) return setErpNote(r.error);
+      if (!r.found) return setErpNote("This number is not in the imported ERP files. Enter the invoice by hand.");
+      const p = r.prefill;
+      setForm((f) => ({ ...f, invoiceDate: p.invoiceDate ?? f.invoiceDate, dueDate: p.dueDate ?? f.dueDate }));
+      setErpNote(
+        `Filled from the ERP${p.customerName ? ` (${p.customerName})` : ""}: date${p.dueDate ? " and due date" : ""}. ${p.netSales === null ? "" : `ERP net sales are ${jod(p.netSales)} before tax: enter the invoice amount as billed to the authority.`}`,
+      );
+    });
   const sum = paymentSummary(rows.map((r) => ({ amount: r.amount, collected: r.collected })));
   return (
     <section aria-label="Invoices and payments" className="space-y-3">
@@ -138,22 +168,28 @@ export function Payments({ tenderId, rows, erp, canEdit, canAdd, termsDays, toda
           <div className="grid gap-3 md:grid-cols-4">
             <div>
               <label className="text-sm font-medium">Invoice number</label>
-              <input name="invoiceNo" required maxLength={80} autoComplete="off" className={fieldClass} />
+              <input name="invoiceNo" required maxLength={80} autoComplete="off" value={form.invoiceNo} onChange={(e) => set("invoiceNo", e.target.value)} className={fieldClass} />
+              {canLookupErp ? (
+                <button type="button" onClick={lookUp} disabled={looking || form.invoiceNo.trim() === ""} className="mt-1 text-xs underline underline-offset-2 disabled:opacity-60">
+                  {looking ? "Looking up…" : "Fill from the ERP files"}
+                </button>
+              ) : null}
             </div>
             <div>
               <label className="text-sm font-medium">Invoice date</label>
-              <input name="invoiceDate" type="date" required className={fieldClass} />
+              <input name="invoiceDate" type="date" required value={form.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} className={fieldClass} />
             </div>
             <div>
               <label className="text-sm font-medium">Amount (JOD)</label>
-              <input name="amount" required inputMode="decimal" autoComplete="off" className={fieldClass} />
+              <input name="amount" required inputMode="decimal" autoComplete="off" value={form.amount} onChange={(e) => set("amount", e.target.value)} className={fieldClass} />
             </div>
             <div>
               <label className="text-sm font-medium">Due date (optional)</label>
-              <input name="dueDate" type="date" className={fieldClass} />
+              <input name="dueDate" type="date" value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} className={fieldClass} />
               <p className="mt-1 text-[11px] text-muted">{termsDays === null ? "No payment terms on the tender, so enter the date if you know it." : `Empty means invoice date + ${termsDays} days.`}</p>
             </div>
           </div>
+          {erpNote ? <p className="text-xs text-muted">{erpNote}</p> : null}
           <SubmitterField />
           <Message state={state} />
           <button type="submit" disabled={pending} className="rounded-[7px] border border-line bg-white px-4 py-2 text-sm font-semibold hover:border-brand disabled:opacity-60">

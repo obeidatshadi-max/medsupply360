@@ -1,10 +1,10 @@
-import { and, asc, eq, inArray, max } from "drizzle-orm";
+import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
 import { isIsoDate } from "@/core/calc";
 import type { TenderStatus } from "@/core/tender-flow";
 import type { ErpInvoiceFacts } from "@/core/tender-erp";
 import { GUARANTEE_KINDS, type GuaranteeKind } from "@/core/tender-money";
 import type { Db } from "@/db/import-writer";
-import { invoices as erpInvoices, openInvoiceSnapshots, tenderGuarantees, tenderInvoices, tenders } from "@/db/schema";
+import { customers, invoices as erpInvoices, openInvoiceSnapshots, salesLines, tenderGuarantees, tenderInvoices, tenders } from "@/db/schema";
 import { parseJod } from "@/core/jod";
 
 export type GuaranteeRow = {
@@ -122,7 +122,20 @@ export async function erpFactsByInvoiceNo(db: Db, companyId: string, invoiceNos:
   if (invoiceNos.length === 0) return out;
   const [latest] = await db.select({ d: max(openInvoiceSnapshots.snapshotDate) }).from(openInvoiceSnapshots).where(eq(openInvoiceSnapshots.companyId, companyId));
   const snapshotDate = latest?.d ?? null;
-  const known = await db.select({ id: erpInvoices.id, no: erpInvoices.invoiceNo }).from(erpInvoices).where(and(eq(erpInvoices.companyId, companyId), inArray(erpInvoices.invoiceNo, invoiceNos)));
+  const known = await db
+    .select({ id: erpInvoices.id, no: erpInvoices.invoiceNo, invoiceDate: erpInvoices.invoiceDate, dueDate: erpInvoices.dueDate, customerName: customers.name })
+    .from(erpInvoices)
+    .leftJoin(customers, and(eq(customers.companyId, erpInvoices.companyId), eq(customers.id, erpInvoices.customerId)))
+    .where(and(eq(erpInvoices.companyId, companyId), inArray(erpInvoices.invoiceNo, invoiceNos)));
+  const netSales = new Map<string, number>();
+  if (known.length) {
+    const sums = await db
+      .select({ invoiceId: salesLines.invoiceId, net: sql<string>`sum(${salesLines.netSales})` })
+      .from(salesLines)
+      .where(and(eq(salesLines.companyId, companyId), inArray(salesLines.invoiceId, known.map((k) => k.id))))
+      .groupBy(salesLines.invoiceId);
+    for (const r of sums) netSales.set(r.invoiceId, Math.round(Number(r.net) * 1000) / 1000);
+  }
   const remaining = new Map<string, number>();
   if (snapshotDate && known.length) {
     const rows = await db
@@ -131,7 +144,7 @@ export async function erpFactsByInvoiceNo(db: Db, companyId: string, invoiceNos:
       .where(and(eq(openInvoiceSnapshots.companyId, companyId), eq(openInvoiceSnapshots.snapshotDate, snapshotDate), inArray(openInvoiceSnapshots.invoiceId, known.map((k) => k.id))));
     for (const r of rows) remaining.set(r.invoiceId, Number(r.remaining));
   }
-  for (const k of known) out.set(k.no, { found: true, snapshotDate, remaining: remaining.get(k.id) ?? null });
+  for (const k of known) out.set(k.no, { found: true, snapshotDate, remaining: remaining.get(k.id) ?? null, invoiceDate: k.invoiceDate, dueDate: k.dueDate, customerName: k.customerName, netSales: netSales.get(k.id) ?? null });
   return out;
 }
 
