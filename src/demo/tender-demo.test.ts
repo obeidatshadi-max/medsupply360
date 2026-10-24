@@ -1,6 +1,21 @@
+import { itemTotals } from "@/core/tender-items";
 import { describe, expect, it } from "vitest";
 import { AUTHORITIES, isLegalMove, missingFor, type TenderFields } from "@/core/tender-flow";
 import { DEMO_GUARANTEES, DEMO_INVOICES, DEMO_TENDERS, demoTenderDetail, demoTenderOverview } from "./tender-demo";
+
+describe("demo item lines", () => {
+  it("add up to the tender's estimated and bid values wherever the lines carry those prices", () => {
+    const withItems = DEMO_TENDERS.filter((t) => t.items.length > 0);
+    expect(withItems.length).toBeGreaterThan(2);
+    for (const t of withItems) {
+      const totals = itemTotals(t.items);
+      if (totals.estimated !== null && t.estimatedValue !== null) expect(totals.estimated, `${t.id} estimate`).toBe(t.estimatedValue);
+      if (totals.bid !== null) expect(totals.bid, `${t.id} bid`).toBe(t.bidValue);
+      // a tender whose bid is already in must have every line priced
+      if (t.bidValue !== null) expect(totals.unpriced, `${t.id} unpriced lines`).toBe(0);
+    }
+  });
+});
 
 describe("demo tenders", () => {
   it("covers every authority and every status the live screens know", () => {

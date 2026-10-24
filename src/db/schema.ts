@@ -524,6 +524,30 @@ export const tenderStatusLog = pgTable(
 
 export const guaranteeKind = pgEnum("guarantee_kind", ["bid", "performance"]);
 
+/** The item lines of a tender: what was asked for, the authority's estimate per unit, and our offer per unit. Saved and replaced as one list. */
+export const tenderItems = pgTable(
+  "tender_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    tenderId: uuid("tender_id").notNull(),
+    /** Position in the list, from 1. */
+    lineNo: integer("line_no").notNull(),
+    itemName: varchar("item_name", { length: 300 }).notNull(),
+    quantity: numeric("quantity", { precision: 14, scale: 3 }).notNull(),
+    unit: varchar("unit", { length: 30 }),
+    estimatedUnitPrice: numeric("estimated_unit_price", { precision: 14, scale: 3 }),
+    ourUnitPrice: numeric("our_unit_price", { precision: 14, scale: 3 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("tender_items_line_uniq").on(t.tenderId, t.lineNo),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
+
 /** Bank guarantees posted for a tender. Money held by an active (unreturned, unexpired) guarantee is cash tied up. */
 export const tenderGuarantees = pgTable(
   "tender_guarantees",
