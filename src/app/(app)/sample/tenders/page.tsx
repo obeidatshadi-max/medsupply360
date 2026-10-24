@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
+import { TenderTabs } from "@/components/tender-tabs";
 import { ROLE_LABEL } from "@/core/permissions";
 import { LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, daysInStage } from "@/core/tender-flow";
 import { requireUser } from "@/lib/auth/current-user";
@@ -22,6 +23,7 @@ export default async function SampleTendersPage() {
         title="Tenders"
         sub={`Made-up demonstration tenders, on ${dayText(DEMO_TENDER_AS_OF)}. They use the real authority names but the titles, numbers and amounts are invented. In the live app the tender department and finance enter these as each tender moves, and the owner follows them here.`}
       />
+      <TenderTabs current="list" sample />
       <OverviewPanel o={overview} base={null} />
 
       <section aria-label="All sample tenders" className="space-y-2">

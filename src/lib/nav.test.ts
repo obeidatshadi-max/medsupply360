@@ -96,6 +96,8 @@ describe("sample entries", () => {
     const [data, tenders] = navItems(OWNER).explore.filter((i) => i.label.startsWith("Sample"));
     expect(isCurrentItem("/sample/tenders", tenders!)).toBe(true);
     expect(isCurrentItem("/sample/tenders", data!)).toBe(false);
+    expect(isCurrentItem("/sample/tender-prices", tenders!)).toBe(true);
+    expect(isCurrentItem("/sample/tender-prices", data!)).toBe(false);
     expect(isCurrentItem("/sample", data!)).toBe(true);
     expect(isCurrentItem("/sample/accounts/all", data!)).toBe(true);
     expect(crumbFor("/sample/tenders", [...navItems(OWNER).main, ...navItems(OWNER).explore])).toBe("Sample tenders");

@@ -39,7 +39,16 @@ export default async function TenderChannelPage() {
           Open Tenders
         </Link>
       </p>
-      <SmartUpload allowed={kinds} noun="your tender list" />
+      <section aria-label="Tender results" className="rounded-lg border border-line bg-surface p-4">
+        <h2 className="text-sm font-semibold">Award results go in here too</h2>
+        <p className="mt-1 max-w-2xl text-xs text-muted">
+          Results published by the authorities, and your own bids, load as the file type &ldquo;Tender results&rdquo;. They feed the Price history page and do not change the Alpha ERP figures.{" "}
+          <Link href="/tenders/prices" className="underline">How to prepare the file</Link>
+          {" · "}
+          <a href="/tenders/prices/download?file=template" download className="underline">Empty template</a>
+        </p>
+      </section>
+      <SmartUpload allowed={kinds} noun="your tender list or tender results" />
       <TemplateDownloads kinds={kinds} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>

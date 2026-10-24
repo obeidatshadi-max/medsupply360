@@ -49,6 +49,7 @@ export function currentAppTemplate(kind: ImportKind) {
     installed_units: { code: "DEMO-U1", customerCode: "DEMO-C1", name: "Example installed equipment", installedOn: "2025-01-01", warrantyEnd: "2027-01-01", service: "Active" },
     tenders: { authority: "MOH", tenderNo: "DEMO-T-2026-01", title: "Example analyzer supply tender", productLine: "equipment", status: "open", estimatedValue: "50000", deadline: "2026-11-15" },
     sales_people: { name: "Example Sales Person", email: "sales@demo-company.example", suppliers: "Example supplier", monthlySalesTarget: "20000", newAccountsTarget: "2", visitsPerWeek: "10" },
+    tender_results: { authority: "MOH", tenderNo: "DEMO-T-001", awardDate: "2026-06-30", itemName: "Example analyzer reagent", bidder: "Demo Medical Co", ourBid: "yes", unitPrice: "12.500", currency: "JOD", result: "won" },
   };
   const headers = SPECS[kind].fields.map((f) => f.key);
   return [headers, headers.map((key) => values[kind][key] ?? "")].map((row) => row.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\r\n");

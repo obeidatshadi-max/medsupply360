@@ -27,7 +27,7 @@ export async function companyChannelStatus(companyId: string): Promise<Record<Ch
       count(*) filter (where status not in ('lost', 'cancelled', 'collected'))::int as open,
       max(updated_at) as at from tenders where company_id = ${companyId}`),
     db.execute(sql`select submitted_by, created_at from audit_logs
-      where company_id = ${companyId} and (action like 'tender.%' or (action = 'import.run' and details->>'kind' = 'tenders'))
+      where company_id = ${companyId} and (action like 'tender.%' or (action = 'import.run' and details->>'kind' in ('tenders', 'tender_results')))
       order by created_at desc limit 1`),
     db.execute(sql`select
       (select count(*)::int from installed_units where company_id = ${companyId}) as units,

@@ -25,12 +25,15 @@ export function formatLastImport(row: LastImportRow | undefined): string {
   return parts.join(" · ");
 }
 
-/** The company's most recent import that loaded at least one row. */
+/**
+ * The company's most recent import that loaded at least one row. Tender results are not Alpha ERP data, so loading them
+ * must not make the ERP figures look freshly integrated.
+ */
 export async function lastImportText(companyId: string): Promise<string> {
   const [row] = await getDb()
     .select({ kind: importBatches.kind, createdAt: importBatches.createdAt, snapshotDate: importBatches.snapshotDate, status: importBatches.status })
     .from(importBatches)
-    .where(and(eq(importBatches.companyId, companyId), ne(importBatches.status, "rejected")))
+    .where(and(eq(importBatches.companyId, companyId), ne(importBatches.status, "rejected"), ne(importBatches.kind, "tender_results")))
     .orderBy(desc(importBatches.createdAt))
     .limit(1);
   return formatLastImport(row);

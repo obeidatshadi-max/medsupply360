@@ -106,6 +106,13 @@
       "when": 1792528753548,
       "tag": "0014_sales_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792839004730,
+      "tag": "0015_tender_price_history",
+      "breakpoints": true
     }
   ]
 }

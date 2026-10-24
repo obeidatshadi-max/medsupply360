@@ -129,6 +129,22 @@ export function reconcile(kind: ImportKind, rows: RowRef[], snapshotDate: string
       lines.push({ label: "Without a monthly target", value: count(rows.filter((r) => r.values.monthlySalesTarget == null).length) });
       break;
     }
+    case "tender_results": {
+      const items = new Set(rows.map((r) => [str(r, "authority"), str(r, "tenderNo"), str(r, "lineRef")].join("\u0000")));
+      const tenders = new Set(rows.map((r) => [str(r, "authority"), str(r, "tenderNo")].join("\u0000")));
+      const priced = rows.filter((r) => r.values.unitPrice != null);
+      lines.push({ label: "Bid rows loaded", value: count(rows.length) });
+      lines.push({ label: "Tenders", value: count(tenders.size) });
+      lines.push({ label: "Items asked for", value: count(items.size) });
+      lines.push({ label: "Award dates", value: range(rows.map((r) => String(r.values.awardDate))) });
+      for (const [a, n] of tally(rows, (r) => str(r, "authority") ?? "?")) lines.push({ label: `Bid rows, ${a}`, value: count(n) });
+      lines.push({ label: "Our bids", value: count(rows.filter((r) => r.values.ourBid === true).length) });
+      lines.push({ label: "Winning bids", value: count(rows.filter((r) => r.values.result === "won").length) });
+      lines.push({ label: "Rows with a price", value: count(priced.length) });
+      lines.push({ label: "Rows without a price (kept, price unknown)", value: count(rows.length - priced.length) });
+      lines.push({ label: "Prices not in JOD (not compared)", value: count(priced.filter((r) => r.values.currency !== "JOD").length) });
+      break;
+    }
     case "installed_units": {
       lines.push({ label: "Units loaded", value: count(rows.length) });
       lines.push({ label: "Customers", value: count(new Set(rows.map((r) => str(r, "customerCode"))).size) });

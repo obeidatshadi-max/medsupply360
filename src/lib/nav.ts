@@ -47,8 +47,8 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
     { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
     { label: "Support functions", icon: "◇", href: "/support-functions", match: ["/support-functions"] },
     { label: "Opportunity radar", icon: "✧", href: "/opportunity-radar", match: ["/opportunity-radar"] },
-    ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders"] }]),
-    { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders"] },
+    ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders", "/sample/tender-prices"] }]),
+    { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders", "/sample/tender-prices"] },
   ];
   const shown = (i: NavItem) => !i.href || levelAllows(level, role, i.href);
   return { main: main.filter(shown), explore: explore.filter(shown) };

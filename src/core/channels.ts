@@ -44,7 +44,7 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     summary: "Tenders, their stages, guarantees and payments, entered by the tender team or loaded from an Excel list.",
     cadence: "Whenever a tender changes",
     feeder: "Tender department",
-    kinds: ["tenders"],
+    kinds: ["tenders", "tender_results"],
     staleAfterDays: 14,
   },
   manual: {
