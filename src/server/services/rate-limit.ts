@@ -14,6 +14,21 @@ export async function recentTotal(action: string, windowMinutes: number): Promis
 }
 
 /**
+ * Like recentTotal, but one address adds at most `capPerIp`. A ceiling over all addresses still stops a spread-out
+ * attack, yet a single address hammering the form cannot fill it and lock everyone else out.
+ */
+export async function recentTotalCappedPerIp(action: string, windowMinutes: number, capPerIp: number): Promise<number> {
+  const since = sql`now() - make_interval(mins => ${windowMinutes})`;
+  const result = await getDb().execute(sql`
+    select coalesce(sum(least(n, ${capPerIp})), 0)::int as total from (
+      select count(*) as n from audit_logs
+      where action = ${action} and created_at > ${since}
+      group by details->>'ip'
+    ) per_ip`);
+  return Number((result.rows[0] as { total: number } | undefined)?.total ?? 0);
+}
+
+/**
  * Counts recent audit rows of one action, matched on details.email and/or details.ip. Using the audit log keeps the
  * limit consistent across serverless instances without a separate store.
  */

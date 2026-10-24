@@ -173,6 +173,11 @@ describe("sign up", () => {
     expect((await signup()).error).toMatch(/Too many/);
     expect(await count("users")).toBe(0);
   });
+  it("does not let one address use up the ceiling for everyone else", async () => {
+    for (let i = 0; i < 100; i++) await client.query(`insert into audit_logs (action, details) values ('auth.signup_attempt', $1)`, [JSON.stringify({ ip: "6.6.6.6" })]);
+    h.state.ip = "8.8.8.8";
+    expect(await redirected(signup())).toBe("/dashboard");
+  });
   it("treats a code shorter than 16 characters as not configured", async () => {
     process.env.SIGNUP_INVITE_CODE = "short";
     expect((await signup({ inviteCode: "short" })).error).toMatch(/by invitation only/);
