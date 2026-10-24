@@ -10,11 +10,12 @@ import { ROLE_LABEL } from "@/core/permissions";
 import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, closeReasonLabel, type AuthorityCode } from "@/core/tender-flow";
 import { GUARANTEE_LABEL } from "@/core/tender-money";
 import { tenderValue } from "@/core/tender-overview";
+import { deliveryProgress } from "@/core/tender-deliveries";
 import { itemTotals, lineTotal } from "@/core/tender-items";
 import { dueState } from "@/core/tender-money";
 import { hasAwardResult, prefillRows } from "@/core/tender-results-prefill";
 import { dayText, jod, pct } from "@/lib/format";
-import { DEMO_TENDERS, DEMO_TENDER_AS_OF, demoTenderDetail, demoTenderOverview, type DemoTender } from "./tender-demo";
+import { DEMO_DELIVERIES, DEMO_TENDERS, DEMO_TENDER_AS_OF, demoTenderDetail, demoTenderOverview, type DemoTender } from "./tender-demo";
 
 export interface TenderScreenOptions {
   /** True for any profile other than the Sadaf preset: authority names become neutral labels. */
@@ -142,6 +143,14 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
       "No tender has been marked lost.",
     );
 
+  const td2 = o.toDeliver;
+  const toDeliver =
+    `<div class="value" style="font-size:26px">${jod(td2.outstanding)}</div><p class="mini">Still to deliver on ${plural(td2.count, "contracted tender")} (${jod(td2.delivered)} of ${jod(td2.contractValue)} delivered)</p>` +
+    list(
+      td2.items.map((x) => item(`${ref(x.id, x.title)} <span class="cellsub">${a(x.authority)}</span>`, `${x.percent === null ? "—" : `${x.percent}%`} delivered · ${x.outstanding === null ? "—" : jod(x.outstanding)} to go`)),
+      "No contracted tender is waiting for delivery.",
+    );
+
   const byAuthority = table(
     ["Authority", "Active", "Active value", "Won", "Lost", "Days to decision"],
     o.authorities.map((x) => [`<b>${a(x.code)}</b>`, String(x.active), x.activeValue === 0 ? "—" : jod(x.activeValue), String(x.won), String(x.lost), x.avgDaysToDecision === null ? "—" : String(x.avgDaysToDecision)]),
@@ -186,6 +195,7 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     `<p class="mini">Time from handing in the bid to the decision: ${timeToDecision}</p>` +
     `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines + awards)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("Still unpaid by the authorities", "Tender invoices not yet collected", unpaid)}${panel("Why bids were lost", "The reason recorded when a tender is marked lost", lost)}</div>` +
+    `<div style="margin-top:20px">${panel("Contracted, still to deliver", "Part deliveries recorded against each contract value", toDeliver)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("By authority", "Active = not lost, cancelled or collected", byAuthority)}${panel("Longest in their current stage", "A plain count of days, not a deadline: some stages are slow by nature.", longest)}</div>` +
     `<div style="margin-top:20px">${panel("All tenders", `${plural(rows.length, "tender")} · search by owner, authority or product · select one for its guarantees, invoices and history`, table(["Authority", "Tender", "Owner", "Products", "Stage", "Value", "Deadline", "Days in stage"], rows))}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("How a tender moves", "The department's ten stages. Each move asks only for the details that stage needs.", stages)}${panel(
@@ -210,6 +220,20 @@ export function tenderResultsPrefillRows(id: string, generic: boolean): string[]
   // Another customer's file never names the Sadaf preset's real authorities.
   const col = rows[0]!.indexOf("Authority");
   return generic ? rows.map((r, i) => (i === 0 ? r : r.map((c, j) => (j === col ? authorityLabel(t.authority, true) : c)))) : rows;
+}
+
+/** The part deliveries of a demo tender with the same progress rule as the live page. Empty text before the tender is contracted. */
+function deliveriesHtml(t: DemoTender): string {
+  if (!["contracted", "delivered", "collected"].includes(t.status)) return "";
+  const rows = DEMO_DELIVERIES.filter((d) => d.tenderId === t.id);
+  const p = deliveryProgress(t.contractValue, rows);
+  return (
+    `<h3 style="margin-top:22px">Deliveries</h3>` +
+    (rows.length
+      ? rows.map((d) => item(`${dayText(d.deliveredOn)}<span class="cellsub">${esc(d.note)}</span>`, jod(d.value))).join("") +
+        `<p class="mini">${plural(p.count, "delivery")} · delivered ${jod(p.deliveredValue)}${p.percent === null ? "" : ` (${p.percent}% of the contract)`}${p.outstanding === null ? "" : ` · still to deliver ${jod(p.outstanding)}`}. In the live app the tender department records each delivery and moves the tender to Delivered when everything has gone out.</p>`
+      : `<p class="mini">No delivery recorded yet.</p>`)
+  );
 }
 
 /** The item lines of a demo tender with the same totals rule as the live page. Empty text when the tender has none. */
@@ -274,6 +298,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     (t.closeReasonCode || t.closeReason ? `<div class="info">Reason: ${esc([closeReasonLabel(t.closeReasonCode), t.closeReason].filter(Boolean).join(" · "))}</div>` : "") +
     facts.map(([k, v]) => item(k, esc(v))).join("") +
     itemsHtml(t) +
+    deliveriesHtml(t) +
     `<h3 style="margin-top:22px">Guarantees</h3>` +
     list(
       guarantees.map((g) => item(`${GUARANTEE_LABEL[g.kind]} · ${esc(g.reference)}<span class="cellsub">${g.issuedOn ? `Issued ${dayText(g.issuedOn)} · ` : ""}Expires ${dayText(g.expiresOn)}${g.returnedOn ? ` · Returned ${dayText(g.returnedOn)}` : ""}</span>`, `${jod(g.amount)} · ${gState(g.state)}`)),

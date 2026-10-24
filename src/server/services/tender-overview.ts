@@ -1,14 +1,14 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { buildTenderOverview, type TenderOverview } from "@/core/tender-overview";
 import type { Db } from "@/db/import-writer";
-import { tenderGuarantees, tenderInvoices, tenderStatusLog } from "@/db/schema";
+import { tenderDeliveries, tenderGuarantees, tenderInvoices, tenderStatusLog } from "@/db/schema";
 import { businessToday } from "@/lib/business-date";
 import { effectiveDueDate } from "@/core/tender-money";
 import { listTenders } from "@/server/services/tenders";
 
 /** Everything the owner's tender overview shows, for one company. Reads only that company's rows. */
 export async function companyTenderOverview(db: Db, companyId: string, today: string): Promise<TenderOverview> {
-  const [tenders, guarantees, invoices, log] = await Promise.all([
+  const [tenders, guarantees, invoices, log, deliveries] = await Promise.all([
     listTenders(db, companyId),
     db.select({ tenderId: tenderGuarantees.tenderId, amount: tenderGuarantees.amount, expiresOn: tenderGuarantees.expiresOn, returnedOn: tenderGuarantees.returnedOn }).from(tenderGuarantees).where(eq(tenderGuarantees.companyId, companyId)),
     db.select({ tenderId: tenderInvoices.tenderId, amount: tenderInvoices.amount, collected: tenderInvoices.collectedAmount, invoiceDate: tenderInvoices.invoiceDate, dueDate: tenderInvoices.dueDate }).from(tenderInvoices).where(eq(tenderInvoices.companyId, companyId)),
@@ -16,7 +16,10 @@ export async function companyTenderOverview(db: Db, companyId: string, today: st
       .select({ tenderId: tenderStatusLog.tenderId, toStatus: tenderStatusLog.toStatus, at: tenderStatusLog.createdAt })
       .from(tenderStatusLog)
       .where(and(eq(tenderStatusLog.companyId, companyId), inArray(tenderStatusLog.toStatus, ["submitted", "won", "lost"]))),
+    db.select({ tenderId: tenderDeliveries.tenderId, value: tenderDeliveries.value }).from(tenderDeliveries).where(eq(tenderDeliveries.companyId, companyId)),
   ]);
+  const deliveredBy = new Map<string, number>();
+  for (const d of deliveries) deliveredBy.set(d.tenderId, (deliveredBy.get(d.tenderId) ?? 0) + (d.value === null ? 0 : Number(d.value)));
   // The day a tender last entered a status, in Jordan time. The recorded submission date wins over the day it entered Submitted.
   const enteredOn = new Map<string, string>();
   for (const l of [...log].sort((a, b) => a.at.getTime() - b.at.getTime())) enteredOn.set(`${l.tenderId}:${l.toStatus === "submitted" ? "submitted" : "decided"}`, businessToday(l.at));
@@ -25,6 +28,7 @@ export async function companyTenderOverview(db: Db, companyId: string, today: st
     today,
     tenders: tenders.map((t) => ({
       ...t,
+      deliveredValue: Math.round((deliveredBy.get(t.id) ?? 0) * 1000) / 1000,
       submittedOn: t.submittedOn ?? enteredOn.get(`${t.id}:submitted`) ?? null,
       decidedOn: t.status === "won" || t.status === "lost" || t.status === "contracted" || t.status === "delivered" || t.status === "collected" ? (enteredOn.get(`${t.id}:decided`) ?? null) : null,
     })),

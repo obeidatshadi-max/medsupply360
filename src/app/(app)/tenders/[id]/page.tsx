@@ -14,11 +14,14 @@ import { dayText, jod } from "@/lib/format";
 import { erpFactsByInvoiceNo, listGuarantees, listInvoices } from "@/server/services/tender-finance";
 import { hasAwardResult } from "@/core/tender-results-prefill";
 import { archivedBidCount } from "@/server/services/tender-prices";
+import { deliveryProgress } from "@/core/tender-deliveries";
+import { listDeliveries } from "@/server/services/tender-deliveries";
 import { listTenderItems } from "@/server/services/tender-items";
 import { getTender } from "@/server/services/tenders";
 import { valuesOf } from "../tender-fields";
 import { listSalesPeople } from "@/server/services/sales-force";
 import { DetailsForm } from "./details-form";
+import { Deliveries } from "./deliveries";
 import { Guarantees } from "./guarantees";
 import { ItemsEditor, ItemsTable } from "./items";
 import { MovePanel } from "./move-panel";
@@ -37,11 +40,15 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
   const found = await getTender(getDb(), user.companyId, id);
   if (!found) notFound();
   const { tender: t, history } = found;
-  const [guarantees, invoices, items] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id), listTenderItems(getDb(), user.companyId, t.id)]);
+  const [guarantees, invoices, items, deliveries] = await Promise.all([listGuarantees(getDb(), user.companyId, t.id), listInvoices(getDb(), user.companyId, t.id), listTenderItems(getDb(), user.companyId, t.id), listDeliveries(getDb(), user.companyId, t.id)]);
   // The ERP check reads receivables, which the tender and finance roles may not open, so only business roles get it.
   const erp = canAccess(user.role, "business") ? Object.fromEntries(await erpFactsByInvoiceNo(getDb(), user.companyId, invoices.map((i) => i.invoiceNo))) : null;
 
   const today = businessToday();
+  // Moving to Delivered: the delivery date starts as the latest recorded delivery, and an unrecorded remainder is pointed out.
+  const progress = deliveryProgress(t.contractValue, deliveries);
+  const moveValues = { ...valuesOf(t), deliveredOn: t.deliveredOn ?? progress.lastDeliveredOn ?? "" };
+  const deliveryNote = t.status === "contracted" && progress.outstanding !== null && progress.outstanding > 0 && progress.count > 0 ? `Deliveries recorded so far cover ${progress.percent}% of the contract; ${jod(progress.outstanding)} is not recorded as delivered.` : null;
   const authority = AUTHORITIES.find((a) => a.code === t.authority)!;
   const moves = [
     ...forwardMoves(t.status).map((to) => ({ to, back: false })),
@@ -100,11 +107,15 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
       </section>
 
       {user.role === "owner" ? <OwnerForm tenderId={t.id} currentId={t.ownerId} choices={await listSalesPeople(getDb(), user.companyId)} /> : null}
-      {moves.length > 0 || canEditTender(user.role) ? <MovePanel tenderId={t.id} status={t.status} values={valuesOf(t)} moves={moves} /> : null}
+      {moves.length > 0 || canEditTender(user.role) ? <MovePanel tenderId={t.id} status={t.status} values={moveValues} moves={moves} deliveryNote={deliveryNote} /> : null}
       {canEditTender(user.role) ? <DetailsForm tenderId={t.id} values={valuesOf(t)} /> : null}
       {canEditTender(user.role) ? <ItemsEditor tenderId={t.id} items={items} /> : <ItemsTable items={items} />}
 
       {hasAwardResult(t.status) ? <PriceHistoryPanel tenderId={t.id} archived={await archivedBidCount(getDb(), user.companyId, t.authority, t.tenderNo)} hasNumber={t.tenderNo !== null} canUpload={canAccess(user.role, "tender")} itemCount={items.length} /> : null}
+
+      {["contracted", "delivered", "collected"].includes(t.status) ? (
+        <Deliveries tenderId={t.id} rows={deliveries} contractValue={t.contractValue} canEdit={canEditTender(user.role)} canAdd={["contracted", "delivered"].includes(t.status)} />
+      ) : null}
 
       <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
       <Payments tenderId={t.id} rows={invoices} erp={erp} termsDays={t.paymentTermsDays} today={today} canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />

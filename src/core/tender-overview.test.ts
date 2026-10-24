@@ -18,6 +18,7 @@ const T = (over: Partial<OverviewTender> & { id: string }): OverviewTender => ({
   expectedAwardDate: null,
   submittedOn: null,
   decidedOn: null,
+  deliveredValue: 0,
   ...over,
 });
 
@@ -215,5 +216,26 @@ describe("time from submission to decision", () => {
 
   it("reports nothing rather than zero when no tender is decided", () => {
     expect(build([T({ id: "a", status: "submitted", submittedOn: "2026-06-01" })]).timeToDecision).toEqual({ count: 0, average: null, median: null, fastest: null, slowest: null, missing: 0 });
+  });
+});
+
+describe("contracted tenders still to deliver", () => {
+  it("lists contracted tenders only, with how much of each contract has gone out, largest remainder first", () => {
+    const o = build([
+      T({ id: "a", status: "contracted", contractValue: 1000, deliveredValue: 250 }),
+      T({ id: "b", status: "contracted", contractValue: 4000, deliveredValue: 0 }),
+      T({ id: "c", status: "contracted", contractValue: 500, deliveredValue: 700 }), // over-delivered: nothing left
+      T({ id: "d", status: "delivered", contractValue: 9000, deliveredValue: 9000 }),
+      T({ id: "e", status: "won", awardAmount: 300 }),
+    ]);
+    expect(o.toDeliver.count).toBe(3);
+    expect(o.toDeliver.contractValue).toBe(5500);
+    expect(o.toDeliver.delivered).toBe(750); // an over-delivery does not count past its contract
+    expect(o.toDeliver.outstanding).toBe(4750); // 750 + 4000 + 0
+    expect(o.toDeliver.items.map((x) => [x.id, x.percent, x.outstanding])).toEqual([["b", 0, 4000], ["a", 25, 750], ["c", 140, 0]]);
+  });
+
+  it("is empty when nothing is contracted", () => {
+    expect(build([T({ id: "a", status: "delivered", contractValue: 100, deliveredValue: 100 })]).toDeliver).toEqual({ count: 0, contractValue: 0, delivered: 0, outstanding: 0, items: [] });
   });
 });

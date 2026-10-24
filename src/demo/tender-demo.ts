@@ -5,6 +5,7 @@
  */
 import { buildTenderOverview, type OverviewGuarantee, type OverviewInvoice, type OverviewTender, type TenderOverview } from "@/core/tender-overview";
 import { effectiveDueDate, guaranteeState, paymentSummary, type GuaranteeKind } from "@/core/tender-money";
+import { deliveryProgress } from "@/core/tender-deliveries";
 import { daysInStage, type TenderLine } from "@/core/tender-flow";
 import type { TenderItem } from "@/core/tender-items";
 import { DEMO_AS_OF } from "./dataset";
@@ -62,7 +63,23 @@ const OWNER_OF: Record<string, string> = {
   d11: "Khaled Mansour",
 };
 
-const RAW_TENDERS: (Omit<DemoTender, "owner" | "submittedOn" | "decidedOn"> & { submittedOn?: string })[] = [
+export interface DemoDelivery {
+  tenderId: string;
+  deliveredOn: string;
+  value: number;
+  note: string;
+}
+
+/** Made-up part deliveries. The syringe-pump contract is delivered in two batches and is not complete yet. */
+export const DEMO_DELIVERIES: DemoDelivery[] = [
+  { tenderId: "d7", deliveredOn: "2026-09-28", value: 60000, note: "Pumps, first batch" },
+  { tenderId: "d7", deliveredOn: "2026-10-05", value: 41300, note: "Pumps, second batch" },
+  { tenderId: "d8", deliveredOn: "2026-07-20", value: 400000, note: "Machines 1-4" },
+  { tenderId: "d8", deliveredOn: "2026-09-12", value: 208300, note: "Machines 5-6, installed and accepted" },
+  { tenderId: "d9", deliveredOn: "2026-08-14", value: 87650, note: "Full order" },
+];
+
+const RAW_TENDERS: (Omit<DemoTender, "owner" | "submittedOn" | "decidedOn" | "deliveredValue"> & { submittedOn?: string })[] = [
   { ...base, id: "d1", items: [line("High-flux dialyzer", 12000, "piece", 21.5), line("Bloodline set", 10500, "set", 15.3)], authority: "MOH", title: "Haemodialysis consumables, 12-month supply", productLine: "consumables", status: "preparing", statusChangedAt: "2026-09-29T08:00:00Z", tenderNo: "MOH-26-118", estimatedValue: 418650, deadline: "2026-10-22", history: [{ to: "pipeline", on: "2026-08-20", by: "Omar Saleh" }, { to: "open", on: "2026-09-15", by: "Omar Saleh" }, { to: "preparing", on: "2026-09-29", by: "Omar Saleh", note: "Samples requested by the authority" }] },
   { ...base, id: "d2", authority: "KHCC", title: "Infusion pumps for oncology wards", productLine: "equipment", status: "open", statusChangedAt: "2026-10-05T08:00:00Z", tenderNo: "KHCC-26-031", estimatedValue: 272300, deadline: "2026-10-30", history: [{ to: "pipeline", on: "2026-09-02", by: "Lina Haddad" }, { to: "open", on: "2026-10-05", by: "Lina Haddad" }] },
   { ...base, id: "d3", submittedOn: "2026-09-19", bidOpeningDate: "2026-09-22", items: [line("ICU patient monitor, 12-parameter", 14, "unit", 15200, 14350), line("Central monitoring station", 2, "unit", 21800, 20550), line("Spare ECG cable set", 30, "set", 2350, 2215)], authority: "JUH", title: "ICU patient monitors", productLine: "equipment", status: "submitted", statusChangedAt: "2026-09-21T08:00:00Z", expectedAwardDate: "2026-10-28", tenderNo: "JUH-26-009", estimatedValue: 326900, bidValue: 308450, deadline: "2026-09-20", history: [{ to: "pipeline", on: "2026-07-30", by: "Omar Saleh" }, { to: "open", on: "2026-08-12", by: "Omar Saleh" }, { to: "preparing", on: "2026-08-25", by: "Omar Saleh" }, { to: "submitted", on: "2026-09-21", by: "Omar Saleh" }] },
@@ -84,6 +101,7 @@ export const DEMO_TENDERS: DemoTender[] = RAW_TENDERS.map((t) => ({
   owner: OWNER_OF[t.id] ?? null,
   submittedOn: t.submittedOn ?? [...t.history].reverse().find((h) => h.to === "submitted")?.on ?? null,
   decidedOn: [...t.history].reverse().find((h) => h.to === "won" || h.to === "lost")?.on ?? null,
+  deliveredValue: deliveryProgress(null, DEMO_DELIVERIES.filter((d) => d.tenderId === t.id)).deliveredValue,
 }));
 
 export const DEMO_GUARANTEES: DemoGuarantee[] = [

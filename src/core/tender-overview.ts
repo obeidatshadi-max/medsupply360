@@ -4,6 +4,7 @@
  * to a stage: it lists facts (dates, counts, days) and leaves the judgement to the reader.
  */
 import { AUTHORITIES, CLOSE_REASONS, PHASES, closeReasonLabel, daysInStage, phaseOf, type AuthorityCode, type PhaseKey, type TenderStatus } from "@/core/tender-flow";
+import { deliveryProgress } from "@/core/tender-deliveries";
 import { guaranteeExposure, guaranteeState, paymentSummary, receivableAging } from "@/core/tender-money";
 
 export interface OverviewTender {
@@ -26,6 +27,8 @@ export interface OverviewTender {
   submittedOn: string | null;
   /** The day the tender was decided (entered Won or Lost), or null if it is not decided. */
   decidedOn: string | null;
+  /** Value delivered so far across part deliveries (JOD). */
+  deliveredValue: number;
 }
 
 export interface OverviewGuarantee {
@@ -98,6 +101,8 @@ export interface TenderOverview {
   awards: { expected: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysLeft: number; status: TenderStatus }[]; overdue: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysAgo: number; status: TenderStatus }[]; withoutDate: number };
   /** Days from handing in the bid to the decision, over decided tenders that have both dates. `missing` counts decided tenders without them. */
   timeToDecision: { count: number; average: number | null; median: number | null; fastest: number | null; slowest: number | null; missing: number };
+  /** Contracted tenders not yet marked Delivered: how much of each contract has been delivered. */
+  toDeliver: { count: number; contractValue: number; delivered: number; outstanding: number; items: { id: string; title: string; authority: AuthorityCode; contractValue: number; delivered: number; percent: number | null; outstanding: number | null }[] };
   payments: { invoiced: number; collected: number; unpaid: number; notYetDue: number; overdue: number; noDueDate: number; overdueInvoices: number; oldestOverdueDays: number | null };
   longestInStage: { id: string; title: string; authority: AuthorityCode; status: TenderStatus; days: number }[];
 }
@@ -214,6 +219,20 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
       uncodedLost: lost.filter((t) => !t.closeReasonCode).length,
     },
     awards,
+    toDeliver: (() => {
+      const mine = tenders.filter((t) => t.status === "contracted");
+      const rows = mine.map((t) => {
+        const p = deliveryProgress(t.contractValue, [{ deliveredOn: "", value: t.deliveredValue }]);
+        return { id: t.id, title: t.title, authority: t.authority, contractValue: t.contractValue ?? 0, delivered: p.deliveredValue, percent: p.percent, outstanding: p.outstanding };
+      });
+      return {
+        count: rows.length,
+        contractValue: round3(rows.reduce((s, r) => s + r.contractValue, 0)),
+        delivered: round3(rows.reduce((s, r) => s + Math.min(r.delivered, r.contractValue), 0)),
+        outstanding: round3(rows.reduce((s, r) => s + (r.outstanding ?? 0), 0)),
+        items: [...rows].sort((a, b) => (b.outstanding ?? 0) - (a.outstanding ?? 0)).slice(0, limit),
+      };
+    })(),
     timeToDecision: (() => {
       const decidedTenders = tenders.filter((t) => t.decidedOn);
       const days = decidedTenders.map(daysToDecision).filter((d): d is number => d !== null);
