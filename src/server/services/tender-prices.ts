@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import type { AuthorityCode } from "@/core/tender-flow";
 import { itemKeyOf, type BidOutcome, type BidRow } from "@/core/tender-prices";
 import type { Db } from "@/db/import-writer";
 import { tenderArchive, tenderArchiveLines, tenderBids } from "@/db/schema";
@@ -46,4 +47,16 @@ export async function listBidRows(db: Db, companyId: string): Promise<BidRow[]> 
     outcome: r.outcome as BidOutcome,
     awardedQuantity: num(r.awardedQuantity),
   }));
+}
+
+/** How many bids the price history already holds for one tender (matched by authority and tender number); 0 when none or no number. */
+export async function archivedBidCount(db: Db, companyId: string, authority: AuthorityCode, tenderNo: string | null): Promise<number> {
+  if (!tenderNo) return 0;
+  const [row] = await db
+    .select({ n: sql<number>`count(${tenderBids.id})::int` })
+    .from(tenderBids)
+    .innerJoin(tenderArchiveLines, eq(tenderBids.lineId, tenderArchiveLines.id))
+    .innerJoin(tenderArchive, eq(tenderArchiveLines.archiveId, tenderArchive.id))
+    .where(and(eq(tenderBids.companyId, companyId), eq(tenderArchive.authority, authority), eq(tenderArchive.tenderNo, tenderNo)));
+  return Number(row?.n ?? 0);
 }

@@ -12,6 +12,8 @@ import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod } from "@/lib/format";
 import { erpFactsByInvoiceNo, listGuarantees, listInvoices } from "@/server/services/tender-finance";
+import { hasAwardResult } from "@/core/tender-results-prefill";
+import { archivedBidCount } from "@/server/services/tender-prices";
 import { getTender } from "@/server/services/tenders";
 import { valuesOf } from "../tender-fields";
 import { listSalesPeople } from "@/server/services/sales-force";
@@ -20,6 +22,7 @@ import { Guarantees } from "./guarantees";
 import { MovePanel } from "./move-panel";
 import { OwnerForm } from "./owner-form";
 import { Payments } from "./payments";
+import { PriceHistoryPanel } from "./price-history-panel";
 
 export const metadata: Metadata = { title: "Tender" };
 
@@ -94,6 +97,8 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
       {user.role === "owner" ? <OwnerForm tenderId={t.id} currentId={t.ownerId} choices={await listSalesPeople(getDb(), user.companyId)} /> : null}
       {moves.length > 0 || canEditTender(user.role) ? <MovePanel tenderId={t.id} status={t.status} values={valuesOf(t)} moves={moves} /> : null}
       {canEditTender(user.role) ? <DetailsForm tenderId={t.id} values={valuesOf(t)} /> : null}
+
+      {hasAwardResult(t.status) ? <PriceHistoryPanel tenderId={t.id} archived={await archivedBidCount(getDb(), user.companyId, t.authority, t.tenderNo)} hasNumber={t.tenderNo !== null} canUpload={canAccess(user.role, "tender")} /> : null}
 
       <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
       <Payments tenderId={t.id} rows={invoices} erp={erp}canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
