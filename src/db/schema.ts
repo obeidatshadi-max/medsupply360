@@ -578,6 +578,28 @@ export const tenderGuarantees = pgTable(
   ],
 );
 
+/** One delivery of a contracted tender (a tender may be delivered in parts): the date, the value at contract prices, a note. */
+export const tenderDeliveries = pgTable(
+  "tender_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    tenderId: uuid("tender_id").notNull(),
+    deliveredOn: date("delivered_on").notNull(),
+    /** Value delivered in JOD; null when the person did not enter it. */
+    value: numeric("value", { precision: 14, scale: 3 }),
+    note: varchar("note", { length: 500 }),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("tender_deliveries_tender_idx").on(t.companyId, t.tenderId, t.deliveredOn),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
+
 /** Invoices raised to the authority for a delivered tender, with how much has been collected so far. */
 export const tenderInvoices = pgTable(
   "tender_invoices",

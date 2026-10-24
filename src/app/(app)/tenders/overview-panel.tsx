@@ -243,6 +243,33 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
         </div>
       </div>
 
+      <div className={card}>
+        <h3 className="text-sm font-semibold">Contracted, still to deliver</h3>
+        <p className="my-1 text-2xl font-medium tracking-[-0.6px] tabular-nums">{jod(o.toDeliver.outstanding)}</p>
+        <p className="text-xs text-muted">
+          On {plural(o.toDeliver.count, "contracted tender")}: {jod(o.toDeliver.delivered)} of {jod(o.toDeliver.contractValue)} delivered, from the part deliveries recorded on each tender.
+        </p>
+        {o.toDeliver.items.length === 0 ? (
+          <Empty>No contracted tender is waiting for delivery.</Empty>
+        ) : (
+          <ul className="mt-3 space-y-1.5 border-t border-dashed border-line pt-2 text-sm">
+            {o.toDeliver.items.map((x) => (
+              <li key={x.id} className="flex flex-wrap justify-between gap-x-3">
+                <span>
+                  <Ref base={base} id={x.id}>
+                    {x.title}
+                  </Ref>{" "}
+                  <span className="text-xs text-muted">{x.authority}</span>
+                </span>
+                <span className="text-xs tabular-nums text-muted">
+                  {x.percent === null ? "—" : `${x.percent}%`} delivered · {x.outstanding === null ? "—" : jod(x.outstanding)} to go
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <div className="grid gap-[10px] md:grid-cols-2">
         <div className={card}>
           <h3 className="text-sm font-semibold">By authority</h3>

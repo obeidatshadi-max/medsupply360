@@ -14,7 +14,7 @@ const FIELD_KEYS = ["authority", "tenderNo", "title", "productLine", "estimatedV
  * Moves the tender to its next status. The panel asks for exactly the details that status needs and carries every other
  * value along unchanged, so a move never blanks anything.
  */
-export function MovePanel({ tenderId, status, values, moves }: { tenderId: string; status: TenderStatus; values: FieldValues; moves: Move[] }) {
+export function MovePanel({ tenderId, status, values, moves, deliveryNote = null }: { tenderId: string; status: TenderStatus; values: FieldValues; moves: Move[]; deliveryNote?: string | null }) {
   const [state, action, pending] = useActionState<TenderFormState, FormData>(moveTenderAction, {});
   const [to, setTo] = useState<TenderStatus | null>(null);
   if (moves.length === 0) return <p className="rounded-lg border border-line bg-surface p-5 text-sm text-muted">No further change is open to your role for this tender.</p>;
@@ -52,6 +52,7 @@ export function MovePanel({ tenderId, status, values, moves }: { tenderId: strin
           <p className="text-sm">
             <b>{STATUS_LABEL[to]}</b>: {STAGE[to].action}.
           </p>
+          {to === "delivered" && deliveryNote ? <p className="text-sm text-warn">{deliveryNote} Move on only when everything has gone out.</p> : null}
           {FIELD_KEYS.filter((k) => shown.has(k)).map((k) => (
             <FieldInput key={k} name={k} value={values[k]} required={needed.includes(k)} endingAs={endsTender ? to! : undefined} />
           ))}

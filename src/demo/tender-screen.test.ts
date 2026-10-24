@@ -66,6 +66,20 @@ describe("demo tender screen", () => {
     expect(tenderDetailHtml("d8", false)).toContain("Payment terms");
   });
 
+  it("shows how much of each contracted tender has been delivered, from the part deliveries", () => {
+    const td = o.toDeliver;
+    expect(td).toMatchObject({ count: 1, contractValue: 141300, delivered: 101300, outstanding: 40000 });
+    expect(td.items[0]).toMatchObject({ id: "d7", percent: 71.7, outstanding: 40000 });
+    const html = tenderScreenHtml({ generic: false });
+    expect(html).toContain("Contracted, still to deliver");
+    expect(html).toContain(`71.7% delivered · ${jod(40000)} to go`);
+    const drawer = tenderDetailHtml("d7", false)!;
+    expect(drawer).toContain("Pumps, first batch");
+    expect(drawer).toContain("still to deliver");
+    expect(tenderDetailHtml("d8", false)).toContain("Machines 5-6, installed and accepted");
+    expect(tenderDetailHtml("d3", false)).not.toContain("Deliveries"); // not contracted yet
+  });
+
   it("shows a tender's item lines and totals in its drawer, and nothing for a tender without lines", () => {
     const html = tenderDetailHtml("d10", false)!;
     expect(html).toContain("Item lines");
