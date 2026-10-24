@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ExportButton } from "@/components/export-button";
+import { PageSearch } from "@/components/page-search";
 import { crumbFor, isCurrentItem as isCurrent, type NavItem } from "@/lib/nav";
 
 
@@ -111,7 +113,7 @@ export function AppFrame({
               aria-expanded={open}
               aria-controls="sidebar"
               onClick={() => setOpen((o) => !o)}
-              className="rounded-[7px] border border-line bg-white px-3 py-2 text-sm md:hidden"
+              className="min-h-11 min-w-11 rounded-[7px] border border-line bg-white px-3 py-2 text-sm md:hidden"
             >
               ☰
             </button>
@@ -120,7 +122,14 @@ export function AppFrame({
             </p>
             <p className="text-sm font-semibold md:hidden">{crumb}</p>
           </div>
-          <div className="flex items-center gap-2">{topRight}</div>
+          <div className="flex items-center gap-2">
+            <PageSearch />
+            <ExportButton name={crumb} />
+            <Link href="/how-it-works" className="hidden rounded-[7px] border border-line bg-white px-3 py-1.5 text-sm hover:border-brand hover:bg-[#f0f6f2] md:inline-block">
+              How it works
+            </Link>
+            {topRight}
+          </div>
         </header>
         {status}
         <main className="mx-auto max-w-[1600px] px-4 py-6 md:px-8 md:py-[30px]">{children}</main>

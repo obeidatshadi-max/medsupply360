@@ -28,7 +28,7 @@ export default async function TenderPricesPage({ searchParams }: { searchParams:
         asOf={businessToday()}
         basePath="/tenders/prices"
         params={{ authority: one(sp.authority), area: one(sp.area), q: one(sp.q), item: one(sp.item) }}
-        importHref={user.role === "owner" ? "/imports" : null}
+        importHref={user.role === "owner" ? "/imports/tenders" : null}
         downloads={{ template: "/tenders/prices/download?file=template", sample: "/tenders/prices/download?file=sample" }}
       />
     </div>

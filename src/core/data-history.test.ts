@@ -19,8 +19,27 @@ describe("describeAction", () => {
   it("has a sentence and an area for every listed action", () => {
     for (const a of DATA_ACTIONS) {
       expect(describeAction(a, {}).length).toBeGreaterThan(5);
-      expect(["Tenders", "ERP import"]).toContain(areaOf(a));
+      expect(["Tenders", "Uploads", "Support functions", "Company profile", "Management actions", "Machines"]).toContain(areaOf(a));
     }
+  });
+
+  it("names the indicator and the reading for support actions", () => {
+    expect(describeAction("support.reading_recorded", { name: "On-time deliveries", reading: "88%" })).toBe("Recorded a reading (On-time deliveries): 88%");
+    expect(describeAction("support.reading_recorded", {})).toBe("Recorded a reading");
+    expect(describeAction("support.indicator_added", { name: "Vacancy days" })).toBe("Added a support indicator (Vacancy days)");
+    expect(areaOf("support.indicator_deleted")).toBe("Support functions");
+    expect(areaOf("import.run")).toBe("Uploads");
+  });
+
+  it("names the action for management action entries", () => {
+    expect(describeAction("mgmt_action.completed", { title: "Review freight" })).toBe("Marked a management action done (Review freight)");
+    expect(describeAction("mgmt_action.added", {})).toBe("Added a management action");
+    expect(areaOf("mgmt_action.removed")).toBe("Management actions");
+  });
+
+  it("names the machine when its details were added", () => {
+    expect(describeAction("machine.details_saved", { name: "Analyzer at Hospital A" })).toBe("Added details to a machine (Analyzer at Hospital A)");
+    expect(areaOf("machine.details_saved")).toBe("Machines");
   });
 
   it("lists only data actions", () => {

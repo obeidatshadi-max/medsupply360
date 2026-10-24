@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { EXPIRY_WINDOW_DAYS, SLOW_COVER_DAYS } from "@/core/stock-risk";
 import { requireUser } from "@/lib/auth/current-user";
 import { companyStockRisk } from "@/lib/stock-risk";
@@ -15,7 +19,8 @@ export default async function InventoryPage() {
   if (user.guest) {
     return <PageHeading eyebrow="Inventory & supply" title="Stock risk" sub="Please sign in with a company account to see this page. It uses the data you imported." />;
   }
-  const r = await companyStockRisk(user.companyId);
+  const line = await currentLine();
+  const r = await companyStockRisk(user.companyId, line);
   if (!r) {
     return (
       <div>
@@ -29,7 +34,7 @@ export default async function InventoryPage() {
     );
   }
 
-  const shortHistory = r.historyDays === null || r.historyDays < 90;
+  const shortHistory = !r.reliable;
   const stats = [
     { label: "Stock value (owned)", value: jod(r.stockValue), note: `${n(r.rows)} stock rows as of ${r.asOf}` },
     { label: "Slow or unused stock", value: jod(r.slowValue), note: `Not used in ${r.windowDays} days, or more than ${SLOW_COVER_DAYS} days of stock left at the current speed of sales` },
@@ -42,16 +47,22 @@ export default async function InventoryPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Inventory & supply`}
         title="Stock risk"
-        sub={`Only stock that you own, valued at what it cost to buy, from the stock file of ${r.asOf}. To measure demand, we use the average number of units sent to customers each day in the ${r.windowDays} days before that date.`}
+        sub={`Only stock that you own, valued at what it cost to buy, from the stock file of ${r.asOf}. To measure demand, we use the average number of units ${r.demandSource === "sales" ? "sold" : "sent to customers"} each day in the ${r.windowDays} days before that date${r.demandSource === "sales" ? ", taken from the sales file because no stock issues were imported" : ""}.`}
       />
+      <LineFilter current={line} note="Stock risk follows the line you choose." />
+      {r.expiryLossEstimate > 0 || r.expiredValue > 0 ? (
+        <p className="mb-4">
+          <AssignActionLink role={user.role} title="Validate consumable expiry exposure" evidence={`Possible loss from expiry about ${jod(r.expiryLossEstimate)}, expired stock ${jod(r.expiredValue)} (stock file of ${r.asOf}). Confirm demand, lot dates and transfer options.`} responsible="Operations manager" label="Assign stock review →" />
+        </p>
+      ) : null}
       {shortHistory ? (
         <p className="mb-4 rounded-lg border border-line bg-white p-3 text-xs text-muted" role="note">
-          {r.historyDays === null ? "No stock issues have been imported." : `Only ${r.historyDays} days of stock issues have been imported.`} These estimates need about 90 days or more of history to be reliable. Until then, a product may look unused when it is not.
+          {r.historyDays === null ? "No stock issues or sales have been imported." : `Only ${r.historyDays} days of ${r.demandSource === "sales" ? "sales" : "stock issues"} have been imported.`} These estimates need about 90 days or more of history to be reliable. Until then, a product may look unused when it is not.
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+          <div key={s.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
             <p className="text-[11px] text-muted md:text-xs">{s.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{s.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{s.note}</p>
@@ -83,7 +94,7 @@ export default async function InventoryPage() {
                 {r.slowProducts.map((p) => (
                   <tr key={p.productCode} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {p.productName} <span className="text-xs text-muted">{p.productCode}</span>
+                      <Link href={`/inventory/${encodeURIComponent(p.productCode)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{p.productName}</Link> <span className="text-xs text-muted">{p.productCode}</span>
                     </td>
                     <td className="px-3 py-2">{p.line}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{n(p.quantity)}</td>
@@ -118,7 +129,7 @@ export default async function InventoryPage() {
                 {r.expiryRisks.map((x) => (
                   <tr key={`${x.productCode}-${x.batch}`} className="border-t border-line">
                     <td className="px-3 py-2">
-                      {x.productName} <span className="text-xs text-muted">{x.productCode}</span>
+                      <Link href={`/inventory/${encodeURIComponent(x.productCode)}`} className="underline decoration-line underline-offset-2 hover:decoration-brand">{x.productName}</Link> <span className="text-xs text-muted">{x.productCode}</span>
                     </td>
                     <td className="px-3 py-2">{x.batch || "—"}</td>
                     <td className="px-3 py-2 tabular-nums">

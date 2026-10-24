@@ -1,7 +1,8 @@
-import { canAccess, canSeeSalesForce, type Role } from "@/core/permissions";
+import { DEFAULT_LEVEL, levelAllows, type Level } from "@/core/level";
+import { canAccess, canSeeHistory, canSeeSalesForce, type Role } from "@/core/permissions";
 
 /**
- * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Alpha ERP data" and the
+ * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Data" and the
  * unbuilt "Compare versions" is left out until it has a home inside Settings. An item without an `href` is a screen the
  * demo shows that the app has not built yet: it is listed, greyed out and marked "Soon", never linked to a page that
  * does not exist. What each role sees comes from `canAccess` in core/permissions.
@@ -18,7 +19,8 @@ export type NavItem = {
   note?: string;
 };
 
-export function navItems({ guest, role }: { guest: boolean; role: Role }): { main: NavItem[]; explore: NavItem[] } {
+/** `level` is the version the person chose (Advanced until they choose): Basic leaves the Advanced-only screens out of the menu. */
+export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolean; role: Role; level?: Level }): { main: NavItem[]; explore: NavItem[] } {
   const owner = role === "owner";
   const tender: NavItem = { label: "Tenders", icon: "▣", href: "/tenders", match: ["/tenders"] };
   // Department users (tender, finance) get the tender section and nothing else.
@@ -31,19 +33,25 @@ export function navItems({ guest, role }: { guest: boolean; role: Role }): { mai
     { label: "Inventory & supply", icon: "▦", href: "/inventory", match: ["/inventory"] },
     { label: "Finance & profitability", icon: "◉", href: "/finance", match: ["/finance"] },
     { label: "Management actions", icon: "✓", href: "/opportunities", match: ["/opportunities"] },
-    // One data group: the owner lands on Import files, everyone else on the Weekly update (see DataTabs).
-    owner && !guest
-      ? { label: "Alpha ERP data", icon: "⇄", href: "/imports", match: ["/imports", "/weekly", "/history"] }
-      : { label: "Alpha ERP data", icon: "⇄", href: "/weekly", match: ["/weekly", "/history"] },
   ];
+  // One data group, for the people who feed or audit the data: the owner loads files, the owner and administrators read the update history.
+  if (!guest && owner) main.push({ label: "Data", icon: "⇄", href: "/imports", match: ["/imports", "/history"] });
+  else if (!guest && canSeeHistory(role)) main.push({ label: "Data", icon: "⇄", href: "/history", match: ["/history"] });
   if (canAccess(role, "tender") && !guest) main.push(tender);
   if (canAccess(role, "settings") && !guest) main.push({ label: "Settings", icon: "⚙", href: "/settings", match: ["/settings"] });
   // Sample screens use made-up numbers: everyone with business access may open them, guests included.
+  // The demo's EXPLORE screens, in its order. A screen the app has not built yet is listed greyed with "Soon" so nothing is hidden.
   const explore: NavItem[] = [
+    { label: "Company profile", icon: "▧", href: "/company-profile", match: ["/company-profile"] },
+    { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
+    { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
+    { label: "Support functions", icon: "◇", href: "/support-functions", match: ["/support-functions"] },
+    { label: "Opportunity radar", icon: "✧", href: "/opportunity-radar", match: ["/opportunity-radar"] },
     ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders", "/sample/tender-prices"] }]),
     { label: "Sample tenders", icon: "◇", href: "/sample/tenders", match: ["/sample/tenders", "/sample/tender-prices"] },
   ];
-  return { main, explore };
+  const shown = (i: NavItem) => !i.href || levelAllows(level, role, i.href);
+  return { main: main.filter(shown), explore: explore.filter(shown) };
 }
 
 /** The Accounts page filtered to one customer, for jumping there from a name on another page (the search matches the code). */

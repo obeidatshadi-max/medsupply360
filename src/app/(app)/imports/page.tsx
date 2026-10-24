@@ -1,102 +1,39 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
-import { getDb } from "@/db/client";
-import { importBatches } from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
-import { ImportForm } from "./import-form";
 import { DataTabs } from "@/components/data-tabs";
-import { companyDataReadiness } from "@/lib/data-readiness";
-import { DataReadiness } from "@/components/data-readiness";
-import { businessToday } from "@/lib/business-date";
+import { ChannelCard } from "@/components/channel-card";
+import { CHANNELS } from "@/core/channels";
+import { companyChannelStatus } from "@/lib/channel-status";
 
-/** Same clock as the header strip: Jordan time. */
-const jordanTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Amman", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
-
-export const metadata: Metadata = { title: "Import data" };
+export const metadata: Metadata = { title: "Data channels" };
 
 export default async function ImportsPage() {
   const user = await requireUser();
   if (user.guest || user.role !== "owner") {
     return (
       <section className="rounded-lg border border-line bg-surface p-6">
-        <h1 className="text-xl font-semibold">Import data</h1>
-        <p className="mt-2 text-sm text-muted">Only the company owner can import ERP files.</p>
+        <h1 className="text-xl font-semibold">Data channels</h1>
+        <p className="mt-2 text-sm text-muted">Only the company owner can load data.</p>
       </section>
     );
   }
-
-  const [readiness, history] = await Promise.all([companyDataReadiness(user.companyId, businessToday()), getDb()
-    .select({
-      id: importBatches.id,
-      kind: importBatches.kind,
-      fileName: importBatches.fileName,
-      snapshotDate: importBatches.snapshotDate,
-      rowsAccepted: importBatches.rowsAccepted,
-      rowsRejected: importBatches.rowsRejected,
-      status: importBatches.status,
-      createdAt: importBatches.createdAt,
-    })
-    .from(importBatches)
-    .where(eq(importBatches.companyId, user.companyId))
-    .orderBy(desc(importBatches.createdAt))
-    .limit(15)]);
+  const status = await companyChannelStatus(user.companyId);
+  const now = new Date();
 
   return (
     <div className="space-y-6">
       <PageHeading
-        eyebrow={`${user.companyName} · Alpha ERP data`}
-        title="Import data"
-        sub={`Upload the accountant's Alpha ERP exports, one file or all of them at once. The type of each file is recognised from its column headings, and they are loaded in the order the data needs: products and customers first, then sales, receipts, unpaid invoices and stock. Use "Check" first. It validates everything and shows totals to compare with Alpha, without saving.`}
+        eyebrow={`${user.companyName} · Data`}
+        title="Data channels"
+        sub="Data reaches the app by three channels, each with its own source. Open a channel to load files. Whatever you upload is read, recognised and previewed first, and nothing is saved until you confirm."
       />
       <DataTabs current="imports" owner history />
-      <ImportForm />
-      <section aria-label="Tender results" className="rounded-lg border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold">Tender results are imported here too</h2>
-        <p className="mt-1 max-w-2xl text-xs text-muted">
-          Award results from the authorities and your own bids go in the same way, as the file type &ldquo;Tender results&rdquo;. They feed the tender Price history page and do not change the Alpha ERP figures or the &ldquo;Data last integrated&rdquo; line.{" "}
-          <Link href="/tenders/prices" className="underline">How to prepare the file</Link>
-          {" · "}
-          <a href="/tenders/prices/download?file=template" download className="underline">Empty template</a>
-        </p>
-      </section>
-      <DataReadiness report={readiness} />
-      <section aria-label="Recent imports">
-        <h2 className="text-sm font-semibold">Recent imports</h2>
-        {history.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Nothing imported yet.</p>
-        ) : (
-          <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-surface">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-muted">
-                <tr>
-                  <th className="px-3 py-2 font-medium">When (Jordan time)</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
-                  <th className="px-3 py-2 font-medium">File</th>
-                  <th className="px-3 py-2 font-medium">As of</th>
-                  <th className="px-3 py-2 text-right font-medium">Loaded</th>
-                  <th className="px-3 py-2 text-right font-medium">Rejected</th>
-                  <th className="px-3 py-2 font-medium">Result</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((h) => (
-                  <tr key={h.id} className="border-t border-line">
-                    <td className="px-3 py-2 tabular-nums">{jordanTime.format(h.createdAt)}</td>
-                    <td className="px-3 py-2">{h.kind.replace("_", " ")}</td>
-                    <td className="px-3 py-2">{h.fileName}</td>
-                    <td className="px-3 py-2 tabular-nums">{h.snapshotDate ?? "—"}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{h.rowsAccepted}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{h.rowsRejected}</td>
-                    <td className="px-3 py-2">{h.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <div className="grid gap-4 md:grid-cols-3">
+        {CHANNELS.map((c) => (
+          <ChannelCard key={c} status={status[c]} now={now} />
+        ))}
+      </div>
     </div>
   );
 }

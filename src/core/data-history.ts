@@ -17,16 +17,28 @@ export const DATA_ACTIONS = [
   "tender.invoice_deleted",
   "tender.payment_recorded",
   "import.run",
+  "support.indicator_added",
+  "support.indicator_updated",
+  "support.indicator_deleted",
+  "support.reading_recorded",
+  "profile.updated",
+  "machine.details_saved",
+  "mgmt_action.added",
+  "mgmt_action.completed",
+  "mgmt_action.reopened",
+  "mgmt_action.removed",
 ] as const;
 export type DataAction = (typeof DATA_ACTIONS)[number];
 
 export const isDataAction = (a: string): a is DataAction => (DATA_ACTIONS as readonly string[]).includes(a);
 
-export type HistoryArea = "Tenders" | "ERP import";
-export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "ERP import" : "Tenders");
+export type HistoryArea = "Tenders" | "Uploads" | "Support functions" | "Company profile" | "Management actions" | "Machines";
+export const areaOf = (a: DataAction): HistoryArea => (a === "import.run" ? "Uploads" : a.startsWith("support.") ? "Support functions" : a === "profile.updated" ? "Company profile" : a.startsWith("mgmt_action.") ? "Management actions" : a === "machine.details_saved" ? "Machines" : "Tenders");
 
 const status = (v: unknown) => (typeof v === "string" && v in STATUS_LABEL ? STATUS_LABEL[v as TenderStatus] : null);
 const num = (v: unknown) => (typeof v === "number" ? v : null);
+/** " (name)" for a detail that is a non-empty string, else nothing. */
+const text = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? ` (${v})` : "");
 
 /** One short sentence for a recorded action. Unknown details fall back to the general wording, never to a blank. */
 export function describeAction(action: DataAction, details: Record<string, unknown> | null | undefined): string {
@@ -53,6 +65,28 @@ export function describeAction(action: DataAction, details: Record<string, unkno
       return "Removed an invoice";
     case "tender.payment_recorded":
       return typeof d.collected === "string" && d.collected !== "" ? `Recorded a payment (total collected ${d.collected})` : "Recorded a payment";
+    case "support.indicator_added":
+      return `Added a support indicator${text(d.name)}`;
+    case "support.indicator_updated":
+      return `Changed a support indicator${text(d.name)}`;
+    case "support.indicator_deleted":
+      return `Removed a support indicator${text(d.name)}`;
+    case "support.reading_recorded": {
+      const value = text(d.reading);
+      return `Recorded a reading${text(d.name)}${value ? `: ${d.reading}` : ""}`;
+    }
+    case "mgmt_action.added":
+      return `Added a management action${text(d.title)}`;
+    case "mgmt_action.completed":
+      return `Marked a management action done${text(d.title)}`;
+    case "mgmt_action.reopened":
+      return `Reopened a management action${text(d.title)}`;
+    case "mgmt_action.removed":
+      return `Removed a management action${text(d.title)}`;
+    case "machine.details_saved":
+      return `Added details to a machine${text(d.name)}`;
+    case "profile.updated":
+      return "Changed the company profile";
     case "import.run": {
       const spec = typeof d.kind === "string" && d.kind in SPECS ? SPECS[d.kind as ImportKind].title : "a file";
       const rows = num(d.rowsAccepted);

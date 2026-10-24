@@ -67,9 +67,10 @@ export function createCustomerPresentation(hooks: Hooks) {
     const aside = document.querySelector(".asidebottom");
     if (aside) aside.innerHTML = `<span class="avatar">${esc(name.slice(0, 2).toUpperCase())}</span><b>${esc(name)} workspace</b><div style="margin-top:12px">${esc(p.location || "Location not supplied")}<br>Sample business records</div>`;
     const banner = document.querySelector(".demo-banner");
-    if (banner) banner.innerHTML = `<span><b>${esc(name)}</b> · ${esc(p.source || "Presenter-supplied profile")}</span><span>Company profile context · Financial and operational figures are synthetic</span>`;
+    if (banner) banner.innerHTML = `<span><b>${esc(name)}</b> · ${esc(p.source || "Presenter-supplied profile")}</span><span>Company profile context · Financial and operational figures are synthetic</span><button id="customer-switch-m" type="button">Change company</button>`;
+    banner?.querySelector<HTMLButtonElement>("#customer-switch-m")?.addEventListener("click", hooks.goProfile);
     const crumb = document.querySelector(".crumb");
-    if (crumb) crumb.innerHTML = `${esc(name)} / <b id="crumb"></b>`;
+    if (crumb) crumb.innerHTML = `<span class="pre">${esc(name)} / </span><b id="crumb"></b>`;
     const tools = document.querySelector(".toptools");
     if (tools && !document.querySelector("#customer-switch")) {
       const button = document.createElement("button"); button.id = "customer-switch"; button.textContent = "Change company";

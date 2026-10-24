@@ -6,30 +6,39 @@ const labels = (o: O) => navItems(o).main.map((i) => i.label);
 const OWNER: O = { guest: false, role: "owner" };
 
 describe("navItems", () => {
-  it("has one Alpha ERP data entry and no separate weekly or compare entries", () => {
-    for (const o of [OWNER, { guest: false, role: "viewer" } as O, { guest: true, role: "viewer" } as O, { guest: false, role: "admin" } as O]) {
-      expect(labels(o).filter((l) => l === "Alpha ERP data")).toHaveLength(1);
+  it("has one Data entry for the owner and administrators, and none for viewers, guests or departments", () => {
+    for (const o of [OWNER, { guest: false, role: "admin" } as O]) expect(labels(o).filter((l) => l === "Data")).toHaveLength(1);
+    for (const o of [{ guest: false, role: "viewer" }, { guest: true, role: "owner" }, { guest: false, role: "tender" }, { guest: false, role: "finance" }] as O[]) expect(labels(o)).not.toContain("Data");
+    for (const o of [OWNER, { guest: false, role: "admin" } as O]) {
       expect(labels(o)).not.toContain("Data & update routine");
       expect(labels(o)).not.toContain("Compare versions");
     }
   });
 
-  it("sends the owner to imports and everyone else to the weekly update", () => {
-    const pick = (o: O) => navItems(o).main.find((i) => i.label === "Alpha ERP data")!;
+  it("sends the owner to the data channels and administrators to the update history", () => {
+    const pick = (o: O) => navItems(o).main.find((i) => i.label === "Data")!;
     expect(pick(OWNER).href).toBe("/imports");
-    expect(pick({ guest: false, role: "viewer" }).href).toBe("/weekly");
-    expect(pick({ guest: true, role: "viewer" }).href).toBe("/weekly");
+    expect(pick({ guest: false, role: "admin" }).href).toBe("/history");
   });
 
   it("has no greyed-out placeholder left in the main menu", () => {
     expect(navItems(OWNER).main.every((i) => i.href)).toBe(true);
   });
 
-  it("names the weekly page as part of Alpha ERP data in the breadcrumb", () => {
+  it("lists the demo's five EXPLORE screens first; all five are built", () => {
+    for (const o of [OWNER, { guest: false, role: "admin" } as O, { guest: true, role: "viewer" } as O]) {
+      const explore = navItems(o).explore;
+      expect(explore.slice(0, 5).map((i) => i.label)).toEqual(["Company profile", "Installed base", "Service & support", "Support functions", "Opportunity radar"]);
+      expect(explore.slice(0, 5).filter((i) => i.href).map((i) => i.href)).toEqual(["/company-profile", "/installed-base", "/service", "/support-functions", "/opportunity-radar"]);
+    }
+    expect(navItems({ guest: false, role: "tender" }).explore).toEqual([]);
+  });
+
+  it("names the data pages as part of Data in the breadcrumb", () => {
     const { main } = navItems(OWNER);
-    expect(crumbFor("/weekly", main)).toBe("Alpha ERP data");
-    expect(crumbFor("/imports", main)).toBe("Alpha ERP data");
-    expect(crumbFor("/history", main)).toBe("Alpha ERP data");
+    expect(crumbFor("/imports/erp", main)).toBe("Data");
+    expect(crumbFor("/imports", main)).toBe("Data");
+    expect(crumbFor("/history", main)).toBe("Data");
   });
 
   it("shows the Sales force to the owner and administrators only, right after Sales & accounts", () => {
@@ -57,15 +66,34 @@ describe("navItems", () => {
   });
 });
 
+describe("Basic and Advanced", () => {
+  const hrefs = (o: O) => [...navItems(o).main, ...navItems(o).explore].flatMap((i) => (i.href ? [i.href] : []));
+  const ADV = ["/tenders", "/installed-base", "/service", "/support-functions", "/opportunity-radar"];
+
+  it("lists every screen on Advanced, and starts on Advanced", () => {
+    for (const level of [undefined, "advanced"] as const) for (const href of ADV) expect(hrefs({ ...OWNER, level })).toContain(href);
+  });
+
+  it("leaves the Advanced-only screens out of the menu on Basic, keeping the rest", () => {
+    const basic = hrefs({ ...OWNER, level: "basic" });
+    for (const href of ADV) expect(basic).not.toContain(href);
+    for (const href of ["/dashboard", "/finance", "/inventory", "/company-profile", "/sales-force", "/opportunities", "/imports", "/settings"]) expect(basic).toContain(href);
+  });
+
+  it("never takes the tender section away from a department", () => {
+    for (const role of ["tender", "finance"] as const) expect(hrefs({ guest: false, role, level: "basic" })).toEqual(["/tenders"]);
+  });
+});
+
 describe("sample entries", () => {
   it("shows Sample tenders to guests and to business users, and Sample data to signed-in users only", () => {
-    const explore = (o: O) => navItems(o).explore.map((i) => i.label);
+    const explore = (o: O) => navItems(o).explore.map((i) => i.label).filter((l) => l.startsWith("Sample"));
     expect(explore({ guest: true, role: "viewer" })).toEqual(["Sample tenders"]);
     expect(explore(OWNER)).toEqual(["Sample data", "Sample tenders"]);
   });
 
   it("highlights only one sample item at a time", () => {
-    const [data, tenders] = navItems(OWNER).explore;
+    const [data, tenders] = navItems(OWNER).explore.filter((i) => i.label.startsWith("Sample"));
     expect(isCurrentItem("/sample/tenders", tenders!)).toBe(true);
     expect(isCurrentItem("/sample/tenders", data!)).toBe(false);
     expect(isCurrentItem("/sample/tender-prices", tenders!)).toBe(true);

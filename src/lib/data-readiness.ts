@@ -1,8 +1,12 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { ERP_KINDS, SPECS, type ImportKind } from "@/core/import/specs";
+import { SPECS, type ImportKind } from "@/core/import/specs";
 import { isIsoDate } from "@/core/calc";
+import { CHANNEL_INFO } from "@/core/channels";
+
+/** The file types the predictions read: the ERP exports and the installed equipment list. Tender lists and the sales force do not feed them. */
+const PREDICTION_SOURCES: ImportKind[] = [...CHANNEL_INFO.erp.kinds, "installed_units"];
 
 interface Batch {
   kind: ImportKind;
@@ -35,7 +39,7 @@ export async function companyDataReadiness(companyId: string, today: string) {
   ]);
   const lastAttempt = new Map((attempts.rows as unknown as Batch[]).map((r) => [r.kind, r]));
   const lastLoaded = new Map((loaded.rows as unknown as Batch[]).map((r) => [r.kind, r]));
-  const datasets = ERP_KINDS.map((kind) => ({ kind, title: SPECS[kind].title,
+  const datasets = PREDICTION_SOURCES.map((kind) => ({ kind, title: SPECS[kind].title,
     latestAttempt: lastAttempt.get(kind) ?? null, lastLoaded: lastLoaded.get(kind) ?? null }));
   const c = coverage.rows[0] as { first_sale: string | null; last_sale: string | null; unclassified: number; missing_units: number };
   return { asOf: today, datasets, firstSale: c.first_sale, lastSale: c.last_sale,

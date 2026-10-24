@@ -1,25 +1,23 @@
 const TABS = [
-  { key: "imports", label: "Import files", href: "/imports", needs: "owner" },
-  { key: "weekly", label: "Weekly update", href: "/weekly", needs: "anyone" },
+  { key: "imports", label: "Data channels", href: "/imports", needs: "owner" },
   { key: "history", label: "Update history", href: "/history", needs: "history" },
 ] as const;
 
 /**
- * The screens of the "Alpha ERP data" group. Importing is owner-only; the weekly update is open to everyone who can
- * sign in; the update history is for the owner and administrators. A person who may open only one sees no tab strip.
+ * The screens of the "Data" group. Loading data is owner-only; the update history is for the owner and administrators. A person who may open only one sees no tab strip.
  */
 export function DataTabs({ current, owner, history }: { current: (typeof TABS)[number]["key"]; owner: boolean; history: boolean }) {
-  const allowed = { owner, anyone: true, history };
+  const allowed = { owner, history };
   const tabs = TABS.filter((t) => allowed[t.needs]);
   if (tabs.length < 2) return null;
   return (
-    <nav aria-label="Alpha ERP data" className="mb-4 flex gap-2 text-sm">
+    <nav aria-label="Data" className="mb-4 flex flex-wrap gap-2 text-sm">
       {tabs.map((t) => (
         <a
           key={t.key}
           href={t.href}
           aria-current={t.key === current ? "page" : undefined}
-          className={`rounded-md border px-3 py-2 ${t.key === current ? "border-brand bg-brand text-brand-ink" : "border-line bg-white hover:border-brand"}`}
+          className={`inline-flex min-h-11 items-center rounded-md border px-4 py-2 ${t.key === current ? "border-brand bg-brand text-brand-ink" : "border-line bg-white hover:border-brand"}`}
         >
           {t.label}
         </a>

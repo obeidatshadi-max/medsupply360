@@ -3,6 +3,9 @@ import { FreshnessBanner } from "@/components/freshness-banner";
 import { Glossary } from "@/components/glossary";
 import { assessFreshness, windowEnd } from "@/core/freshness";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { salesForLine } from "@/core/line-filter";
+import { currentLine } from "@/lib/line";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyCash } from "@/lib/cash";
@@ -13,7 +16,6 @@ import { companyStockRisk } from "@/lib/stock-risk";
 import { dateRange, dayText, jod, jodShort, pct, signedPct } from "@/lib/format";
 import { briefAlerts, briefSignals } from "@/lib/owner-brief";
 import { OwnerBrief, type BriefCard } from "@/components/owner-brief";
-import { GuestOverview } from "@/demo/guest-overview";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -21,18 +23,20 @@ const n = (v: number) => v.toLocaleString("en-US");
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  // Guests (open access) see the synthetic demonstration dataset; signed-in users see their own company's data.
-  if (user.guest) return <GuestOverview />;
+  // A signed-out visitor sees no figures: made-up numbers live only under Sample data and Sample tenders (and on the separate demo site).
+  if (user.guest) return <PageHeading eyebrow="Owner overview" title="Owner overview" sub="Please sign in with a company account to see your figures. To look around with made-up numbers, open Sample data or Sample tenders in the menu." />;
 
   const today = businessToday();
+  const line = await currentLine();
   const d = await companyDataSummary(user.companyId);
   // Year-to-date windows end at the newest invoice / receipt, so old imports are not compared against a longer last-year window.
-  const [sales, cash, ar, stock] = await Promise.all([
+  const [allSales, cash, ar, stock] = await Promise.all([
     companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
     companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
     companyReceivables(user.companyId),
-    companyStockRisk(user.companyId),
+    companyStockRisk(user.companyId, line),
   ]);
+  const sales = salesForLine(allSales, line);
   const empty = d.products + d.customers + d.invoices + d.receipts + d.stockTransactions + d.installedUnits === 0 && !d.openInvoices && !d.stock;
   const t = sales.total;
   const freshness = assessFreshness({
@@ -51,6 +55,7 @@ export default async function DashboardPage() {
           slow: stock.slowValue,
           total: stock.stockValue,
           expiryLoss: stock.expiryLossEstimate,
+          reliable: stock.reliable,
         }
       : null,
   });
@@ -99,7 +104,7 @@ export default async function DashboardPage() {
       status: sig.stock,
       value: stock ? jodShort(stock.slowValue) : "—",
       verdict: stock
-        ? `Slow or unused. Another ${jodShort(stock.expiryLossEstimate)} may expire unsold (estimate), out of ${jodShort(stock.stockValue)} owned`
+        ? `Slow or unused. Another ${jodShort(stock.expiryLossEstimate)} may expire unsold (estimate), out of ${jodShort(stock.stockValue)} owned${stock.reliable ? "" : `. Rough guide: only ${stock.historyDays ?? 0} days of ${stock.demandSource === "sales" ? "sales" : "stock issues"} are loaded`}`
         : "Import the stock file to see this",
       href: "/inventory",
       when: stock ? { label: "Checked", text: `${dayText(stock.asOf)} (date of the stock file)` } : undefined,
@@ -202,6 +207,7 @@ export default async function DashboardPage() {
             : "The four things an owner should check first. Click a card for detail. A dash (—) means a file is missing."
         }
       />
+      {empty ? null : <LineFilter current={line} note="Sales, margin and stock follow the line you choose. Cash collected and unpaid invoices are not split by line." />}
       {empty ? null : <FreshnessBanner freshness={freshness} canImport={user.role === "owner"} />}
       {empty ? null : <OwnerBrief cards={cards} alerts={alerts} />}
       <details className="group rounded-[10px] border border-line bg-white p-4 md:p-5">
@@ -218,7 +224,7 @@ export default async function DashboardPage() {
         <h2 className="mb-3 mt-6 text-sm font-semibold">Data you have loaded</h2>
         <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+            <div key={s.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
               <p className="text-[11px] text-muted md:text-xs">{s.label}</p>
               <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{s.value}</p>
               <p className="text-[10px] text-muted md:text-[11px]">{s.note}</p>

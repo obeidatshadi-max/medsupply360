@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLES, ROLE_LABEL } from "@/core/permissions";
+import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL } from "@/core/permissions";
 import { demoFreshness, freshnessHtml } from "./freshness-demo";
 import { demoHistory, historyCsvRows, historyHtml } from "./history-screen";
 import { DEMO_PEOPLE, settingsCsvRows, settingsHtml } from "./settings-screen";
@@ -13,6 +13,13 @@ describe("demo Settings", () => {
     for (const p of DEMO_PEOPLE) expect(html).toContain(p.name);
     for (const r of ROLES) expect(html).toContain(ROLE_LABEL[r].name);
     expect(settingsCsvRows()).toHaveLength(DEMO_PEOPLE.length + 1);
+  });
+
+  it("shows the add-person form with every assignable access level", () => {
+    const html = settingsHtml();
+    expect(html).toContain("Add a person");
+    for (const r of ASSIGNABLE_ROLES) expect(html).toContain(`value="${r}"`);
+    expect(html).not.toContain(`value="owner"`);
   });
 
   it("uses job titles, never real-looking names", () => {
@@ -146,5 +153,23 @@ describe("demo cross-links", () => {
     const { salesPersonHtml } = await import("./sales-force-demo");
     const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: false })!;
     expect(html).toContain('data-goto-account="Jordan Valley Public Hospitals Group"');
+  });
+});
+
+describe("demo sales person activity", () => {
+  it("shows new accounts this month and visits this week against the targets, and the log-a-visit form", () => {
+    const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: false })!;
+    expect(html).toContain("New accounts this month");
+    expect(html).toContain("Visits this week");
+    expect(html).toContain("2 of 12");
+    expect(html).toContain("Behind");
+    expect(html).toContain("Log a visit");
+    expect(html).toContain("Infusion pump demonstration");
+  });
+
+  it("does not show one customer's visit notes under another customer's profile", () => {
+    const html = salesPersonHtml("Khaled Mansour", { products: [], overrides: {}, generic: true })!;
+    expect(html).not.toContain("Dabouq");
+    expect(html).toContain("No visit written down yet.");
   });
 });

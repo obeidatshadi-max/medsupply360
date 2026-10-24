@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
+import { ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canManageSupport, canEditProfile, canManageActions, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
 
 describe("permissions", () => {
   it("lets the owner open everything", () => {
@@ -22,6 +22,18 @@ describe("permissions", () => {
   it("lets only the owner manage the sales force and only the owner and administrators read it", () => {
     expect(ROLES.filter(canManageSalesForce)).toEqual(["owner"]);
     expect(ROLES.filter(canSeeSalesForce)).toEqual(["owner", "admin"]);
+  });
+
+  it("lets only the owner define support indicators and record readings", () => {
+    expect(ROLES.filter(canManageSupport)).toEqual(["owner"]);
+  });
+
+  it("lets the owner and administrators manage management actions", () => {
+    expect(ROLES.filter(canManageActions)).toEqual(["owner", "admin"]);
+  });
+
+  it("lets only the owner write the company profile", () => {
+    expect(ROLES.filter(canEditProfile)).toEqual(["owner"]);
   });
 
   it("shows the update history to the owner and administrators only", () => {

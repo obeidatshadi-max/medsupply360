@@ -75,8 +75,43 @@
     {
       "idx": 10,
       "version": "7",
-      "when": 1792832118454,
-      "tag": "0010_tender_price_history",
+      "when": 1792468627071,
+      "tag": "0010_import_kinds_tenders_sales_people",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792473395217,
+      "tag": "0011_support_indicators",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792474393148,
+      "tag": "0012_company_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792484973198,
+      "tag": "0013_management_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792528753548,
+      "tag": "0014_sales_visits",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792839004730,
+      "tag": "0015_tender_price_history",
       "breakpoints": true
     }
   ]

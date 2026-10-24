@@ -271,3 +271,33 @@ describe("stock transactions, units and modes", () => {
     expect(batches).toHaveLength(1);
   });
 });
+
+describe("checking a whole upload before anything is saved", () => {
+  let fresh: string;
+  const UPLOAD_SALES = "invoice no,line no,date,customer code,product code,qty,net sales,cost\nB1,1,2026-09-05,K1,Q1,2,40,24\nB2,1,2026-09-06,K9,Q1,1,20,12";
+
+  beforeAll(async () => {
+    fresh = (await q<{ id: string }>(`insert into companies (slug, name) values ('fresh', 'Fresh') returning id`))[0]!.id;
+  });
+
+  it("rejects sales for customers and products that only a file in the same upload adds, when checked alone", async () => {
+    const r = await imp(fresh, "sales", UPLOAD_SALES, { dryRun: true });
+    expect(r.rowsAccepted).toBe(0);
+    expect(r.rejections.map((x) => x.reason).join(" ")).toMatch(/unknown customer code "K1"/);
+  });
+
+  it("accepts them in a check once the same upload announces the codes, and still rejects a code nobody announced", async () => {
+    const r = await imp(fresh, "sales", UPLOAD_SALES, { dryRun: true, assumed: { customerCodes: ["K1"], productCodes: ["Q1"] } });
+    expect(r.rowsAccepted).toBe(1);
+    expect(r.rejections).toHaveLength(1);
+    expect(r.rejections[0]!.reason).toMatch(/unknown customer code "K9"/);
+    expect(await count("sales_lines", fresh)).toBe(0);
+  });
+
+  it("ignores announced codes when really saving, so nothing points at a customer that does not exist", async () => {
+    const r = await imp(fresh, "sales", UPLOAD_SALES, { assumed: { customerCodes: ["K1", "K9"], productCodes: ["Q1"] } });
+    expect(r.rowsAccepted).toBe(0);
+    expect(r.wrote).toBe(false);
+    expect(await count("sales_lines", fresh)).toBe(0);
+  });
+});

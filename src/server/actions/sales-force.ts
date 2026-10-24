@@ -6,13 +6,17 @@ import { getDb } from "@/db/client";
 import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { canManageSalesForce } from "@/core/permissions";
+import { readSubmitter } from "@/core/submitter";
+import { businessToday } from "@/lib/business-date";
 import type { SalesPersonForm } from "@/core/sales-force";
 import {
   addSalesPerson,
+  addVisit,
   assignAccount,
   assignProduct,
   assignSupplierProducts,
   assignTenderOwner,
+  removeVisit,
   setSalesPersonActive,
   updateSalesPerson,
 } from "@/server/services/sales-force";
@@ -114,5 +118,30 @@ export async function assignAccountAction(fd: FormData): Promise<void> {
   const personId = orNull(val(fd, "personId"));
   const result = await assignAccount(getDb(), { companyId: user.companyId, customerId, personId });
   if (result.ok) await writeAudit({ companyId: user.companyId, userId: user.id, action: "account.assigned", entityType: "customer", entityId: customerId, details: { personId } });
+  refresh();
+}
+
+export type VisitFormState = { error?: string; saved?: boolean };
+
+/** Writes down one visit of a sales person. The typed name of the person recording it is saved with it. */
+export async function logVisitAction(_prev: VisitFormState, fd: FormData): Promise<VisitFormState> {
+  const user = await ceo();
+  if (!user) return { error: REFUSED };
+  const who = readSubmitter(fd);
+  if (!who.ok) return { error: who.error };
+  const personId = val(fd, "personId");
+  const result = await addVisit(getDb(), { companyId: user.companyId, personId, form: { visitedOn: val(fd, "visitedOn"), customerId: val(fd, "customerId"), note: val(fd, "note") }, today: businessToday(), by: who.name });
+  if (!result.ok) return { error: result.error };
+  await writeAudit({ companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "sales_visit.added", entityType: "sales_person", entityId: personId, details: { visitId: result.id } });
+  refresh();
+  return { saved: true };
+}
+
+export async function removeVisitAction(fd: FormData): Promise<void> {
+  const user = await ceo();
+  if (!user) return;
+  const visitId = val(fd, "visitId");
+  const result = await removeVisit(getDb(), { companyId: user.companyId, visitId });
+  if (result.ok) await writeAudit({ companyId: user.companyId, userId: user.id, action: "sales_visit.removed", entityType: "sales_person", entityId: val(fd, "personId") || undefined, details: { visitId } });
   refresh();
 }

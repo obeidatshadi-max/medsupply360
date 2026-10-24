@@ -99,7 +99,7 @@ function Card({ c }: { c: BriefCard }) {
     <a href={c.href} className={`flex h-full flex-col rounded-[10px] border border-line border-l-4 bg-white p-5 hover:border-brand ${look.edge}`}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium">{c.title}</p>
-        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${look.soft} ${look.text}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${look.soft} ${look.text}`}>
           <span aria-hidden>{look.icon} </span>
           {look.word}
         </span>
@@ -115,7 +115,7 @@ function Card({ c }: { c: BriefCard }) {
       {c.terms?.length ? (
         <dl className="mt-3 space-y-1 border-t border-dashed border-line pt-2.5">
           {c.terms.map((t) => (
-            <div key={t} className="text-[11.5px] leading-snug text-muted">
+            <div key={t} className="text-xs leading-snug text-muted">
               <dt className="mr-1 inline rounded bg-canvas px-1 font-semibold text-ink">{t}</dt>
               <dd className="inline">{GLOSSARY[t]}</dd>
             </div>
@@ -126,11 +126,14 @@ function Card({ c }: { c: BriefCard }) {
   );
 }
 
+/** On a phone the banner comes first (it is what to act on); from md up it follows the cards, as before. */
+const BANNER_ORDER = "order-first md:order-none";
+
 function Banner({ alerts, anyData, anyGap }: { alerts: Alert[]; anyData: boolean; anyGap: boolean }) {
   if (!anyData) return null;
   if (alerts.length === 0) {
     return (
-      <div className="mb-5 flex items-center gap-3 rounded-[10px] bg-brand-soft p-5 text-brand">
+      <div className={`${BANNER_ORDER} mb-5 flex items-center gap-3 rounded-[10px] bg-brand-soft p-5 text-brand`}>
         <span aria-hidden className="text-2xl">
           ✓
         </span>
@@ -143,14 +146,14 @@ function Banner({ alerts, anyData, anyGap }: { alerts: Alert[]; anyData: boolean
   }
   const act = alerts.some((a) => a.level === "act");
   return (
-    <div className={`mb-5 rounded-[10px] p-5 ${act ? "bg-bad-soft" : "bg-warn-soft"}`} role="status">
+    <div className={`${BANNER_ORDER} mb-5 rounded-[10px] p-5 ${act ? "bg-bad-soft" : "bg-warn-soft"}`} role="status">
       <p className={`mb-2 text-base font-semibold ${act ? "text-bad" : "text-warn"}`}>
         {alerts.length === 1 ? "1 thing needs your attention" : `${alerts.length} things need your attention`}
       </p>
       <ul className="space-y-1.5">
         {alerts.map((a) => (
           <li key={a.topic}>
-            <a href={a.href} className="flex items-start gap-2 text-sm hover:underline">
+            <a href={a.href} className="flex min-h-11 items-start gap-2 py-2 text-sm hover:underline md:min-h-0 md:py-0">
               <span aria-hidden className={`mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${a.level === "act" ? "bg-bad" : "bg-warn"}`} />
               <span>{a.text}</span>
             </a>
@@ -163,20 +166,20 @@ function Banner({ alerts, anyData, anyGap }: { alerts: Alert[]; anyData: boolean
 
 /**
  * Top of the owner overview: four big status cards first, so the figures are on the first screen, then the list of things
- * that need attention. Details live further down the page.
+ * that need attention (on a phone that list goes first). Details live further down the page.
  */
 export function OwnerBrief({ cards, alerts }: { cards: BriefCard[]; alerts: Alert[] }) {
   const anyData = cards.some((c) => c.status !== "nodata");
   const anyGap = cards.some((c) => c.status === "nodata");
   return (
-    <section aria-label="Summary for the owner" className="mb-8">
+    <section aria-label="Summary for the owner" className="mb-8 flex flex-col">
       <div className="mb-5 grid grid-cols-1 gap-[14px] sm:grid-cols-2 min-[1000px]:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.title} c={c} />
         ))}
       </div>
       <Banner alerts={alerts} anyData={anyData} anyGap={anyGap} />
-      <p className="mt-3 text-[11px] text-muted">
+      <p className="mt-3 text-xs text-muted">
         How we judge: sales and cash against the same dates last year; overdue = share of unpaid invoices past due (watch from 10%, act from 25%); stock = slow
         or expiring share of what you own (watch from 15%, act from 30%).
       </p>

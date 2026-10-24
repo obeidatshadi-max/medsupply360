@@ -110,6 +110,8 @@ export const importKind = pgEnum("import_kind", [
   "stock_snapshot", // E06
   "stock_transactions", // E07
   "installed_units", // E11 / manual
+  "tenders", // tender department list
+  "sales_people", // manual sales force and targets
   "tender_results", // award results from the authorities, plus our own bids
 ]);
 export const importStatus = pgEnum("import_status", ["accepted", "partial", "rejected"]);
@@ -166,6 +168,29 @@ export const salesPeople = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique("sales_people_company_id_uniq").on(t.companyId, t.id), uniqueIndex("sales_people_name_uniq").using("btree", t.companyId, sql`lower(${t.name})`)],
+);
+
+/** One customer visit by a sales person, written down by the owner. The count against `visits_per_week` comes from here. */
+export const salesVisits = pgTable(
+  "sales_visits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    salesPersonId: uuid("sales_person_id").notNull(),
+    /** The customer visited, when it is one of the imported customers. */
+    customerId: uuid("customer_id"),
+    visitedOn: date("visited_on").notNull(),
+    note: varchar("note", { length: 300 }),
+    /** The typed name of the person who wrote the visit down. */
+    recordedBy: varchar("recorded_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.salesPersonId], foreignColumns: [salesPeople.companyId, salesPeople.id] }),
+    index("sales_visits_person_day_idx").on(t.companyId, t.salesPersonId, t.visitedOn),
+  ],
 );
 
 export const products = pgTable(
@@ -538,6 +563,88 @@ export const tenderInvoices = pgTable(
     uniqueIndex("tender_invoices_no_uniq").on(t.companyId, t.tenderId, t.invoiceNo),
     foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
   ],
+);
+
+// ─── Support functions ──────────────────────────────────────────────────────
+// A few indicators per supporting department (logistics, procurement, HR, customer support, tender support). The owner
+// sets the target and who answers for it; a person records each reading. Nothing here is computed from the ERP.
+
+export const indicatorDirection = pgEnum("indicator_direction", ["at_least", "at_most"]);
+
+export const supportIndicators = pgTable(
+  "support_indicators",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    /** One of the departments listed in src/core/support-indicators.ts. */
+    department: varchar("department", { length: 40 }).notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    /** "%", "days", "cases"... Empty when the figure has no unit. */
+    unit: varchar("unit", { length: 20 }).notNull().default(""),
+    direction: indicatorDirection("direction").notNull(),
+    target: numeric("target", { precision: 14, scale: 3 }).notNull(),
+    /** Latest reading and the day it was measured; both NULL until the first reading. */
+    actual: numeric("actual", { precision: 14, scale: 3 }),
+    measuredOn: date("measured_on"),
+    /** Who typed the latest reading. */
+    readingBy: varchar("reading_by", { length: 80 }),
+    responsible: varchar("responsible", { length: 80 }),
+    consequence: text("consequence"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("support_indicators_company_id_uniq").on(t.companyId, t.id),
+    uniqueIndex("support_indicators_name_uniq").using("btree", t.companyId, t.department, sql`lower(${t.name})`),
+    index("support_indicators_company_idx").on(t.companyId, t.department),
+  ],
+);
+
+/** The owner's own description of the company (one row per company). The name stays on `companies`. Empty text = not written yet. */
+export const companyProfiles = pgTable("company_profiles", {
+  companyId: uuid("company_id")
+    .primaryKey()
+    .references(() => companies.id),
+  location: varchar("location", { length: 160 }).notNull().default(""),
+  address: text("address").notNull().default(""),
+  founded: varchar("founded", { length: 4 }).notNull().default(""),
+  team: varchar("team", { length: 160 }).notNull().default(""),
+  audience: text("audience").notNull().default(""),
+  purpose: text("purpose").notNull().default(""),
+  erp: varchar("erp", { length: 160 }).notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  updatedBy: varchar("updated_by", { length: 80 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── Management actions ─────────────────────────────────────────────────────
+// The owner's tracker of follow-ups. Done means a person confirmed it; it is not proof that money was recovered.
+
+export const actionStatus = pgEnum("action_status", ["open", "done"]);
+
+export const managementActions = pgTable(
+  "management_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    title: varchar("title", { length: 180 }).notNull(),
+    evidence: text("evidence"),
+    /** One of the departments listed in src/core/management-actions.ts. */
+    responsible: varchar("responsible", { length: 40 }).notNull(),
+    due: date("due").notNull(),
+    status: actionStatus("status").notNull().default("open"),
+    /** The typed names of the people who added and who finished it. */
+    createdBy: varchar("created_by", { length: 80 }),
+    completedOn: date("completed_on"),
+    completedBy: varchar("completed_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("management_actions_company_id_uniq").on(t.companyId, t.id), index("management_actions_company_status_idx").on(t.companyId, t.status, t.due)],
 );
 
 // ─── Tender price history ───────────────────────────────────────────────────

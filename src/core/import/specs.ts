@@ -5,9 +5,10 @@
  * names. When the Alpha sample arrives, adjust the `aliases` here; nothing else in the importer depends on them.
  * Day-first dates (D/M/YYYY) and the document / transaction wording are likewise to be confirmed against the sample.
  */
-import { AUTHORITIES, type AuthorityCode } from "../tender-flow";
+import { AUTHORITIES, missingFor, type AuthorityCode, type TenderFields, type TenderStatus } from "../tender-flow";
 import { itemKeyOf } from "../tender-prices";
-import { bool, code, date, days, money, nonNegativeMoney, oneOf, positiveDecimal, quantity, text, type Parser, type Value } from "./parsers";
+import { EMAIL_MAX, NAME_MAX, NEW_ACCOUNTS_MAX, SUPPLIERS_MAX, SUPPLIER_NAME_MAX, VISITS_MAX } from "../sales-force";
+import { bool, code, date, days, money, nonNegativeMoney, oneOf, positiveDecimal, quantity, semicolonList, text, wholeNumber, type Parser, type Value } from "./parsers";
 
 export type ImportKind =
   | "products"
@@ -18,6 +19,8 @@ export type ImportKind =
   | "stock_snapshot"
   | "stock_transactions"
   | "installed_units"
+  | "tenders"
+  | "sales_people"
   | "tender_results";
 
 export type Values = Record<string, Value>;
@@ -121,7 +124,7 @@ const AUTHORITY_WORDS: Record<AuthorityCode, string[]> = {
   KHCC: ["king hussein cancer center", "king hussein cancer centre", "مركز الحسين للسرطان"],
   DRMS: ["royal medical services", "rms", "jordan armed forces medical services", "الخدمات الطبية الملكية"],
   JUH: ["jordan university hospital", "ju hospital", "مستشفى الجامعة الأردنية"],
-  KAUH: ["king abdullah university hospital", "king abdullah i university hospital", "مستشفى الملك عبدالله المؤسس"],
+  KAUH: ["king abdullah university hospital", "kauh hospital", "king abdullah i university hospital", "مستشفى الملك عبدالله المؤسس"],
 };
 const tenderAuthority = oneOf(
   "authority",
@@ -152,6 +155,38 @@ const ownership: Parser = (raw) => {
   const asBool = bool(raw);
   return asBool.ok ? asBool : { ok: false, reason: `expected owned / consignment, got "${raw}"` };
 };
+
+const tenderLine = oneOf(
+  "tender product line",
+  {
+    equipment: ["equipments", "devices", "device", "أجهزة"],
+    consumables: ["consumable", "reagents", "مستهلكات"],
+    mixed: ["equipment and consumables", "equipment & consumables", "both", "مختلط"],
+  },
+  "reject",
+);
+
+const tenderStatus = oneOf(
+  "tender status",
+  {
+    pipeline: ["opportunity", "identified", "expected"],
+    open: ["announced", "tender announced"],
+    preparing: ["bid preparation", "in preparation", "preparation"],
+    submitted: ["bid submitted"],
+    technical_review: ["technical evaluation", "technical"],
+    financial_review: ["financial evaluation", "financial"],
+    won: ["awarded", "award won"],
+    lost: ["not awarded"],
+    cancelled: ["canceled", "dropped"],
+    contracted: ["contract", "contract signed", "po", "purchase order"],
+    delivered: ["supplied"],
+    collected: ["paid", "payment collected"],
+  },
+  "reject",
+);
+
+const asNumber = (v: Value | undefined) => (v == null ? null : Number(v));
+const asText = (v: Value | undefined) => (v == null ? null : String(v));
 
 export const SPECS: Record<ImportKind, FileSpec> = {
   products: {
@@ -326,6 +361,59 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     check: (v) =>
       v.installedOn != null && v.warrantyEnd != null && String(v.warrantyEnd) < String(v.installedOn) ? "warranty ends before the installation date" : null,
   },
+  tenders: {
+    kind: "tenders",
+    title: "Tender list (tender department)",
+    key: (v) => k(v.authority, v.tenderNo ?? `title:${String(v.title).toLowerCase()}`),
+    fields: [
+      f("authority", ["authority", "institution", "hospital", "buyer", "جهة العطاء"], true, tenderAuthority),
+      f("tenderNo", ["tender no", "tender number", "tender ref", "tender reference", "rfp no", "رقم العطاء"], false, code(80)),
+      f("title", ["title", "tender title", "tender name", "description", "tender description", "اسم العطاء"], true, text(300)),
+      f("productLine", ["product line", "tender line", "type of supply", "equipment or consumables"], true, tenderLine),
+      f("status", ["status", "stage", "tender status", "tender stage", "الحالة"], false, tenderStatus),
+      f("estimatedValue", ["estimated value", "estimate", "tender value", "القيمة التقديرية"], false, nonNegativeMoney),
+      f("deadline", ["deadline", "submission deadline", "closing date", "due date", "آخر موعد"], false, date),
+      f("bidValue", ["bid value", "our bid", "offer value", "bid amount"], false, nonNegativeMoney),
+      f("awardAmount", ["award amount", "awarded amount", "award value"], false, nonNegativeMoney),
+      f("closeReason", ["close reason", "reason lost", "reason cancelled", "loss reason", "reason"], false, text(1000)),
+      f("contractNo", ["contract no", "contract number", "po no", "po number", "contract or po number"], false, code(80)),
+      f("contractValue", ["contract value", "po value"], false, nonNegativeMoney),
+      f("deliveredOn", ["delivered on", "delivery date", "date delivered"], false, date),
+      f("notes", ["notes", "note", "remarks", "ملاحظات"], false, text(2000)),
+    ],
+    // A tender loaded at a stage must carry what that stage needs, the same rule as moving it there in the Tenders section.
+    check: (v) => {
+      const fields: TenderFields = {
+        tenderNo: asText(v.tenderNo),
+        estimatedValue: asNumber(v.estimatedValue),
+        deadline: asText(v.deadline),
+        bidValue: asNumber(v.bidValue),
+        awardAmount: asNumber(v.awardAmount),
+        closeReason: asText(v.closeReason),
+        contractNo: asText(v.contractNo),
+        contractValue: asNumber(v.contractValue),
+        deliveredOn: asText(v.deliveredOn),
+      };
+      const missing = missingFor((asText(v.status) ?? "pipeline") as TenderStatus, fields);
+      return missing.length > 0 ? `a tender at this stage also needs: ${missing.join(", ")}` : null;
+    },
+  },
+
+  sales_people: {
+    kind: "sales_people",
+    title: "Sales force and targets (manual)",
+    key: (v) => k(String(v.name).toLowerCase()),
+    fields: [
+      f("name", ["name", "sales person", "salesperson", "sales rep", "full name", "employee", "الاسم"], true, text(NAME_MAX)),
+      f("email", ["email", "e-mail", "mail", "البريد"], false, text(EMAIL_MAX)),
+      f("suppliers", ["suppliers", "supplier companies", "supplier", "represents", "الموردون"], false, semicolonList(SUPPLIERS_MAX, SUPPLIER_NAME_MAX)),
+      f("monthlySalesTarget", ["monthly sales target", "sales target", "monthly target", "target", "الهدف الشهري"], false, nonNegativeMoney),
+      f("newAccountsTarget", ["new accounts target", "new accounts", "new accounts per month"], false, wholeNumber(NEW_ACCOUNTS_MAX)),
+      f("visitsPerWeek", ["visits per week", "weekly visits", "visits"], false, wholeNumber(VISITS_MAX)),
+      f("active", ["active", "is active", "نشط"], false, bool),
+    ],
+    check: (v) => (v.email != null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v.email)) ? "not a valid email address" : null),
+  },
   tender_results: {
     kind: "tender_results",
     title: "Tender results (award notices and our bids)",
@@ -361,5 +449,3 @@ export const SPECS: Record<ImportKind, FileSpec> = {
   },
 };
 
-/** The Alpha ERP exports. Tender results come from the authorities and our own bid sheets, so they are not part of ERP readiness. */
-export const ERP_KINDS = (Object.keys(SPECS) as ImportKind[]).filter((kind) => kind !== "tender_results");

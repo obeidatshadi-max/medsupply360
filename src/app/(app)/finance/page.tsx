@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { salesForLine } from "@/core/line-filter";
+import { currentLine } from "@/lib/line";
+import { AssignActionLink } from "@/components/assign-action-link";
 import { windowEnd } from "@/core/freshness";
 import { PeriodTag } from "@/components/period-tag";
 import { AGING_BUCKETS } from "@/core/receivables";
@@ -29,13 +33,16 @@ export default async function FinancePage() {
 
   const today = businessToday();
   const d = await companyDataSummary(user.companyId);
-  const [r, sales, cash] = await Promise.all([
+  const line = await currentLine();
+  const [r, allSales, cash] = await Promise.all([
     companyReceivables(user.companyId),
     companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
     companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
   ]);
+  const sales = salesForLine(allSales, line);
   const salesSection = (
     <>
+      <LineFilter current={line} note="Sales and margin follow the line you choose. Cash collected and unpaid invoices are not split by line." />
       <SalesByLine sales={sales} />
       <CashCollected cash={cash} />
     </>
@@ -71,6 +78,9 @@ export default async function FinancePage() {
         title="Sales, margin and receivables"
         sub={`Invoices that customers have not paid, on ${r.asOf} (from the unpaid-invoices file, ${r.sourceRows} rows). We count the days after each invoice's due date. An invoice with no due date is shown separately. We do not guess its age.`}
       />
+      <p className="mb-4">
+        <AssignActionLink role={user.role} title="Recover overdue balances" evidence={`Review the unpaid invoices as of ${r.asOf}: confirm acceptance documents and an agreed payment plan.`} responsible="Finance manager" label="Assign collection follow-up →" />
+      </p>
       {salesSection}
       <h2 className="mb-3 mt-8 text-sm font-semibold">Receivables (money customers owe you)</h2>
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-3">
@@ -79,7 +89,7 @@ export default async function FinancePage() {
           { label: "Overdue", value: jod(r.overdue), note: "Not paid after the due date" },
           { label: "Due date missing", value: jod(r.dueDateMissing.amount), note: `${r.dueDateMissing.invoices} invoice${r.dueDateMissing.invoices === 1 ? "" : "s"}, age not known` },
         ].map((s) => (
-          <div key={s.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+          <div key={s.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
             <p className="text-[11px] text-muted md:text-xs">{s.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{s.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{s.note}</p>
@@ -206,7 +216,7 @@ function CashCollected({ cash }: { cash: Cash }) {
           { label: "Last 30 days of data", value: jod(cash.last30), note: `${dateRange(addDays(cash.to, -29), cash.to)}` },
           { label: "Not linked to an invoice", value: jod(cash.unlinkedYtd), note: "Money received but not matched to an invoice. It is already in the total above" },
         ].map((x) => (
-          <div key={x.label} className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
+          <div key={x.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
             <p className="text-[11px] text-muted md:text-xs">{x.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{x.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{x.note}</p>

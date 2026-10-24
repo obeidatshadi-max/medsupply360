@@ -63,6 +63,15 @@ export const canManageSalesForce = (role: Role): boolean => role === "owner";
 /** Who may read the Sales force page (emails, targets, who holds what): the owner and administrators. */
 export const canSeeSalesForce = (role: Role): boolean => role === "owner" || role === "admin";
 
+/** Who adds, finishes and removes management actions: the owner and administrators. Everyone with business access reads them. */
+export const canManageActions = (role: Role): boolean => role === "owner" || role === "admin";
+
+/** Who writes the company profile: the CEO. Everyone with business access reads it. */
+export const canEditProfile = (role: Role): boolean => role === "owner";
+
+/** Who defines the support indicators and records their readings: the CEO. Everyone with business access reads them. */
+export const canManageSupport = (role: Role): boolean => role === "owner";
+
 /** Who may read the Update history: the owner and administrators. Department staff see their own tender's history only. */
 export const canSeeHistory = (role: Role): boolean => role === "owner" || role === "admin";
 

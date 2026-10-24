@@ -3,7 +3,7 @@
  * access table is computed from the app's own permission rules (src/core/permissions.ts), so it cannot drift from what
  * the live app enforces.
  */
-import { ROLES, ROLE_LABEL, canAccess, canEditGuarantees, canEditPayments, canEditTender, type Role } from "@/core/permissions";
+import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL, canAccess, canEditGuarantees, canEditPayments, canEditTender, type Role } from "@/core/permissions";
 import { dayText } from "@/lib/format";
 
 export interface DemoPerson {
@@ -39,6 +39,20 @@ export const settingsCsvRows = (): string[][] => [
   ...DEMO_PEOPLE.map((p) => [p.name, p.email, ROLE_LABEL[p.role].name, p.active ? "Active" : "Turned off", p.lastSignIn ?? "Never"]),
 ];
 
+/** The live app's "Add a person" form, as it looks there. The demo's button saves nothing (see bindSettings in demo/index.html). */
+export function addPersonHtml(): string {
+  const roles = ASSIGNABLE_ROLES.map((r) => `<option value="${r}">${esc(ROLE_LABEL[r].name)} · ${esc(ROLE_LABEL[r].note)}</option>`).join("");
+  return (
+    `<form id="demoAddPerson" class="panel" autocomplete="off"><div class="panelhead"><div><h2>Add a person</h2><p class="sub">The owner gives the colleague a first password; they can change it with "Forgot password".</p></div></div>` +
+    `<div class="formgrid">` +
+    `<label>Full name<input name="fullName" maxlength="200" placeholder="e.g. Sales analyst"></label>` +
+    `<label>Email<input name="email" type="email" maxlength="255" placeholder="name@company.example"></label>` +
+    `<label>Access<select name="role"><option value="" disabled selected>Choose…</option>${roles}</select></label>` +
+    `<label>First password<input name="password" type="password" minlength="12" maxlength="200" placeholder="At least 12 characters"></label>` +
+    `</div><p style="margin-top:12px"><button type="submit" class="primary" style="width:auto">Add person</button> <span class="mini">The live app saves the person; here it saves nothing.</span></p></form>`
+  );
+}
+
 export function settingsHtml({ query }: { query?: string } = {}): string {
   const q = query?.toLowerCase();
   const people = DEMO_PEOPLE.filter((p) => !q || `${p.name} ${p.email} ${ROLE_LABEL[p.role].name}`.toLowerCase().includes(q));
@@ -64,8 +78,9 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
     ]),
   );
   return (
-    `<div class="info">Sample people with made-up job titles. In the live app the owner adds a colleague with a first password, picks the access level, and can turn the person off at any time. A change takes effect on their next click. This demo only shows the screen.</div>` +
-    panel("People with access", `${people.length} of ${DEMO_PEOPLE.length} people · the owner's own access cannot be changed here`, peopleTable) +
+    `<div class="info">Sample people with made-up job titles. In the live app the owner adds a colleague with a first password, picks the access level, and can turn the person off at any time. A change takes effect on their next click. The form below shows how; this demo saves nothing.</div>` +
+    addPersonHtml() +
+    `<div style="margin-top:20px">` + panel("People with access", `${people.length} of ${DEMO_PEOPLE.length} people · the owner's own access cannot be changed here`, peopleTable) +
     `<div style="margin-top:20px">${panel("What each access level can do", "Computed from the same rules the live app enforces", access)}</div>` +
     `<div class="info">Tender and finance staff see only the Tenders section, so they never see company profit or sales figures.</div>`
   );

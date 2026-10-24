@@ -2,6 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { isIsoDate, roundJod } from "@/core/calc";
+import type { Line } from "@/core/sales-by-line";
 
 export type CompanyAccountView = "all" | "private" | "tender";
 export interface CompanyAccount {
@@ -36,7 +37,7 @@ export interface CompanyAccount {
  * `salesTo` ends the year-to-date sales window (pass `windowEnd(today, latestInvoice)` so it matches the Overview);
  * the unpaid-invoice snapshot is still the newest one up to `today`.
  */
-export async function companyAccounts(companyId: string, today: string, view: CompanyAccountView = "all", search = "", salesTo = today) {
+export async function companyAccounts(companyId: string, today: string, view: CompanyAccountView = "all", search = "", salesTo = today, line: Line | null = null) {
   if (!isIsoDate(today) || !isIsoDate(salesTo)) throw new RangeError("Invalid accounts date");
   const from = `${salesTo.slice(0, 4)}-01-01`;
   const result = await getDb().execute(sql`
@@ -55,7 +56,9 @@ export async function companyAccounts(companyId: string, today: string, view: Co
         max(i.invoice_date) filter(where s.doc_type = 'invoice' and s.quantity > 0 and s.net_sales > 0) as last_order
       from sales_lines s
       join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
+      join products p on p.company_id = s.company_id and p.id = s.product_id
       where s.company_id = ${companyId} and i.invoice_date <= ${salesTo}::date
+        and (${line}::text is null or p.line::text = ${line}::text)
       group by i.customer_id
     ), balances as (
       select i.customer_id, sum(o.remaining_amount) as outstanding,

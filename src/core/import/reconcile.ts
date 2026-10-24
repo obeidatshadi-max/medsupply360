@@ -111,6 +111,24 @@ export function reconcile(kind: ImportKind, rows: RowRef[], snapshotDate: string
       for (const [t, n] of tally(rows, (r) => str(r, "txType") ?? "?")) lines.push({ label: t.replace("_", " "), value: count(n) });
       break;
     }
+    case "tenders": {
+      lines.push({ label: "Tenders in the file", value: count(rows.length) });
+      lines.push({ label: "New tenders", value: count(rows.filter((r) => r.values._existingId == null).length) });
+      lines.push({ label: "Already recorded (details updated)", value: count(rows.filter((r) => r.values._existingId != null).length) });
+      for (const [a, n] of tally(rows, (r) => str(r, "authority") ?? "?")) lines.push({ label: a, value: count(n) });
+      for (const [s, n] of tally(rows, (r) => str(r, "status") ?? "pipeline")) lines.push({ label: `Stage: ${s.replace("_", " ")}`, value: count(n) });
+      lines.push({ label: "Estimated value", value: jod(sum(rows.filter((r) => r.values.estimatedValue != null), "estimatedValue")) });
+      lines.push({ label: "Without a tender number", value: count(rows.filter((r) => r.values.tenderNo == null).length) });
+      break;
+    }
+    case "sales_people": {
+      lines.push({ label: "People in the file", value: count(rows.length) });
+      lines.push({ label: "New", value: count(rows.filter((r) => r.values._existingId == null).length) });
+      lines.push({ label: "Already recorded (updated)", value: count(rows.filter((r) => r.values._existingId != null).length) });
+      lines.push({ label: "Monthly sales targets", value: jod(sum(rows.filter((r) => r.values.monthlySalesTarget != null), "monthlySalesTarget")) });
+      lines.push({ label: "Without a monthly target", value: count(rows.filter((r) => r.values.monthlySalesTarget == null).length) });
+      break;
+    }
     case "tender_results": {
       const items = new Set(rows.map((r) => [str(r, "authority"), str(r, "tenderNo"), str(r, "lineRef")].join("\u0000")));
       const tenders = new Set(rows.map((r) => [str(r, "authority"), str(r, "tenderNo")].join("\u0000")));

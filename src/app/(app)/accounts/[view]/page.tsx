@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/current-user";
-import { VIEWS, type View } from "@/demo/accounts";
-import { AccountsScreen } from "@/demo/accounts-screen";
+import { VIEWS } from "@/demo/accounts";
 import { companyAccounts, type CompanyAccountView } from "@/lib/company-accounts";
 import { CompanyAccounts } from "@/components/company-accounts";
 import { PageHeading } from "@/components/page-heading";
+import { LineFilter } from "@/components/line-filter";
+import { currentLine } from "@/lib/line";
 import { businessToday } from "@/lib/business-date";
 import { companyDataSummary } from "@/lib/company-data-summary";
 import { windowEnd } from "@/core/freshness";
@@ -21,15 +22,17 @@ export default async function AccountsPage({ params, searchParams }: { params: P
   const { view } = await params;
   if (!VIEWS.some((v) => v.key === view)) notFound();
   const user = await requireUser();
-  // Guests (open access) see the synthetic dataset; signed-in users see their own company's accounts once data is imported.
-  if (user.guest) return <AccountsScreen view={view as View} basePath="/accounts" />;
+  // A signed-out visitor sees no accounts; made-up ones live only under Sample data.
+  if (user.guest) return <PageHeading eyebrow="Accounts" title="Company accounts" sub="Please sign in with a company account to see your accounts." />;
   const query = (await searchParams).q;
   const today = businessToday();
   const summary = await companyDataSummary(user.companyId);
   // Same year-to-date window as the Overview: it ends at the newest invoice, so the two pages never disagree across a year boundary.
-  const report = await companyAccounts(user.companyId, today, view as CompanyAccountView, typeof query === "string" ? query : "", windowEnd(today, summary.latestInvoice));
+  const line = await currentLine();
+  const report = await companyAccounts(user.companyId, today, view as CompanyAccountView, typeof query === "string" ? query : "", windowEnd(today, summary.latestInvoice), line);
   return (
     <div><PageHeading eyebrow={`${user.companyName} · Accounts`} title="Company accounts" sub="Sales, balances and follow-up checks from your imported company records." />
+      <LineFilter current={line} note="Sales and gross profit follow the line you choose. Balances owed are not split by line." />
       <CompanyAccounts report={report} view={view as CompanyAccountView} canImport={user.role === "owner"} ownerLinks={canSeeSalesForce(user.role)} salesThrough={summary.latestInvoice} />
     </div>
   );

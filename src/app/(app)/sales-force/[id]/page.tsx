@@ -5,16 +5,18 @@ import { CustomerLink } from "@/components/customer-link";
 import { PageHeading } from "@/components/page-heading";
 import { windowEnd } from "@/core/freshness";
 import { canManageSalesForce, canSeeSalesForce } from "@/core/permissions";
+import { activityProgress, monthOf, newAccountsInMonth, weekEnd, weekStart } from "@/core/sales-activity";
 import { TARGET_WORD, targetProgress } from "@/core/sales-force";
 import { STATUS_LABEL, type TenderStatus } from "@/core/tender-flow";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { companyDataSummary } from "@/lib/company-data-summary";
-import { dateRange, jod, pct } from "@/lib/format";
-import { assignAccountAction, setSalesPersonActiveAction } from "@/server/actions/sales-force";
-import { getSalesPerson, listPersonAccounts, listPersonProducts, listPersonTenders, listSupplierNames, listUnassignedAccounts, salesByPerson, salesByPersonProducts } from "@/server/services/sales-force";
+import { dateRange, dayText, jod, pct } from "@/lib/format";
+import { assignAccountAction, removeVisitAction, setSalesPersonActiveAction } from "@/server/actions/sales-force";
+import { countVisits, firstInvoiceDatesOfAccounts, getSalesPerson, listPersonAccounts, listVisits, listPersonProducts, listPersonTenders, listSupplierNames, listUnassignedAccounts, salesByPerson, salesByPersonProducts } from "@/server/services/sales-force";
 import { EditPersonForm } from "../person-forms";
+import { VisitForm } from "../visit-form";
 
 export const metadata: Metadata = { title: "Sales person" };
 
@@ -34,7 +36,9 @@ export default async function SalesPersonPage({ params, searchParams }: { params
   const to = windowEnd(businessToday(), d.latestInvoice);
   const from = `${to.slice(0, 4)}-01-01`;
   const manage = canManageSalesForce(user.role);
-  const [sales, productSales, productsHeld, accounts, tenderList, suppliers, candidates] = await Promise.all([
+  const today = businessToday();
+  const weekFrom = weekStart(today);
+  const [sales, productSales, productsHeld, accounts, tenderList, suppliers, candidates, firstOrders, visitsThisWeek, visits] = await Promise.all([
     salesByPerson(db, user.companyId, from, to),
     salesByPersonProducts(db, user.companyId, from, to),
     listPersonProducts(db, user.companyId, person.id),
@@ -42,10 +46,19 @@ export default async function SalesPersonPage({ params, searchParams }: { params
     listPersonTenders(db, user.companyId, person.id),
     manage ? listSupplierNames(db, user.companyId) : Promise.resolve([]),
     manage ? listUnassignedAccounts(db, user.companyId, search, 25) : Promise.resolve([]),
+    firstInvoiceDatesOfAccounts(db, user.companyId, person.id),
+    countVisits(db, user.companyId, person.id, weekFrom, weekEnd(weekFrom)),
+    listVisits(db, user.companyId, person.id, 15),
   ]);
   const ytd = sales.get(person.id) ?? 0;
   const productYtd = productSales.get(person.id) ?? 0;
   const tp = targetProgress(ytd, person.monthlySalesTarget, to);
+  const month = monthOf(to);
+  const newAccounts = newAccountsInMonth(firstOrders, month);
+  const newProgress = activityProgress(newAccounts, person.newAccountsTarget);
+  const visitProgress = activityProgress(visitsThisWeek, person.visitsPerWeek);
+  const goalNote = (target: number | null, p: ReturnType<typeof activityProgress>, unit: string) =>
+    target === null ? "No target set" : `Target ${target} ${unit} · ${pct(p.ratio ?? 0)} reached · ${p.status === "on" ? "On target" : "Behind"}`;
 
   const stat = (label: string, value: string, note?: string) => (
     <div className="rounded-[9px] border border-line bg-white p-4">
@@ -74,10 +87,10 @@ export default async function SalesPersonPage({ params, searchParams }: { params
         {stat(
           "Monthly target so far",
           tp.expected === null ? "—" : jod(tp.expected),
-          tp.ratio === null || accounts.length === 0 ? TARGET_WORD.none : `${pct(tp.ratio)} reached · ${TARGET_WORD[tp.status]}`,
+          tp.ratio === null ? TARGET_WORD.none : accounts.length === 0 ? "Target set; no accounts assigned yet" : `${pct(tp.ratio)} reached · ${TARGET_WORD[tp.status]}`,
         )}
-        {stat("New accounts a month", person.newAccountsTarget === null ? "—" : String(person.newAccountsTarget), "Expectation. Not counted by the system yet.")}
-        {stat("Visits a week", person.visitsPerWeek === null ? "—" : String(person.visitsPerWeek), "Expectation. Not counted by the system yet.")}
+        {stat("New accounts this month", String(newAccounts), `${goalNote(person.newAccountsTarget, newProgress, "a month")}. An account counts when its first order in the imported sales falls in ${month}.`)}
+        {stat("Visits this week", String(visitsThisWeek), `${goalNote(person.visitsPerWeek, visitProgress, "a week")}. Week of ${dayText(weekFrom)}.`)}
       </section>
 
       {manage ? (
@@ -104,6 +117,35 @@ export default async function SalesPersonPage({ params, searchParams }: { params
           </form>
         </>
       ) : null}
+
+      <section aria-label="Visits" className="space-y-3">
+        <h2 className="text-sm font-semibold">Customer visits</h2>
+        {manage ? <VisitForm personId={person.id} today={today} customers={accounts.map((c) => ({ id: c.id, label: `${c.name} · ${c.code}` }))} /> : null}
+        {visits.length === 0 ? (
+          <p className="text-sm text-muted">No visit written down yet.</p>
+        ) : (
+          <ul className="divide-y divide-line rounded-lg border border-line bg-white text-sm">
+            {visits.map((v) => (
+              <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
+                <span>
+                  <span className="tabular-nums">{dayText(v.visitedOn)}</span>
+                  {v.customerName ? <span className="ml-2">{v.customerName} <span className="text-xs text-muted">{v.customerCode}</span></span> : null}
+                  {v.note ? <span className="ml-2 text-muted">{v.note}</span> : null}
+                </span>
+                {manage ? (
+                  <form action={removeVisitAction}>
+                    <input type="hidden" name="visitId" value={v.id} />
+                    <input type="hidden" name="personId" value={person.id} />
+                    <button type="submit" className="text-xs text-bad underline underline-offset-2">
+                      Remove
+                    </button>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section aria-label="Products" className="space-y-2">
         <h2 className="text-sm font-semibold">Products ({productsHeld.length})</h2>

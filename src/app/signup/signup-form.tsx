@@ -21,6 +21,9 @@ export function SignupForm() {
       <Field id="password" label="Password" hint="At least 10 characters.">
         <input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required className={fieldClass} />
       </Field>
+      <Field id="inviteCode" label="Invitation code">
+        <input id="inviteCode" name="inviteCode" autoComplete="off" required className={fieldClass} />
+      </Field>
       {/* Honeypot: hidden from people, tempting to bots. */}
       <div aria-hidden="true" className="absolute left-[-9999px] h-0 w-0 overflow-hidden">
         <label>
