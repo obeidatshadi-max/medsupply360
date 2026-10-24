@@ -34,7 +34,7 @@ export function prefillRows(t: PrefillTender, ourCompany: string): string[][] {
   const keys = SPECS.tender_results.fields.map((f) => f.key);
   const row = (v: Record<string, string>) => keys.map((k) => v[k] ?? "");
   const lost = t.status === "lost";
-  const common = { authority: t.authority, tenderNo: t.tenderNo ?? "", tenderTitle: defuse(t.title), awardDate: t.awardDate ?? "", currency: "JOD" };
+  const common = { authority: t.authority, tenderNo: defuse(t.tenderNo ?? ""), tenderTitle: defuse(t.title), awardDate: t.awardDate ?? "", currency: "JOD" };
   const rows = [keys.map((k) => headingOf("tender_results", k)), row({ ...common, bidder: defuse(ourCompany), ourBid: "Yes", result: lost ? "lost" : "won" })];
   if (lost && t.winnerName) rows.push(row({ ...common, bidder: defuse(t.winnerName), ourBid: "No", result: "won" }));
   return rows;

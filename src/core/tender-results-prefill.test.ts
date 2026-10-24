@@ -53,7 +53,9 @@ describe("prefilled award results", () => {
     expect(["Nitrile gloves", "MOH-26-1", "2026-09-05", ""].map(defuse)).toEqual(["Nitrile gloves", "MOH-26-1", "2026-09-05", ""]);
     const [h, ours, theirs] = prefillRows({ ...base, title: "=1+1", winnerName: "@evil" }, "-Co");
     expect([ours![h!.indexOf("Tender title")], ours![h!.indexOf("Bidder")], theirs![h!.indexOf("Bidder")]]).toEqual(["'=1+1", "'-Co", "'@evil"]);
-    expect(ours![h!.indexOf("Tender no")]).toBe("KAUH-26-040"); // codes and dates stay untouched
+    expect(ours![h!.indexOf("Tender no")]).toBe("KAUH-26-040"); // real tender numbers and dates stay untouched
+    const [h2, row2] = prefillRows({ ...base, tenderNo: "=cmd|' /C calc'!A0" }, "Co");
+    expect(row2![h2!.indexOf("Tender no")]).toBe("'=cmd|' /C calc'!A0");
   });
 
   it("quotes commas and builds a safe file name", () => {
