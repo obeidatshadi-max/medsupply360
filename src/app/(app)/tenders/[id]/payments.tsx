@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { addInvoiceAction, deleteInvoiceAction, setCollectedAction, type FinanceFormState } from "@/server/actions/tender-finance";
 import { SubmitterField } from "@/components/submitter-field";
 import { checkAgainstErp, type ErpCheck, type ErpInvoiceFacts } from "@/core/tender-erp";
-import { paymentSummary } from "@/core/tender-money";
+import { dueState, effectiveDueDate, paymentSummary } from "@/core/tender-money";
 import type { InvoiceRow } from "@/server/services/tender-finance";
 import { dayText, jod } from "@/lib/format";
 import { fieldClass } from "../tender-fields";
@@ -36,7 +36,21 @@ function ErpNote({ check }: { check: ErpCheck }) {
   );
 }
 
-function InvoiceItem({ tenderId, inv, erp, checked, canEdit }: { tenderId: string; inv: InvoiceRow; erp: ErpInvoiceFacts | undefined; checked: boolean; canEdit: boolean }) {
+function DueLine({ inv, termsDays, today }: { inv: InvoiceRow; termsDays: number | null; today: string }) {
+  const due = effectiveDueDate(inv, termsDays);
+  const s = dueState({ amount: inv.amount, collected: inv.collected, dueDate: due }, today);
+  if (s.state === "paid") return null;
+  if (due === null) return <p className="mt-1 text-xs text-muted">No due date: enter one below, or set the payment terms on the tender.</p>;
+  const source = inv.dueDate ? "entered on the invoice" : `invoice date + ${termsDays} days`;
+  return (
+    <p className={`mt-1 text-xs ${s.state === "overdue" ? "text-bad" : "text-muted"}`}>
+      Due {dayText(due)} ({source}) ·{" "}
+      {s.state === "overdue" ? `${s.daysAgo} day${s.daysAgo === 1 ? "" : "s"} overdue` : s.state === "not-due" ? (s.daysLeft === 0 ? "due today" : `${s.daysLeft} day${s.daysLeft === 1 ? "" : "s"} left`) : ""}
+    </p>
+  );
+}
+
+function InvoiceItem({ tenderId, inv, erp, checked, canEdit, termsDays, today }: { tenderId: string; inv: InvoiceRow; erp: ErpInvoiceFacts | undefined; checked: boolean; canEdit: boolean; termsDays: number | null; today: string }) {
   const [state, action, pending] = useActionState<FinanceFormState, FormData>(setCollectedAction, {});
   const left = Math.max(0, Math.round((inv.amount - inv.collected) * 1000) / 1000);
   return (
@@ -52,11 +66,12 @@ function InvoiceItem({ tenderId, inv, erp, checked, canEdit }: { tenderId: strin
         {inv.lastCollectedOn ? ` (latest payment ${dayText(inv.lastCollectedOn)})` : ""} ·{" "}
         <span className={left === 0 ? "text-brand" : "text-bad"}>{left === 0 ? "Paid in full" : `${jod(left)} still unpaid`}</span>
       </p>
+      <DueLine inv={inv} termsDays={termsDays} today={today} />
       {checked ? <ErpNote check={checkAgainstErp(left, erp)} /> : null}
       {canEdit ? (
         <details className="mt-3">
           <summary className="cursor-pointer text-xs underline underline-offset-2">Record payment or remove</summary>
-          <form action={action} className="mt-3 grid gap-3 md:grid-cols-3">
+          <form action={action} className="mt-3 grid gap-3 md:grid-cols-4">
             <input type="hidden" name="tenderId" value={tenderId} />
             <input type="hidden" name="invoiceId" value={inv.id} />
             <div>
@@ -67,15 +82,19 @@ function InvoiceItem({ tenderId, inv, erp, checked, canEdit }: { tenderId: strin
               <label className="text-sm font-medium">Date of latest payment</label>
               <input name="collectedOn" type="date" defaultValue={inv.lastCollectedOn ?? ""} className={fieldClass} />
             </div>
+            <div>
+              <label className="text-sm font-medium">Due date (leave empty to use the terms)</label>
+              <input name="dueDate" type="date" defaultValue={inv.dueDate ?? ""} className={fieldClass} />
+            </div>
             <div className="flex items-end">
               <button type="submit" disabled={pending} className="rounded-[7px] border border-line bg-white px-3 py-2 text-xs font-semibold hover:border-brand disabled:opacity-60">
                 {pending ? "Saving…" : "Save payment"}
               </button>
             </div>
-            <div className="md:col-span-3">
+            <div className="md:col-span-4">
               <SubmitterField />
             </div>
-            <div className="md:col-span-3">
+            <div className="md:col-span-4">
               <Message state={state} />
             </div>
           </form>
@@ -93,7 +112,7 @@ function InvoiceItem({ tenderId, inv, erp, checked, canEdit }: { tenderId: strin
   );
 }
 
-export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts> | null; canEdit: boolean; canAdd: boolean }) {
+export function Payments({ tenderId, rows, erp, canEdit, canAdd, termsDays, today }: { tenderId: string; rows: InvoiceRow[]; erp: Record<string, ErpInvoiceFacts> | null; canEdit: boolean; canAdd: boolean; termsDays: number | null; today: string }) {
   const [state, action, pending] = useActionState<FinanceFormState, FormData>(addInvoiceAction, {});
   const sum = paymentSummary(rows.map((r) => ({ amount: r.amount, collected: r.collected })));
   return (
@@ -109,14 +128,14 @@ export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: s
       )}
       <ul className="space-y-2">
         {rows.map((inv) => (
-          <InvoiceItem key={inv.id} tenderId={tenderId} inv={inv} erp={erp ? erp[inv.invoiceNo] : undefined} checked={erp !== null} canEdit={canEdit} />
+          <InvoiceItem key={inv.id} tenderId={tenderId} inv={inv} erp={erp ? erp[inv.invoiceNo] : undefined} checked={erp !== null} canEdit={canEdit} termsDays={termsDays} today={today} />
         ))}
       </ul>
       {canEdit && canAdd ? (
         <form action={action} className="space-y-3 rounded-lg border border-line bg-surface p-5">
           <input type="hidden" name="tenderId" value={tenderId} />
           <p className="text-sm font-medium">Add an invoice</p>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <div>
               <label className="text-sm font-medium">Invoice number</label>
               <input name="invoiceNo" required maxLength={80} autoComplete="off" className={fieldClass} />
@@ -128,6 +147,11 @@ export function Payments({ tenderId, rows, erp, canEdit, canAdd }: { tenderId: s
             <div>
               <label className="text-sm font-medium">Amount (JOD)</label>
               <input name="amount" required inputMode="decimal" autoComplete="off" className={fieldClass} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Due date (optional)</label>
+              <input name="dueDate" type="date" className={fieldClass} />
+              <p className="mt-1 text-[11px] text-muted">{termsDays === null ? "No payment terms on the tender, so enter the date if you know it." : `Empty means invoice date + ${termsDays} days.`}</p>
             </div>
           </div>
           <SubmitterField />

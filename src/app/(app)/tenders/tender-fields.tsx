@@ -5,7 +5,7 @@ export const fieldClass = "mt-1 block w-full rounded-md border border-line bg-wh
 
 /** What a form posts for each tender field, as the text a person would type. */
 export type FieldValues = Record<
-  "authority" | "tenderNo" | "title" | "productLine" | "estimatedValue" | "deadline" | "bidValue" | "awardAmount" | "closeReason" | "closeReasonCode" | "winnerName" | "winningPrice" | "expectedAwardDate" | "submittedOn" | "bidOpeningDate" | "contractNo" | "contractValue" | "deliveredOn" | "notes",
+  "authority" | "tenderNo" | "title" | "productLine" | "estimatedValue" | "deadline" | "bidValue" | "awardAmount" | "closeReason" | "closeReasonCode" | "winnerName" | "winningPrice" | "expectedAwardDate" | "submittedOn" | "bidOpeningDate" | "paymentTermsDays" | "contractNo" | "contractValue" | "deliveredOn" | "notes",
   string
 >;
 
@@ -28,6 +28,7 @@ export function valuesOf(t: TenderRow | null): FieldValues {
     expectedAwardDate: t?.expectedAwardDate ?? "",
     submittedOn: t?.submittedOn ?? "",
     bidOpeningDate: t?.bidOpeningDate ?? "",
+    paymentTermsDays: t?.paymentTermsDays == null ? "" : String(t.paymentTermsDays),
     contractNo: t?.contractNo ?? "",
     contractValue: amount(t?.contractValue ?? null),
     deliveredOn: t?.deliveredOn ?? "",
@@ -53,6 +54,7 @@ export const LABEL: Record<Key, string> = {
   expectedAwardDate: "Expected award date (if known)",
   submittedOn: "Date the bid was handed in",
   bidOpeningDate: "Bid opening date (if announced)",
+  paymentTermsDays: "Payment terms (days after the invoice date)",
   contractNo: "Contract or PO number",
   contractValue: "Contract value (JOD)",
   deliveredOn: "Delivery date",
@@ -110,7 +112,7 @@ export function FieldInput({ name, value, required = false, endingAs }: { name: 
         id={id}
         name={name}
         type="text"
-        inputMode={MONEY_KEYS.includes(name) ? "decimal" : undefined}
+        inputMode={MONEY_KEYS.includes(name) ? "decimal" : name === "paymentTermsDays" ? "numeric" : undefined}
         defaultValue={value}
         required={required || name === "title"}
         maxLength={name === "title" ? 300 : name === "winnerName" ? 200 : 80}

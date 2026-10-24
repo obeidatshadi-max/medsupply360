@@ -115,6 +115,15 @@ describe("tender list", () => {
     expect(row).toEqual({ submitted_on: "2026-10-01", bid_opening_date: "2026-10-03" });
   });
 
+  it("loads payment terms in days and refuses a non-number", async () => {
+    const ok = await imp(a, "tenders", ["authority,tender no,title,product line,payment terms", "KAUH,KAUH-P1,With terms,equipment,90"].join("\n"));
+    expect(ok).toMatchObject({ status: "accepted", rowsAccepted: 1 });
+    const [row] = await q<{ payment_terms_days: number }>(`select payment_terms_days from tenders where company_id = $1 and tender_no = 'KAUH-P1'`, [a]);
+    expect(row).toEqual({ payment_terms_days: 90 });
+    const bad = await imp(a, "tenders", ["authority,tender no,title,product line,payment terms", "KAUH,KAUH-P2,Bad terms,equipment,soon"].join("\n"));
+    expect(bad.status).toBe("rejected");
+  });
+
   it("rejects a lost tender with no reason, and a reason that does not fit its ending", async () => {
     const H = "authority,tender no,title,product line,status,reason code";
     const out = await imp(a, "tenders", [H, "JUH,JUH-X1,No reason,equipment,lost,", "JUH,JUH-X2,Wrong reason,equipment,lost,no budget", "JUH,JUH-X3,Unknown reason,equipment,cancelled,because"].join("\n"));

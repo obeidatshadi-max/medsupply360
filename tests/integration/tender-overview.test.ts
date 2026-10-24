@@ -51,7 +51,7 @@ describe("companyTenderOverview", () => {
     expect(o.results.recentLost[0]).toMatchObject({ title: "Lost one", reason: "Price too high" });
     expect(o.deadlines.upcoming).toMatchObject([{ title: "Open one", daysLeft: 7 }]);
     expect(o.guarantees).toMatchObject({ active: 1500, count: 1 });
-    expect(o.payments).toEqual({ invoiced: 9000, collected: 2500, unpaid: 6500 });
+    expect(o.payments).toEqual({ invoiced: 9000, collected: 2500, unpaid: 6500, notYetDue: 0, overdue: 0, noDueDate: 6500, overdueInvoices: 0, oldestOverdueDays: null });
     expect(o.authorities.find((x) => x.code === "KHCC")!.unpaid).toBe(6500);
   });
 
@@ -104,5 +104,23 @@ describe("time from submission to decision", () => {
 
   it("is empty for a company with no decided tender", async () => {
     expect((await companyTenderOverview(db, b, TODAY)).timeToDecision).toEqual({ count: 0, average: null, median: null, fastest: null, slowest: null, missing: 0 });
+  });
+});
+
+describe("overdue and not yet due", () => {
+  it("works out each invoice's due date from its own date or the tender's payment terms and splits the unpaid money", async () => {
+    const d = (await q<{ id: string }>(`insert into companies (slug, name) values ('d', 'D') returning id`))[0]!.id;
+    const t = async (title: string, terms: string) =>
+      (await q<{ id: string }>(`insert into tenders (company_id, authority, title, product_line, status, payment_terms_days) values ('${d}', 'MOH', '${title}', 'equipment', 'delivered', ${terms}) returning id`))[0]!.id;
+    const inv = (tender: string, no: string, date: string, amount: number, collected: number, due = "null") =>
+      client.exec(`insert into tender_invoices (company_id, tender_id, invoice_no, invoice_date, amount, collected_amount, due_date) values ('${d}', '${tender}', '${no}', '${date}', ${amount}, ${collected}, ${due})`);
+    const sixty = await t("Sixty day terms", "60");
+    const none = await t("No terms", "null");
+    await inv(sixty, "A", "2026-07-01", 1000, 0); // due 2026-08-30: overdue on 2026-10-18
+    await inv(sixty, "B", "2026-10-01", 500, 100); // due 2026-11-30: 400 not yet due
+    await inv(sixty, "C", "2026-10-01", 200, 0, "'2026-10-10'"); // typed due date wins: overdue
+    await inv(none, "D", "2026-10-01", 300, 0); // no terms, no date: unknown
+    const o = await companyTenderOverview(db, d, TODAY);
+    expect(o.payments).toMatchObject({ unpaid: 1900, overdue: 1200, notYetDue: 400, noDueDate: 300, overdueInvoices: 2, oldestOverdueDays: 49 });
   });
 });

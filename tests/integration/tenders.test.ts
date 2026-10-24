@@ -19,7 +19,7 @@ let b: string;
 let userA: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
-const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
+const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", paymentTermsDays: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
 const form = (over: Partial<TenderForm> = {}): TenderForm => ({ ...blank, title: "Analyzer for central lab", ...over });
 
 beforeAll(async () => {
@@ -175,6 +175,25 @@ describe("moving tenders", () => {
     await client.exec(`update tenders set status = 'preparing' where id = '${id}'`);
     expect((await move(id, "submitted", "preparing", { bidValue: "5" })).ok).toBe(true);
     expect((await getTender(db, a, id))!.tender).toMatchObject({ submittedOn: null, bidOpeningDate: null });
+  });
+
+  it("saves the payment terms at the contract step, never requires them, and refuses nonsense", async () => {
+    const mk = async (no: string) => {
+      const id = await create({ tenderNo: no, estimatedValue: "1", deadline: "2026-12-01" });
+      await client.exec(`update tenders set status = 'won', award_amount = 5 where id = '${id}'`);
+      return id;
+    };
+    const withTerms = await mk("TERMS-1");
+    expect((await move(withTerms, "contracted", "won", { contractNo: "PO-1", contractValue: "5", paymentTermsDays: "90" })).ok).toBe(true);
+    expect((await getTender(db, a, withTerms))!.tender.paymentTermsDays).toBe(90);
+    const without = await mk("TERMS-2");
+    expect((await move(without, "contracted", "won", { contractNo: "PO-2", contractValue: "5" })).ok).toBe(true);
+    expect((await getTender(db, a, without))!.tender.paymentTermsDays).toBeNull();
+    const bad = await mk("TERMS-3");
+    for (const v of ["ninety", "-5", "9.5", "366", "1000"]) {
+      expect(await move(bad, "contracted", "won", { contractNo: "PO-3", contractValue: "5", paymentTermsDays: v })).toEqual({ ok: false, error: "Payment terms must be a whole number of days, from 0 to 365." });
+    }
+    expect((await getTender(db, a, bad))!.tender.status).toBe("won");
   });
 
   it("keeps the expected award date from the Submitted step and refuses a malformed one", async () => {

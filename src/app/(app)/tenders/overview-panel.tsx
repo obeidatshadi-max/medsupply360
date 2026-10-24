@@ -168,6 +168,24 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
           <p className="text-xs text-muted">
             Invoiced {jod(o.payments.invoiced)} · collected {jod(o.payments.collected)}
           </p>
+          {o.payments.unpaid > 0 ? (
+            <ul className="mt-2 space-y-0.5 text-sm">
+              <li className="flex justify-between gap-x-3">
+                <span className={o.payments.overdue > 0 ? "text-bad" : undefined}>
+                  Overdue{o.payments.overdueInvoices > 0 ? ` (${plural(o.payments.overdueInvoices, "invoice")}, oldest ${o.payments.oldestOverdueDays} days)` : ""}
+                </span>
+                <span className="tabular-nums">{jod(o.payments.overdue)}</span>
+              </li>
+              <li className="flex justify-between gap-x-3">
+                <span>Not yet due</span>
+                <span className="tabular-nums">{jod(o.payments.notYetDue)}</span>
+              </li>
+              <li className="flex justify-between gap-x-3 text-muted">
+                <span>No due date known</span>
+                <span className="tabular-nums">{jod(o.payments.noDueDate)}</span>
+              </li>
+            </ul>
+          ) : null}
           <ul className="mt-3 space-y-1 border-t border-dashed border-line pt-2 text-sm">
             {o.authorities
               .filter((a) => a.unpaid > 0)

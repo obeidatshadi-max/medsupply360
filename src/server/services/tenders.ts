@@ -64,6 +64,7 @@ const toRow = (r: Raw, ownerName: string | null = null): TenderRow => ({
   expectedAwardDate: r.expectedAwardDate,
   submittedOn: r.submittedOn,
   bidOpeningDate: r.bidOpeningDate,
+  paymentTermsDays: r.paymentTermsDays,
   contractNo: r.contractNo,
   contractValue: num(r.contractValue),
   deliveredOn: r.deliveredOn,
@@ -100,6 +101,7 @@ export function formOf(t: TenderRow): TenderForm {
     expectedAwardDate: t.expectedAwardDate ?? "",
     submittedOn: t.submittedOn ?? "",
     bidOpeningDate: t.bidOpeningDate ?? "",
+    paymentTermsDays: t.paymentTermsDays === null ? "" : String(t.paymentTermsDays),
     contractNo: t.contractNo ?? "",
     contractValue: amountText(t.contractValue),
     deliveredOn: t.deliveredOn ?? "",
@@ -139,6 +141,7 @@ export type TenderForm = {
   expectedAwardDate: string;
   submittedOn: string;
   bidOpeningDate: string;
+  paymentTermsDays: string;
   contractNo: string;
   contractValue: string;
   deliveredOn: string;
@@ -152,6 +155,9 @@ function clean(form: TenderForm): { ok: true; value: Clean } | { ok: false; erro
   const title = text(form.title, 300);
   if (!title) return { ok: false, error: "Enter a short title for the tender." };
   if (!(PRODUCT_LINES as readonly string[]).includes(form.productLine)) return { ok: false, error: "Choose equipment, consumables or both." };
+  const termsText = form.paymentTermsDays.trim();
+  if (termsText !== "" && (!/^\d{1,3}$/.test(termsText) || Number(termsText) > 365)) return { ok: false, error: "Payment terms must be a whole number of days, from 0 to 365." };
+  const paymentTermsDays = termsText === "" ? null : Number(termsText);
   const code = form.closeReasonCode.trim();
   if (code !== "" && !isCloseReason(code)) return { ok: false, error: "Choose one of the listed reasons." };
   const money = {} as Record<"estimatedValue" | "bidValue" | "awardAmount" | "winningPrice" | "contractValue", number | null>;
@@ -197,6 +203,7 @@ function clean(form: TenderForm): { ok: true; value: Clean } | { ok: false; erro
       expectedAwardDate: dates.expectedAwardDate,
       submittedOn: dates.submittedOn,
       bidOpeningDate: dates.bidOpeningDate,
+      paymentTermsDays,
       contractNo: text(form.contractNo, 80),
       contractValue: money.contractValue,
       deliveredOn: dates.deliveredOn,
@@ -273,6 +280,7 @@ export async function createTender(db: Db, input: { companyId: string; userId: s
           expectedAwardDate: v.expectedAwardDate,
           submittedOn: v.submittedOn,
           bidOpeningDate: v.bidOpeningDate,
+          paymentTermsDays: v.paymentTermsDays,
           contractNo: v.contractNo,
           contractValue: money3(v.contractValue),
           deliveredOn: v.deliveredOn,
@@ -315,6 +323,7 @@ export async function updateTender(db: Db, input: { companyId: string; tenderId:
         expectedAwardDate: v.expectedAwardDate,
         submittedOn: v.submittedOn,
         bidOpeningDate: v.bidOpeningDate,
+        paymentTermsDays: v.paymentTermsDays,
         contractNo: v.contractNo,
         contractValue: money3(v.contractValue),
         deliveredOn: v.deliveredOn,
@@ -379,6 +388,7 @@ export async function moveTender(
           expectedAwardDate: v.expectedAwardDate,
           submittedOn: v.submittedOn,
           bidOpeningDate: v.bidOpeningDate,
+          paymentTermsDays: v.paymentTermsDays,
           contractNo: v.contractNo,
           contractValue: money3(v.contractValue),
           deliveredOn: v.deliveredOn,

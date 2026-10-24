@@ -484,6 +484,8 @@ export const tenders = pgTable(
     submittedOn: date("submitted_on"),
     /** Optional: the day the authority opens the bids. */
     bidOpeningDate: date("bid_opening_date"),
+    /** Optional: days after an invoice date that the authority is expected to pay. */
+    paymentTermsDays: integer("payment_terms_days"),
     contractNo: varchar("contract_no", { length: 80 }),
     contractValue: numeric("contract_value", { precision: 14, scale: 3 }),
     deliveredOn: date("delivered_on"),
@@ -591,6 +593,8 @@ export const tenderInvoices = pgTable(
     collectedAmount: numeric("collected_amount", { precision: 14, scale: 3 }).notNull().default("0"),
     /** Date of the latest payment received on this invoice. */
     lastCollectedOn: date("last_collected_on"),
+    /** Optional: the date this invoice is expected to be paid. When empty the tender's payment terms give it. */
+    dueDate: date("due_date"),
     createdBy: uuid("created_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

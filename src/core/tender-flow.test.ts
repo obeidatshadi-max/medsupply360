@@ -19,7 +19,7 @@ import {
   type TenderFields,
 } from "./tender-flow";
 
-const none: TenderFields = { tenderNo: null, estimatedValue: null, deadline: null, bidValue: null, awardAmount: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, submittedOn: null, bidOpeningDate: null, contractNo: null, contractValue: null, deliveredOn: null };
+const none: TenderFields = { tenderNo: null, estimatedValue: null, deadline: null, bidValue: null, awardAmount: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, submittedOn: null, bidOpeningDate: null, paymentTermsDays: null, contractNo: null, contractValue: null, deliveredOn: null };
 
 describe("tender flow", () => {
   it("knows the five authorities", () => {

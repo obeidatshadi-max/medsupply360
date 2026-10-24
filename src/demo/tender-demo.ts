@@ -4,7 +4,7 @@
  * (/sample/tenders) and the promotional demo, and all figures are derived through the tested tender rules.
  */
 import { buildTenderOverview, type OverviewGuarantee, type OverviewInvoice, type OverviewTender, type TenderOverview } from "@/core/tender-overview";
-import { guaranteeState, paymentSummary, type GuaranteeKind } from "@/core/tender-money";
+import { effectiveDueDate, guaranteeState, paymentSummary, type GuaranteeKind } from "@/core/tender-money";
 import { daysInStage, type TenderLine } from "@/core/tender-flow";
 import type { TenderItem } from "@/core/tender-items";
 import { DEMO_AS_OF } from "./dataset";
@@ -18,6 +18,8 @@ export interface DemoTender extends OverviewTender {
   deliveredOn: string | null;
   /** The day the authority opens the bids, when announced. */
   bidOpeningDate: string | null;
+  /** Days after an invoice date that the authority is expected to pay. */
+  paymentTermsDays: number | null;
   /** Item lines. Their totals equal the tender's estimated and bid values where those are set (a test checks it). */
   items: TenderItem[];
   history: { to: OverviewTender["status"]; on: string; by: string; note?: string }[];
@@ -30,6 +32,8 @@ export interface DemoGuarantee extends OverviewGuarantee {
 }
 
 export interface DemoInvoice extends OverviewInvoice {
+  /** `dueDate` (inherited) is the effective due date; this is the one typed on the invoice, if any. */
+  typedDueDate: string | null;
   invoiceNo: string;
   invoiceDate: string;
   lastCollectedOn: string | null;
@@ -41,7 +45,7 @@ export const DEMO_STAFF: Record<string, "Tender Department" | "Finance Departmen
 /** One made-up item line: name, quantity, unit, the authority's estimate per unit and our price per unit. */
 const line = (itemName: string, quantity: number, unit: string, estimatedUnitPrice: number | null, ourUnitPrice: number | null = null): TenderItem => ({ itemName, quantity, unit, estimatedUnitPrice, ourUnitPrice });
 
-const base = { items: [] as TenderItem[], estimatedValue: null, bidValue: null, awardAmount: null, contractValue: null, deadline: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, bidOpeningDate: null, tenderNo: null, contractNo: null, deliveredOn: null } as const;
+const base = { items: [] as TenderItem[], estimatedValue: null, bidValue: null, awardAmount: null, contractValue: null, deadline: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, bidOpeningDate: null, paymentTermsDays: null, tenderNo: null, contractNo: null, deliveredOn: null } as const;
 
 /** Who holds which tender. Two tenders have nobody yet, so the "Not assigned" state is visible. */
 const OWNER_OF: Record<string, string> = {
@@ -65,9 +69,9 @@ const RAW_TENDERS: (Omit<DemoTender, "owner" | "submittedOn" | "decidedOn"> & { 
   { ...base, id: "d4", authority: "KAUH", title: "Surgical electrosurgery units", productLine: "equipment", status: "technical_review", statusChangedAt: "2026-09-10T08:00:00Z", expectedAwardDate: "2026-10-05", tenderNo: "KAUH-26-077", estimatedValue: 178450, bidValue: 163900, deadline: "2026-08-30", history: [{ to: "pipeline", on: "2026-07-01", by: "Lina Haddad" }, { to: "open", on: "2026-07-20", by: "Lina Haddad" }, { to: "preparing", on: "2026-08-02", by: "Lina Haddad" }, { to: "submitted", on: "2026-08-29", by: "Lina Haddad" }, { to: "technical_review", on: "2026-09-10", by: "Lina Haddad", note: "Demonstration requested" }] },
   { ...base, id: "d5", items: [line("Chemistry reagent kit", 400, "kit", 980, 940), line("Calibrator set", 100, "set", 1448, 1412.5)], authority: "DRMS", title: "Laboratory reagents, annual framework", productLine: "consumables", status: "financial_review", statusChangedAt: "2026-09-25T08:00:00Z", tenderNo: "DRMS-26-204", estimatedValue: 536800, bidValue: 517250, deadline: "2026-08-15", history: [{ to: "pipeline", on: "2026-06-18", by: "Omar Saleh" }, { to: "open", on: "2026-07-05", by: "Omar Saleh" }, { to: "preparing", on: "2026-07-14", by: "Omar Saleh" }, { to: "submitted", on: "2026-08-14", by: "Omar Saleh" }, { to: "technical_review", on: "2026-08-28", by: "Omar Saleh" }, { to: "financial_review", on: "2026-09-25", by: "Omar Saleh" }] },
   { ...base, id: "d6", authority: "MOH", title: "Ventilator circuits framework", productLine: "consumables", status: "won", statusChangedAt: "2026-10-01T08:00:00Z", tenderNo: "MOH-26-066", estimatedValue: 397600, bidValue: 392150, awardAmount: 381900, deadline: "2026-07-25", history: [{ to: "pipeline", on: "2026-05-30", by: "Lina Haddad" }, { to: "open", on: "2026-06-10", by: "Lina Haddad" }, { to: "preparing", on: "2026-06-22", by: "Lina Haddad" }, { to: "submitted", on: "2026-07-24", by: "Lina Haddad" }, { to: "technical_review", on: "2026-08-08", by: "Lina Haddad" }, { to: "financial_review", on: "2026-09-02", by: "Lina Haddad" }, { to: "won", on: "2026-10-01", by: "Lina Haddad", note: "Awarded at JOD 381,900" }] },
-  { ...base, id: "d7", authority: "KHCC", title: "Syringe pumps", productLine: "equipment", status: "contracted", statusChangedAt: "2026-09-18T08:00:00Z", tenderNo: "KHCC-26-012", estimatedValue: 148200, bidValue: 143750, awardAmount: 141300, contractValue: 141300, contractNo: "PO-KHCC-5521", deadline: "2026-06-30", history: [{ to: "pipeline", on: "2026-04-22", by: "Omar Saleh" }, { to: "open", on: "2026-05-12", by: "Omar Saleh" }, { to: "preparing", on: "2026-05-28", by: "Omar Saleh" }, { to: "submitted", on: "2026-06-29", by: "Omar Saleh" }, { to: "technical_review", on: "2026-07-10", by: "Omar Saleh" }, { to: "financial_review", on: "2026-07-30", by: "Omar Saleh" }, { to: "won", on: "2026-08-20", by: "Omar Saleh" }, { to: "contracted", on: "2026-09-18", by: "Omar Saleh", note: "Purchase order received" }] },
-  { ...base, id: "d8", authority: "JUH", title: "Dialysis machines", productLine: "equipment", status: "delivered", statusChangedAt: "2026-09-12T08:00:00Z", tenderNo: "JUH-25-140", estimatedValue: 638400, bidValue: 612850, awardAmount: 608300, contractValue: 608300, contractNo: "PO-JUH-8830", deliveredOn: "2026-09-12", deadline: "2026-03-10", history: [{ to: "pipeline", on: "2026-01-15", by: "Lina Haddad" }, { to: "open", on: "2026-02-02", by: "Lina Haddad" }, { to: "preparing", on: "2026-02-12", by: "Lina Haddad" }, { to: "submitted", on: "2026-03-09", by: "Lina Haddad" }, { to: "technical_review", on: "2026-03-25", by: "Lina Haddad" }, { to: "financial_review", on: "2026-04-20", by: "Lina Haddad" }, { to: "won", on: "2026-05-15", by: "Lina Haddad" }, { to: "contracted", on: "2026-06-05", by: "Lina Haddad" }, { to: "delivered", on: "2026-09-12", by: "Lina Haddad", note: "Installed and accepted" }] },
-  { ...base, id: "d9", authority: "DRMS", title: "Glucose test strips", productLine: "consumables", status: "collected", statusChangedAt: "2026-09-30T08:00:00Z", tenderNo: "DRMS-26-031", estimatedValue: 89400, bidValue: 87650, awardAmount: 87650, contractValue: 87650, contractNo: "PO-DRMS-1904", deliveredOn: "2026-08-14", deadline: "2026-03-01", history: [{ to: "pipeline", on: "2026-01-10", by: "Omar Saleh" }, { to: "open", on: "2026-01-25", by: "Omar Saleh" }, { to: "preparing", on: "2026-02-05", by: "Omar Saleh" }, { to: "submitted", on: "2026-02-28", by: "Omar Saleh" }, { to: "technical_review", on: "2026-03-12", by: "Omar Saleh" }, { to: "financial_review", on: "2026-03-30", by: "Omar Saleh" }, { to: "won", on: "2026-04-18", by: "Omar Saleh" }, { to: "contracted", on: "2026-05-05", by: "Omar Saleh" }, { to: "delivered", on: "2026-08-14", by: "Omar Saleh" }, { to: "collected", on: "2026-09-30", by: "Rana Khoury", note: "Paid in full" }] },
+  { ...base, id: "d7", paymentTermsDays: 90, authority: "KHCC", title: "Syringe pumps", productLine: "equipment", status: "contracted", statusChangedAt: "2026-09-18T08:00:00Z", tenderNo: "KHCC-26-012", estimatedValue: 148200, bidValue: 143750, awardAmount: 141300, contractValue: 141300, contractNo: "PO-KHCC-5521", deadline: "2026-06-30", history: [{ to: "pipeline", on: "2026-04-22", by: "Omar Saleh" }, { to: "open", on: "2026-05-12", by: "Omar Saleh" }, { to: "preparing", on: "2026-05-28", by: "Omar Saleh" }, { to: "submitted", on: "2026-06-29", by: "Omar Saleh" }, { to: "technical_review", on: "2026-07-10", by: "Omar Saleh" }, { to: "financial_review", on: "2026-07-30", by: "Omar Saleh" }, { to: "won", on: "2026-08-20", by: "Omar Saleh" }, { to: "contracted", on: "2026-09-18", by: "Omar Saleh", note: "Purchase order received" }] },
+  { ...base, id: "d8", paymentTermsDays: 60, authority: "JUH", title: "Dialysis machines", productLine: "equipment", status: "delivered", statusChangedAt: "2026-09-12T08:00:00Z", tenderNo: "JUH-25-140", estimatedValue: 638400, bidValue: 612850, awardAmount: 608300, contractValue: 608300, contractNo: "PO-JUH-8830", deliveredOn: "2026-09-12", deadline: "2026-03-10", history: [{ to: "pipeline", on: "2026-01-15", by: "Lina Haddad" }, { to: "open", on: "2026-02-02", by: "Lina Haddad" }, { to: "preparing", on: "2026-02-12", by: "Lina Haddad" }, { to: "submitted", on: "2026-03-09", by: "Lina Haddad" }, { to: "technical_review", on: "2026-03-25", by: "Lina Haddad" }, { to: "financial_review", on: "2026-04-20", by: "Lina Haddad" }, { to: "won", on: "2026-05-15", by: "Lina Haddad" }, { to: "contracted", on: "2026-06-05", by: "Lina Haddad" }, { to: "delivered", on: "2026-09-12", by: "Lina Haddad", note: "Installed and accepted" }] },
+  { ...base, id: "d9", paymentTermsDays: 60, authority: "DRMS", title: "Glucose test strips", productLine: "consumables", status: "collected", statusChangedAt: "2026-09-30T08:00:00Z", tenderNo: "DRMS-26-031", estimatedValue: 89400, bidValue: 87650, awardAmount: 87650, contractValue: 87650, contractNo: "PO-DRMS-1904", deliveredOn: "2026-08-14", deadline: "2026-03-01", history: [{ to: "pipeline", on: "2026-01-10", by: "Omar Saleh" }, { to: "open", on: "2026-01-25", by: "Omar Saleh" }, { to: "preparing", on: "2026-02-05", by: "Omar Saleh" }, { to: "submitted", on: "2026-02-28", by: "Omar Saleh" }, { to: "technical_review", on: "2026-03-12", by: "Omar Saleh" }, { to: "financial_review", on: "2026-03-30", by: "Omar Saleh" }, { to: "won", on: "2026-04-18", by: "Omar Saleh" }, { to: "contracted", on: "2026-05-05", by: "Omar Saleh" }, { to: "delivered", on: "2026-08-14", by: "Omar Saleh" }, { to: "collected", on: "2026-09-30", by: "Rana Khoury", note: "Paid in full" }] },
   { ...base, id: "d10", bidOpeningDate: "2026-07-16", items: [line("Anaesthesia workstation", 6, "unit", 62000, 59875), line("Breathing circuits, box of 20", 200, "box", 481.5, 447.5)], authority: "KAUH", title: "Anaesthesia workstations", productLine: "equipment", status: "lost", statusChangedAt: "2026-09-05T08:00:00Z", tenderNo: "KAUH-26-040", estimatedValue: 468300, bidValue: 448750, deadline: "2026-07-15", closeReasonCode: "price", closeReason: "Our price was 9% above the winning bid", winnerName: "Competitor A", winningPrice: 411700, history: [{ to: "pipeline", on: "2026-05-02", by: "Lina Haddad" }, { to: "open", on: "2026-05-20", by: "Lina Haddad" }, { to: "preparing", on: "2026-06-01", by: "Lina Haddad" }, { to: "submitted", on: "2026-07-14", by: "Lina Haddad" }, { to: "technical_review", on: "2026-07-30", by: "Lina Haddad" }, { to: "financial_review", on: "2026-08-15", by: "Lina Haddad" }, { to: "lost", on: "2026-09-05", by: "Lina Haddad", note: "Our price was 9% above the winning bid" }] },
   { ...base, id: "d11", authority: "MOH", title: "Steam sterilizers", productLine: "equipment", status: "cancelled", statusChangedAt: "2026-08-28T08:00:00Z", tenderNo: "MOH-26-044", estimatedValue: 218600, deadline: "2026-08-10", closeReasonCode: "authority_cancelled", closeReason: "The authority withdrew the tender", history: [{ to: "pipeline", on: "2026-06-01", by: "Omar Saleh" }, { to: "open", on: "2026-06-18", by: "Omar Saleh" }, { to: "cancelled", on: "2026-08-28", by: "Omar Saleh", note: "The authority withdrew the tender" }] },
   { ...base, id: "d12", authority: "JUH", title: "Blood gas analyzers", productLine: "equipment", status: "pipeline", statusChangedAt: "2026-10-02T08:00:00Z", estimatedValue: 188400, history: [{ to: "pipeline", on: "2026-10-02", by: "Lina Haddad", note: "Hospital plans to buy next quarter" }] },
@@ -93,11 +97,18 @@ export const DEMO_GUARANTEES: DemoGuarantee[] = [
   { tenderId: "d9", kind: "performance", amount: 8765, issuedOn: "2026-05-10", expiresOn: "2026-10-30", returnedOn: "2026-10-02", reference: "PG-0009" },
 ];
 
-export const DEMO_INVOICES: DemoInvoice[] = [
-  { tenderId: "d8", invoiceNo: "INV-2026-0412", invoiceDate: "2026-09-14", amount: 405300, collected: 252640, lastCollectedOn: "2026-10-02" },
-  { tenderId: "d8", invoiceNo: "INV-2026-0433", invoiceDate: "2026-09-28", amount: 203000, collected: 0, lastCollectedOn: null },
-  { tenderId: "d9", invoiceNo: "INV-2026-0301", invoiceDate: "2026-08-16", amount: 87650, collected: 87650, lastCollectedOn: "2026-09-30" },
+const RAW_INVOICES: Omit<DemoInvoice, "dueDate">[] = [
+  { tenderId: "d8", invoiceNo: "INV-2026-0412", invoiceDate: "2026-09-14", amount: 405300, collected: 252640, lastCollectedOn: "2026-10-02", typedDueDate: null },
+  // a one-off agreement: due earlier than the tender's 60 days, so a typed date wins and this one is overdue
+  { tenderId: "d8", invoiceNo: "INV-2026-0433", invoiceDate: "2026-09-28", amount: 203000, collected: 0, lastCollectedOn: null, typedDueDate: "2026-10-05" },
+  { tenderId: "d9", invoiceNo: "INV-2026-0301", invoiceDate: "2026-08-16", amount: 87650, collected: 87650, lastCollectedOn: "2026-09-30", typedDueDate: null },
 ];
+
+/** Each invoice's effective due date follows the same rule as the live app: the typed date, else invoice date + the tender's payment terms. */
+export const DEMO_INVOICES: DemoInvoice[] = RAW_INVOICES.map((i) => ({
+  ...i,
+  dueDate: effectiveDueDate({ invoiceDate: i.invoiceDate, dueDate: i.typedDueDate }, RAW_TENDERS.find((t) => t.id === i.tenderId)?.paymentTermsDays ?? null),
+}));
 
 export const DEMO_TENDER_AS_OF = DEMO_AS_OF;
 

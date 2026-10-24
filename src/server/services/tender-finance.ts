@@ -24,6 +24,8 @@ export type InvoiceRow = {
   amount: number;
   collected: number;
   lastCollectedOn: string | null;
+  /** The due date typed on the invoice; null when the tender's payment terms (if any) decide it. */
+  dueDate: string | null;
 };
 
 export type FinanceResult = { ok: true; id: string } | { ok: false; error: string };
@@ -108,7 +110,7 @@ export async function listInvoices(db: Db, companyId: string, tenderId: string):
     .from(tenderInvoices)
     .where(and(eq(tenderInvoices.companyId, companyId), eq(tenderInvoices.tenderId, tenderId)))
     .orderBy(asc(tenderInvoices.invoiceDate), asc(tenderInvoices.invoiceNo));
-  return rows.map((r) => ({ id: r.id, invoiceNo: r.invoiceNo, invoiceDate: r.invoiceDate, amount: Number(r.amount), collected: Number(r.collectedAmount), lastCollectedOn: r.lastCollectedOn }));
+  return rows.map((r) => ({ id: r.id, invoiceNo: r.invoiceNo, invoiceDate: r.invoiceDate, amount: Number(r.amount), collected: Number(r.collectedAmount), lastCollectedOn: r.lastCollectedOn, dueDate: r.dueDate }));
 }
 
 /**
@@ -133,7 +135,7 @@ export async function erpFactsByInvoiceNo(db: Db, companyId: string, invoiceNos:
   return out;
 }
 
-export type InvoiceForm = { invoiceNo: string; invoiceDate: string; amount: string };
+export type InvoiceForm = { invoiceNo: string; invoiceDate: string; amount: string; dueDate?: string };
 
 export async function addInvoice(db: Db, input: { companyId: string; userId: string; tenderId: string; form: InvoiceForm }): Promise<FinanceResult> {
   const status = await tenderStatusOf(db, input.companyId, input.tenderId);
@@ -145,10 +147,13 @@ export async function addInvoice(db: Db, input: { companyId: string; userId: str
   if (date === "invalid" || date === null) return { ok: false, error: "Enter a valid invoice date." };
   const amount = parseJod(input.form.amount);
   if (amount === "invalid" || amount === null || amount <= 0) return { ok: false, error: "Enter the invoice amount in JOD, above zero." };
+  const due = dateOrNull(input.form.dueDate ?? "");
+  if (due === "invalid") return { ok: false, error: "The due date is not a valid date." };
+  if (due !== null && due < date) return { ok: false, error: "The due date cannot be before the invoice date." };
   try {
     const [row] = await db
       .insert(tenderInvoices)
-      .values({ companyId: input.companyId, tenderId: input.tenderId, invoiceNo, invoiceDate: date, amount: money3(amount), createdBy: input.userId })
+      .values({ companyId: input.companyId, tenderId: input.tenderId, invoiceNo, invoiceDate: date, amount: money3(amount), dueDate: due, createdBy: input.userId })
       .returning({ id: tenderInvoices.id });
     return { ok: true, id: row!.id };
   } catch (err) {
@@ -159,22 +164,25 @@ export async function addInvoice(db: Db, input: { companyId: string; userId: str
 }
 
 /** Set how much of an invoice has been paid so far (a running total, not an extra payment) and the date of the latest payment. */
-export async function setCollected(db: Db, input: { companyId: string; tenderId: string; invoiceId: string; collected: string; collectedOn: string }): Promise<FinanceResult> {
+export async function setCollected(db: Db, input: { companyId: string; tenderId: string; invoiceId: string; collected: string; collectedOn: string; dueDate?: string }): Promise<FinanceResult> {
   const amount = parseJod(input.collected);
   if (amount === "invalid" || amount === null) return { ok: false, error: "Enter the total collected so far in JOD, for example 0 or 1,500." };
   const on = dateOrNull(input.collectedOn);
   if (on === "invalid") return { ok: false, error: "The payment date is not a valid date." };
   if (amount > 0 && on === null) return { ok: false, error: "Enter the date of the latest payment." };
+  const due = input.dueDate === undefined ? undefined : dateOrNull(input.dueDate);
+  if (due === "invalid") return { ok: false, error: "The due date is not a valid date." };
   const [invoice] = await db
-    .select({ amount: tenderInvoices.amount })
+    .select({ amount: tenderInvoices.amount, invoiceDate: tenderInvoices.invoiceDate })
     .from(tenderInvoices)
     .where(and(eq(tenderInvoices.companyId, input.companyId), eq(tenderInvoices.tenderId, input.tenderId), eq(tenderInvoices.id, input.invoiceId)))
     .limit(1);
   if (!invoice) return { ok: false, error: "That invoice was not found." };
   if (amount > Number(invoice.amount)) return { ok: false, error: `More than the invoice amount (JOD ${Number(invoice.amount).toFixed(3)}) cannot be collected.` };
+  if (due && due < invoice.invoiceDate) return { ok: false, error: "The due date cannot be before the invoice date." };
   await db
     .update(tenderInvoices)
-    .set({ collectedAmount: money3(amount), lastCollectedOn: amount > 0 ? on : null })
+    .set({ collectedAmount: money3(amount), lastCollectedOn: amount > 0 ? on : null, ...(due === undefined ? {} : { dueDate: due }) })
     .where(and(eq(tenderInvoices.companyId, input.companyId), eq(tenderInvoices.tenderId, input.tenderId), eq(tenderInvoices.id, input.invoiceId)));
   return { ok: true, id: input.invoiceId };
 }

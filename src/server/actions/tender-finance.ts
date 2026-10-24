@@ -69,7 +69,7 @@ export async function addInvoiceAction(_prev: FinanceFormState, fd: FormData): P
   const who = readSubmitter(fd);
   if (!who.ok) return { error: who.error };
   const tenderId = val(fd, "tenderId");
-  const r = await addInvoice(getDb(), { companyId: user.companyId, userId: user.id, tenderId, form: { invoiceNo: val(fd, "invoiceNo"), invoiceDate: val(fd, "invoiceDate"), amount: val(fd, "amount") } });
+  const r = await addInvoice(getDb(), { companyId: user.companyId, userId: user.id, tenderId, form: { invoiceNo: val(fd, "invoiceNo"), invoiceDate: val(fd, "invoiceDate"), amount: val(fd, "amount"), dueDate: val(fd, "dueDate") } });
   return finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.invoice_added", entityType: "tender_invoice", tenderId });
 }
 
@@ -79,7 +79,7 @@ export async function setCollectedAction(_prev: FinanceFormState, fd: FormData):
   const who = readSubmitter(fd);
   if (!who.ok) return { error: who.error };
   const tenderId = val(fd, "tenderId");
-  const r = await setCollected(getDb(), { companyId: user.companyId, tenderId, invoiceId: val(fd, "invoiceId"), collected: val(fd, "collected"), collectedOn: val(fd, "collectedOn") });
+  const r = await setCollected(getDb(), { companyId: user.companyId, tenderId, invoiceId: val(fd, "invoiceId"), collected: val(fd, "collected"), collectedOn: val(fd, "collectedOn"), ...(fd.has("dueDate") ? { dueDate: val(fd, "dueDate") } : {}) });
   return finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.payment_recorded", entityType: "tender_invoice", tenderId, details: { collected: val(fd, "collected") } });
 }
 

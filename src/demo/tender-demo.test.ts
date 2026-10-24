@@ -32,7 +32,7 @@ describe("demo tenders", () => {
 
   it("holds the details its status requires", () => {
     for (const t of DEMO_TENDERS) {
-      const fields: TenderFields = { tenderNo: t.tenderNo, estimatedValue: t.estimatedValue, deadline: t.deadline, bidValue: t.bidValue, awardAmount: t.awardAmount, closeReason: t.closeReason, closeReasonCode: t.closeReasonCode, winnerName: t.winnerName, winningPrice: t.winningPrice, expectedAwardDate: t.expectedAwardDate, submittedOn: t.submittedOn, bidOpeningDate: t.bidOpeningDate, contractNo: t.contractNo, contractValue: t.contractValue, deliveredOn: t.deliveredOn };
+      const fields: TenderFields = { tenderNo: t.tenderNo, estimatedValue: t.estimatedValue, deadline: t.deadline, bidValue: t.bidValue, awardAmount: t.awardAmount, closeReason: t.closeReason, closeReasonCode: t.closeReasonCode, winnerName: t.winnerName, winningPrice: t.winningPrice, expectedAwardDate: t.expectedAwardDate, submittedOn: t.submittedOn, bidOpeningDate: t.bidOpeningDate, paymentTermsDays: t.paymentTermsDays, contractNo: t.contractNo, contractValue: t.contractValue, deliveredOn: t.deliveredOn };
       const need = t.status === "pipeline" ? [] : missingFor(t.status, fields);
       expect(need, `${t.id} (${t.status}) is missing ${need.join(", ")}`).toEqual([]);
     }
@@ -57,7 +57,7 @@ describe("demo tenders", () => {
     expect(o.deadlines.passed.map((d) => d.title)).toContain("Pulse oximeters");
     expect(o.guarantees.active).toBeGreaterThan(0);
     expect(o.guarantees.expiredNotReturned).toBe(22438);
-    expect(o.payments).toEqual({ invoiced: 695950, collected: 340290, unpaid: 355660 });
+    expect(o.payments).toEqual({ invoiced: 695950, collected: 340290, unpaid: 355660, notYetDue: 152660, overdue: 203000, noDueDate: 0, overdueInvoices: 1, oldestOverdueDays: 3 });
     expect(o.authorities.find((a) => a.code === "JUH")!.unpaid).toBe(355660);
   });
 });

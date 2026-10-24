@@ -4,7 +4,7 @@
  * to a stage: it lists facts (dates, counts, days) and leaves the judgement to the reader.
  */
 import { AUTHORITIES, CLOSE_REASONS, PHASES, closeReasonLabel, daysInStage, phaseOf, type AuthorityCode, type PhaseKey, type TenderStatus } from "@/core/tender-flow";
-import { guaranteeExposure, guaranteeState, paymentSummary } from "@/core/tender-money";
+import { guaranteeExposure, guaranteeState, paymentSummary, receivableAging } from "@/core/tender-money";
 
 export interface OverviewTender {
   id: string;
@@ -39,6 +39,8 @@ export interface OverviewInvoice {
   tenderId: string;
   amount: number;
   collected: number;
+  /** The effective due date (typed on the invoice, else invoice date + the tender's payment terms), or null when unknown. */
+  dueDate: string | null;
 }
 
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -96,7 +98,7 @@ export interface TenderOverview {
   awards: { expected: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysLeft: number; status: TenderStatus }[]; overdue: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysAgo: number; status: TenderStatus }[]; withoutDate: number };
   /** Days from handing in the bid to the decision, over decided tenders that have both dates. `missing` counts decided tenders without them. */
   timeToDecision: { count: number; average: number | null; median: number | null; fastest: number | null; slowest: number | null; missing: number };
-  payments: { invoiced: number; collected: number; unpaid: number };
+  payments: { invoiced: number; collected: number; unpaid: number; notYetDue: number; overdue: number; noDueDate: number; overdueInvoices: number; oldestOverdueDays: number | null };
   longestInStage: { id: string; title: string; authority: AuthorityCode; status: TenderStatus; days: number }[];
 }
 
@@ -224,7 +226,10 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
         missing: decidedTenders.length - days.length,
       };
     })(),
-    payments: { invoiced: allInvoices.invoiced, collected: allInvoices.collected, unpaid: allInvoices.outstanding },
+    payments: (() => {
+      const aging = receivableAging(input.invoices, today);
+      return { invoiced: allInvoices.invoiced, collected: allInvoices.collected, unpaid: allInvoices.outstanding, ...aging };
+    })(),
     longestInStage,
   };
 }

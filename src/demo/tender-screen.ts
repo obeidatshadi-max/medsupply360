@@ -11,6 +11,7 @@ import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, closeReasonLabe
 import { GUARANTEE_LABEL } from "@/core/tender-money";
 import { tenderValue } from "@/core/tender-overview";
 import { itemTotals, lineTotal } from "@/core/tender-items";
+import { dueState } from "@/core/tender-money";
 import { hasAwardResult, prefillRows } from "@/core/tender-results-prefill";
 import { dayText, jod, pct } from "@/lib/format";
 import { DEMO_TENDERS, DEMO_TENDER_AS_OF, demoTenderDetail, demoTenderOverview, type DemoTender } from "./tender-demo";
@@ -115,6 +116,11 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
   const owed = o.authorities.filter((x) => x.unpaid > 0).sort((x, y) => y.unpaid - x.unpaid);
   const unpaid =
     `<div class="value" style="font-size:26px">${jod(o.payments.unpaid)}</div><p class="mini">Invoiced ${jod(o.payments.invoiced)} · collected ${jod(o.payments.collected)}</p>` +
+    (o.payments.unpaid > 0
+      ? item(`<span style="${o.payments.overdue > 0 ? "color:var(--red)" : ""}">Overdue${o.payments.overdueInvoices > 0 ? ` (${plural(o.payments.overdueInvoices, "invoice")}, oldest ${o.payments.oldestOverdueDays} days)` : ""}</span>`, jod(o.payments.overdue)) +
+        item("Not yet due", jod(o.payments.notYetDue)) +
+        item("No due date known", jod(o.payments.noDueDate))
+      : "") +
     list(owed.map((x) => item(a(x.code), jod(x.unpaid))), "Nothing is waiting to be collected.");
 
   const lost =
@@ -241,8 +247,17 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     ...(t.winnerName || t.winningPrice !== null ? ([["Winner", `${t.winnerName ?? "Not recorded"}${t.winningPrice === null ? "" : ` · ${jod(t.winningPrice)}`}`]] as [string, string][]) : []),
     ["Award amount", t.awardAmount === null ? "—" : jod(t.awardAmount)],
     ["Contract", t.contractNo ? `${neutral(t.contractNo, t, generic)}${t.contractValue === null ? "" : ` · ${jod(t.contractValue)}`}` : "—"],
+    ["Payment terms", t.paymentTermsDays === null ? "—" : `${t.paymentTermsDays} days after the invoice date`],
     ["Delivered", t.deliveredOn ? dayText(t.deliveredOn) : "—"],
   ];
+  const dueText = (i: (typeof invoices)[number]) => {
+    const st = dueState({ amount: i.amount, collected: i.collected, dueDate: i.dueDate }, DEMO_TENDER_AS_OF);
+    if (st.state === "paid") return "";
+    if (st.state === "unknown") return " · no due date";
+    const source = i.typedDueDate ? "entered on the invoice" : `invoice date + ${t.paymentTermsDays} days`;
+    const when = st.state === "overdue" ? `<span style="color:var(--red)">${plural(st.daysAgo, "day")} overdue</span>` : st.daysLeft === 0 ? "due today" : `${plural(st.daysLeft, "day")} left`;
+    return ` · due ${dayText(i.dueDate!)} (${source}) · ${when}`;
+  };
   const gState = (s: (typeof guarantees)[number]["state"]) =>
     s.state === "returned"
       ? "Returned"
@@ -266,7 +281,7 @@ export function tenderDetailHtml(id: string, generic: boolean): string | null {
     ) +
     `<h3 style="margin-top:22px">Invoices and payments</h3>` +
     (invoices.length
-      ? invoices.map((i) => item(`${esc(i.invoiceNo)}<span class="cellsub">${dayText(i.invoiceDate)}${i.lastCollectedOn ? ` · last payment ${dayText(i.lastCollectedOn)}` : ""}</span>`, `${jod(i.collected)} of ${jod(i.amount)} collected`)).join("") +
+      ? invoices.map((i) => item(`${esc(i.invoiceNo)}<span class="cellsub">${dayText(i.invoiceDate)}${i.lastCollectedOn ? ` · last payment ${dayText(i.lastCollectedOn)}` : ""}${dueText(i)}</span>`, `${jod(i.collected)} of ${jod(i.amount)} collected`)).join("") +
         `<p class="mini">Invoiced ${jod(payments.invoiced)} · collected ${jod(payments.collected)} · still unpaid ${jod(payments.outstanding)}</p>`
       : `<p class="mini">${["contracted", "delivered", "collected"].includes(t.status) ? "No invoice recorded yet." : "Finance records invoices once the tender is contracted."}</p>`) +
     (invoices.length ? `<p class="mini">In the live app each invoice is also checked by its number against the ERP files, and flagged when the ERP shows a different amount unpaid.</p>` : "") +
