@@ -1,9 +1,9 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { users } from "@/db/schema";
+import { passwordResets, users } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/current-user";
 import { createSession } from "@/lib/auth/session";
@@ -13,7 +13,7 @@ import { recentCount } from "../services/rate-limit";
 
 export type ChangePasswordState = { error?: string; done?: boolean };
 
-const WRONG_PASSWORD_LIMIT = 5;
+const ATTEMPT_LIMIT = 5;
 const WINDOW_MINUTES = 60;
 
 export async function changePasswordAction(_prev: ChangePasswordState, formData: FormData): Promise<ChangePasswordState> {
@@ -29,18 +29,24 @@ export async function changePasswordAction(_prev: ChangePasswordState, formData:
   if (problem) return { error: PASSWORD_MESSAGES[problem] };
 
   const ip = await clientIp();
-  const { byEmail } = await recentCount("auth.password_change_failed", { email: user.email }, WINDOW_MINUTES);
-  if (byEmail >= WRONG_PASSWORD_LIMIT) return { error: "Too many wrong attempts. Try again in an hour." };
+  // The attempt is recorded BEFORE the password is compared and counted with itself included, so parallel requests
+  // cannot all pass a check made before any of them is written.
+  await writeAudit({ companyId: user.companyId, userId: user.id, action: "auth.password_change_attempt", details: { email: user.email, ip } });
+  const { byEmail } = await recentCount("auth.password_change_attempt", { email: user.email }, WINDOW_MINUTES);
+  if (byEmail > ATTEMPT_LIMIT) return { error: "Too many attempts. Try again in an hour." };
 
   const db = getDb();
   const [row] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, user.id)).limit(1);
   if (!row || !(await bcrypt.compare(current, row.passwordHash))) {
-    await writeAudit({ companyId: user.companyId, userId: user.id, action: "auth.password_change_failed", details: { email: user.email, ip } });
     return { error: "The current password is not correct." };
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  await db.update(users).set({ passwordHash, passwordChangedAt: new Date() }).where(eq(users.id, user.id));
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ passwordHash, passwordChangedAt: new Date() }).where(eq(users.id, user.id));
+    // A reset link emailed earlier must not set the password back.
+    await tx.update(passwordResets).set({ usedAt: new Date() }).where(and(eq(passwordResets.userId, user.id), isNull(passwordResets.usedAt)));
+  });
   await writeAudit({ companyId: user.companyId, userId: user.id, action: "auth.password_changed" });
   // The change revokes every earlier session, including this one: issue a fresh session so this browser stays signed in.
   await createSession(user.id);
