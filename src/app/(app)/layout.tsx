@@ -54,9 +54,9 @@ async function Shell({ children }: { children: React.ReactNode }) {
     <>
       {showsLevelSwitch(user.role) ? <LevelSwitch current={level} /> : null}
       <form action={logoutAction} className="flex items-center gap-3 text-sm">
-        <span className="hidden text-muted md:inline">
+        <a href="/account" className="hidden text-muted underline-offset-2 hover:underline md:inline" title="Change password">
           {user.fullName} · {user.role}
-        </span>
+        </a>
         <button type="submit" className="min-h-11 rounded-[7px] border border-line px-3 py-1.5 hover:border-brand hover:bg-[#f0f6f2] md:min-h-0">
           Sign out
         </button>
