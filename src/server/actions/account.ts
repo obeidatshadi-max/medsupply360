@@ -25,7 +25,7 @@ import {
 } from "@/lib/domain/account";
 import { appUrl, mailConfigured, sendMail } from "../services/mailer";
 import { clientIp } from "../services/login-throttle";
-import { recentCount, recentTotal } from "../services/rate-limit";
+import { recentCount, recentTotalCappedPerIp } from "../services/rate-limit";
 
 // ─── Sign up ─────────────────────────────────────────────────────────────────
 
@@ -72,10 +72,11 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   // Every attempt is throttled BEFORE the code is compared, whatever the code is, so guessing cannot continue past the
   // limit (a correct guess after the limit is refused too). The attempt is recorded first and counted with itself
   // included, so parallel requests cannot all pass a check made before any of them is written. Without a client
-  // address the per-address limit cannot work, so refuse (fail closed). A global ceiling covers rotating addresses.
+  // address the per-address limit cannot work, so refuse (fail closed). A global ceiling covers rotating addresses;
+  // each address counts toward it at most its own limit, so one address cannot use it up and lock everyone else out.
   await writeAudit({ userId: null, action: "auth.signup_attempt", details: { email, ip } });
   const attempts = await recentCount("auth.signup_attempt", { ip }, LIMITS.windowMinutes);
-  const attemptsAll = await recentTotal("auth.signup_attempt", LIMITS.windowMinutes);
+  const attemptsAll = await recentTotalCappedPerIp("auth.signup_attempt", LIMITS.windowMinutes, LIMITS.signupAttemptsPerIp);
   if (!ip || attempts.byIp > LIMITS.signupAttemptsPerIp || attemptsAll > LIMITS.signupAttemptsTotal)
     return { error: "Too many attempts. Try again in an hour.", values };
   if (checkInviteCode(expectedCode, String(formData.get("inviteCode") ?? "")) !== "ok")
