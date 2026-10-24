@@ -42,7 +42,7 @@ describe("buildTenderOverview", () => {
     expect(o.phases.map((p) => [p.key, p.count])).toEqual([["before_bidding", 0], ["in_evaluation", 0], ["award_contract", 0], ["delivery_payment", 0], ["closed", 0]]);
     expect(o.results.winRate).toBeNull();
     expect(o.guarantees).toMatchObject({ active: 0, expiredNotReturned: 0, count: 0, soonest: [] });
-    expect(o.payments).toEqual({ invoiced: 0, collected: 0, unpaid: 0 });
+    expect(o.payments).toEqual({ invoiced: 0, collected: 0, unpaid: 0, notYetDue: 0, overdue: 0, noDueDate: 0, overdueInvoices: 0, oldestOverdueDays: null });
   });
 
   it("counts tenders and their best value per phase, flagging those with no value", () => {
@@ -102,14 +102,14 @@ describe("buildTenderOverview", () => {
   it("reports unpaid money by authority and in total", () => {
     const tenders = [T({ id: "1", authority: "MOH", status: "delivered" }), T({ id: "2", authority: "JUH", status: "delivered" })];
     const o = build(tenders, [], [
-      { tenderId: "1", amount: 1000, collected: 400 },
-      { tenderId: "1", amount: 500, collected: 500 },
-      { tenderId: "2", amount: 200, collected: 0 },
+      { tenderId: "1", amount: 1000, collected: 400, dueDate: null },
+      { tenderId: "1", amount: 500, collected: 500, dueDate: null },
+      { tenderId: "2", amount: 200, collected: 0, dueDate: null },
     ]);
     expect(o.authorities.find((a) => a.code === "MOH")!.unpaid).toBe(600);
     expect(o.authorities.find((a) => a.code === "JUH")!.unpaid).toBe(200);
     expect(o.authorities.find((a) => a.code === "KAUH")!.unpaid).toBe(0);
-    expect(o.payments).toEqual({ invoiced: 1700, collected: 900, unpaid: 800 });
+    expect(o.payments).toEqual({ invoiced: 1700, collected: 900, unpaid: 800, notYetDue: 0, overdue: 0, noDueDate: 800, overdueInvoices: 0, oldestOverdueDays: null });
   });
 
   it("counts active, won and lost tenders per authority", () => {

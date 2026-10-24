@@ -32,6 +32,7 @@ function readForm(fd: FormData): TenderForm {
     expectedAwardDate: val(fd, "expectedAwardDate"),
     submittedOn: val(fd, "submittedOn"),
     bidOpeningDate: val(fd, "bidOpeningDate"),
+    paymentTermsDays: val(fd, "paymentTermsDays"),
     contractNo: val(fd, "contractNo"),
     contractValue: val(fd, "contractValue"),
     deliveredOn: val(fd, "deliveredOn"),

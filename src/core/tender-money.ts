@@ -59,3 +59,55 @@ export function collectionBlocker(rows: InvoiceAmounts[]): string | null {
   const { outstanding } = paymentSummary(rows);
   return outstanding > 0 ? `collect the remaining JOD ${outstanding.toFixed(3)} on the invoices` : null;
 }
+
+/** A calendar date plus whole days, as YYYY-MM-DD. */
+export function addDays(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10);
+}
+
+/**
+ * When an invoice is expected to be paid: the date typed on the invoice, else the invoice date plus the tender's payment
+ * terms, else unknown. A typed date always wins, so a one-off agreement never needs the terms changed.
+ */
+export function effectiveDueDate(inv: { invoiceDate: string; dueDate: string | null }, termsDays: number | null): string | null {
+  if (inv.dueDate) return inv.dueDate;
+  return termsDays === null ? null : addDays(inv.invoiceDate, termsDays);
+}
+
+export type DueState = { state: "paid" } | { state: "unknown" } | { state: "not-due"; daysLeft: number } | { state: "overdue"; daysAgo: number };
+
+/** Where one invoice stands today. An invoice is overdue from the day AFTER its due date. */
+export function dueState(inv: InvoiceAmounts & { dueDate: string | null }, today: string): DueState {
+  if (round3(inv.amount - Math.min(inv.collected, inv.amount)) === 0) return { state: "paid" };
+  if (!inv.dueDate) return { state: "unknown" };
+  const left = wholeDays(today, inv.dueDate);
+  return left >= 0 ? { state: "not-due", daysLeft: left } : { state: "overdue", daysAgo: -left };
+}
+
+export interface Aging {
+  /** Unpaid money not yet due, overdue, and with no due date known. They add up to the total unpaid. */
+  notYetDue: number;
+  overdue: number;
+  noDueDate: number;
+  overdueInvoices: number;
+  /** Days the longest-overdue unpaid invoice is past due, or null when nothing is overdue. */
+  oldestOverdueDays: number | null;
+}
+
+/** Splits the unpaid part of invoices by whether it is due yet. `dueDate` is the effective due date (see `effectiveDueDate`). */
+export function receivableAging(rows: (InvoiceAmounts & { dueDate: string | null })[], today: string): Aging {
+  const out = { notYetDue: 0, overdue: 0, noDueDate: 0, overdueInvoices: 0, oldestOverdueDays: null as number | null };
+  for (const r of rows) {
+    const unpaid = round3(r.amount - Math.min(r.collected, r.amount));
+    const s = dueState(r, today);
+    if (s.state === "paid") continue;
+    if (s.state === "unknown") out.noDueDate += unpaid;
+    else if (s.state === "not-due") out.notYetDue += unpaid;
+    else {
+      out.overdue += unpaid;
+      out.overdueInvoices += 1;
+      out.oldestOverdueDays = Math.max(out.oldestOverdueDays ?? 0, s.daysAgo);
+    }
+  }
+  return { ...out, notYetDue: round3(out.notYetDue), overdue: round3(out.overdue), noDueDate: round3(out.noDueDate) };
+}

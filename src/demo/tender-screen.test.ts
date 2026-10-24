@@ -48,6 +48,24 @@ describe("demo tender screen", () => {
     expect(tenderDetailHtml("d3", false)).toContain("Bid opening");
   });
 
+  it("splits the unpaid tender money by due date, from payment terms and a typed date, as the overview computes it", () => {
+    const p = o.payments;
+    expect(p.overdue).toBe(203000); // INV-2026-0433: due date typed 5 Oct, 3 days before the demo date
+    expect(p.overdueInvoices).toBe(1);
+    expect(p.oldestOverdueDays).toBe(3);
+    expect(p.notYetDue).toBe(152660); // INV-2026-0412: 14 Sep + 60 days = 13 Nov
+    expect(p.noDueDate).toBe(0);
+    expect(p.overdue + p.notYetDue + p.noDueDate).toBe(p.unpaid);
+    const html = tenderScreenHtml({ generic: false });
+    expect(html).toContain("Overdue (1 invoice, oldest 3 days)");
+    expect(html).toContain(jod(p.overdue));
+    const drawer = tenderDetailHtml("d8", false)!;
+    expect(drawer).toContain("invoice date + 60 days");
+    expect(drawer).toContain("entered on the invoice");
+    expect(drawer).toContain("3 days overdue");
+    expect(tenderDetailHtml("d8", false)).toContain("Payment terms");
+  });
+
   it("shows a tender's item lines and totals in its drawer, and nothing for a tender without lines", () => {
     const html = tenderDetailHtml("d10", false)!;
     expect(html).toContain("Item lines");

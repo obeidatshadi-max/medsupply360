@@ -62,6 +62,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
     ...(t.winnerName || t.winningPrice !== null ? ([["Winner", `${t.winnerName ?? "Not recorded"}${t.winningPrice === null ? "" : ` · ${jod(t.winningPrice)}`}`]] as [string, string][]) : []),
     ["Award amount", t.awardAmount === null ? "—" : jod(t.awardAmount)],
     ["Contract", t.contractNo ? `${t.contractNo}${t.contractValue === null ? "" : ` · ${jod(t.contractValue)}`}` : "—"],
+    ["Payment terms", t.paymentTermsDays === null ? "—" : `${t.paymentTermsDays} days after the invoice date`],
     ["Delivered", t.deliveredOn ? dayText(t.deliveredOn) : "—"],
   ];
 
@@ -106,7 +107,7 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
       {hasAwardResult(t.status) ? <PriceHistoryPanel tenderId={t.id} archived={await archivedBidCount(getDb(), user.companyId, t.authority, t.tenderNo)} hasNumber={t.tenderNo !== null} canUpload={canAccess(user.role, "tender")} itemCount={items.length} /> : null}
 
       <Guarantees tenderId={t.id} rows={guarantees} today={today} canEdit={canEditGuarantees(user.role)} />
-      <Payments tenderId={t.id} rows={invoices} erp={erp}canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
+      <Payments tenderId={t.id} rows={invoices} erp={erp} termsDays={t.paymentTermsDays} today={today} canEdit={canEditPayments(user.role)} canAdd={["contracted", "delivered", "collected"].includes(t.status)} />
 
       <section aria-label="History">
         <h2 className="text-sm font-semibold">History</h2>

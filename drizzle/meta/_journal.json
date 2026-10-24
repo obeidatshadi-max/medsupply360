@@ -134,6 +134,13 @@
       "when": 1792865065371,
       "tag": "0018_tender_submission_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792865908527,
+      "tag": "0019_tender_payment_terms",
+      "breakpoints": true
     }
   ]
 }

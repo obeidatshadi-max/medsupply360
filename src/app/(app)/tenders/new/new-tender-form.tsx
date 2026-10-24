@@ -35,7 +35,7 @@ export function NewTenderForm() {
         <FieldInput name="deadline" value="" />
       </div>
       <FieldInput name="notes" value="" />
-      {(["bidValue", "awardAmount", "closeReason", "closeReasonCode", "winnerName", "winningPrice", "expectedAwardDate", "submittedOn", "bidOpeningDate", "contractNo", "contractValue", "deliveredOn"] as const).map((k) => (
+      {(["bidValue", "awardAmount", "closeReason", "closeReasonCode", "winnerName", "winningPrice", "expectedAwardDate", "submittedOn", "bidOpeningDate", "paymentTermsDays", "contractNo", "contractValue", "deliveredOn"] as const).map((k) => (
         <HiddenField key={k} name={k} value="" />
       ))}
       <SubmitterField />

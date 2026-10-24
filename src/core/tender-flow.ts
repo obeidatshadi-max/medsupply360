@@ -169,6 +169,8 @@ export interface TenderFields {
   submittedOn: string | null;
   /** The day the authority opens the bids, when it announces one. Optional. */
   bidOpeningDate: string | null;
+  /** Days after the invoice date the authority is expected to pay (set at the contract). Optional. */
+  paymentTermsDays: number | null;
   contractNo: string | null;
   contractValue: number | null;
   deliveredOn: string | null;
@@ -193,6 +195,7 @@ const NEEDED: Partial<Record<TenderStatus, { key: keyof TenderFields; label: str
 
 /** Details worth asking for on a move but never required. */
 const OPTIONAL: Partial<Record<TenderStatus, { key: keyof TenderFields; label: string }[]>> = {
+  contracted: [{ key: "paymentTermsDays", label: "payment terms (days)" }],
   submitted: [
     { key: "submittedOn", label: "date submitted" },
     { key: "bidOpeningDate", label: "bid opening date" },

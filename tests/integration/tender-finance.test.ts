@@ -20,7 +20,7 @@ let b: string;
 let user: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
-const tenderForm: TenderForm = { authority: "KHCC", tenderNo: "", title: "Reagents 2026", productLine: "consumables", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
+const tenderForm: TenderForm = { authority: "KHCC", tenderNo: "", title: "Reagents 2026", productLine: "consumables", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", paymentTermsDays: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
 const g = (over: Partial<GuaranteeForm> = {}): GuaranteeForm => ({ kind: "bid", amount: "5,000", issuedOn: "2026-10-01", expiresOn: "2027-01-01", returnedOn: "", reference: "BG-1", ...over });
 
 beforeAll(async () => {
@@ -107,6 +107,26 @@ describe("invoices and collection", () => {
     expect((await add({ amount: "0" })).ok).toBe(false);
     expect((await add({})).ok).toBe(true);
     expect(await add({})).toEqual({ ok: false, error: "This invoice number is already recorded for this tender." });
+  });
+
+  it("stores a due date typed on the invoice, refuses a bad one, and lets finance change or clear it later", async () => {
+    const { id } = await deliveredTender();
+    const add = (invoiceNo: string, dueDate?: string) => addInvoice(db, { companyId: a, userId: user, tenderId: id, form: { invoiceNo, invoiceDate: "2027-02-01", amount: "100", dueDate } });
+    expect((await add("D-1", "2027-03-15")).ok).toBe(true);
+    expect((await add("D-2", "2027-01-31"))).toEqual({ ok: false, error: "The due date cannot be before the invoice date." });
+    expect((await add("D-3", "next week"))).toEqual({ ok: false, error: "The due date is not a valid date." });
+    expect((await add("D-4")).ok).toBe(true); // no due date: the tender's terms decide
+    const rows = await listInvoices(db, a, id);
+    expect(rows.map((r) => [r.invoiceNo, r.dueDate])).toEqual([["D-1", "2027-03-15"], ["D-4", null]]);
+    const d1 = rows[0]!.id;
+    const save = (over: Partial<Parameters<typeof setCollected>[1]>) => setCollected(db, { companyId: a, tenderId: id, invoiceId: d1, collected: "0", collectedOn: "", ...over });
+    expect((await save({})).ok).toBe(true); // dueDate not posted: unchanged
+    expect((await listInvoices(db, a, id))[0]!.dueDate).toBe("2027-03-15");
+    expect((await save({ dueDate: "2027-04-01" })).ok).toBe(true);
+    expect((await listInvoices(db, a, id))[0]!.dueDate).toBe("2027-04-01");
+    expect((await save({ dueDate: "2027-01-01" })).ok).toBe(false);
+    expect((await save({ dueDate: "" })).ok).toBe(true); // empty clears it
+    expect((await listInvoices(db, a, id))[0]!.dueDate).toBeNull();
   });
 
   it("keeps collected between zero and the invoice amount and asks for the payment date", async () => {
