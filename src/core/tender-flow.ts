@@ -134,6 +134,23 @@ export function isLegalMove(from: TenderStatus, to: TenderStatus): boolean {
 
 export const isClosed = (s: TenderStatus): boolean => s === "lost" || s === "cancelled" || s === "collected";
 
+/** Coded reasons a tender ends as Lost or Cancelled, so losses can be counted. The free-text note stays beside the code. */
+export const CLOSE_REASONS = [
+  { code: "price", label: "Our price was higher", for: ["lost"] },
+  { code: "technical", label: "Did not meet the technical specification", for: ["lost"] },
+  { code: "documents", label: "Documents or registration missing or late", for: ["lost"] },
+  { code: "guarantee", label: "Guarantee problem", for: ["lost"] },
+  { code: "authority_cancelled", label: "The authority cancelled or withdrew the tender", for: ["cancelled"] },
+  { code: "no_budget", label: "The authority has no budget", for: ["cancelled"] },
+  { code: "not_bidding", label: "We decided not to bid", for: ["cancelled"] },
+  { code: "other", label: "Other (explain in the note)", for: ["lost", "cancelled"] },
+] as const;
+export type CloseReasonCode = (typeof CLOSE_REASONS)[number]["code"];
+export const isCloseReason = (v: string): v is CloseReasonCode => CLOSE_REASONS.some((r) => r.code === v);
+export const closeReasonLabel = (code: string | null): string | null => CLOSE_REASONS.find((r) => r.code === code)?.label ?? null;
+/** The reasons offered when ending a tender as `to` (lost or cancelled). */
+export const closeReasonsFor = (to: TenderStatus) => CLOSE_REASONS.filter((r) => (r.for as readonly string[]).includes(to));
+
 /** The fields a tender carries. Money is JOD; dates are YYYY-MM-DD. */
 export interface TenderFields {
   tenderNo: string | null;
@@ -142,6 +159,12 @@ export interface TenderFields {
   bidValue: number | null;
   awardAmount: number | null;
   closeReason: string | null;
+  closeReasonCode: string | null;
+  /** Who won, and at what price, when we lost. Optional: not every authority publishes them. */
+  winnerName: string | null;
+  winningPrice: number | null;
+  /** When the authority is expected to announce the award. Optional. */
+  expectedAwardDate: string | null;
   contractNo: string | null;
   contractValue: number | null;
   deliveredOn: string | null;
@@ -155,14 +178,24 @@ const NEEDED: Partial<Record<TenderStatus, { key: keyof TenderFields; label: str
   ],
   submitted: [{ key: "bidValue", label: "bid value" }],
   won: [{ key: "awardAmount", label: "award amount" }],
-  lost: [{ key: "closeReason", label: "reason it was lost" }],
-  cancelled: [{ key: "closeReason", label: "reason it was cancelled or dropped" }],
+  lost: [{ key: "closeReasonCode", label: "reason it was lost" }],
+  cancelled: [{ key: "closeReasonCode", label: "reason it was cancelled or dropped" }],
   contracted: [
     { key: "contractNo", label: "contract or PO number" },
     { key: "contractValue", label: "contract value" },
   ],
   delivered: [{ key: "deliveredOn", label: "delivery date" }],
 };
+
+/** Details worth asking for on a move but never required. */
+const OPTIONAL: Partial<Record<TenderStatus, { key: keyof TenderFields; label: string }[]>> = {
+  submitted: [{ key: "expectedAwardDate", label: "expected award date" }],
+  lost: [
+    { key: "winnerName", label: "winning company" },
+    { key: "winningPrice", label: "winning price" },
+  ],
+};
+export const optionalFor = (to: TenderStatus): readonly { key: keyof TenderFields; label: string }[] => OPTIONAL[to] ?? [];
 
 /** The fields a tender must have before it may enter `to`, so a move form can ask for exactly those. */
 export const neededFor = (to: TenderStatus): readonly { key: keyof TenderFields; label: string }[] => NEEDED[to] ?? [];
@@ -172,7 +205,18 @@ const filled = (v: unknown): boolean => v !== null && v !== undefined && !(typeo
 /** What is still missing before a tender may enter `to`. Moving backwards never asks for anything. */
 export function missingFor(to: TenderStatus, fields: TenderFields, from?: TenderStatus): string[] {
   if (from && BACK[from] === to) return [];
-  return (NEEDED[to] ?? []).filter((n) => !filled(fields[n.key])).map((n) => n.label);
+  const missing = (NEEDED[to] ?? []).filter((n) => !filled(fields[n.key])).map((n) => n.label);
+  if (fields.closeReasonCode === "other" && (to === "lost" || to === "cancelled") && !filled(fields.closeReason)) missing.push("a note explaining the reason");
+  return missing;
+}
+
+/** Why a reason code cannot be used when ending a tender as `to`, or null. An empty code is `missingFor`'s business. */
+export function closeReasonProblem(to: TenderStatus, code: string | null): string | null {
+  if (to !== "lost" && to !== "cancelled") return null;
+  if (!filled(code)) return null;
+  if (!isCloseReason(code!)) return "That reason is not one of the listed reasons.";
+  if (!closeReasonsFor(to).some((r) => r.code === code)) return `"${closeReasonLabel(code)}" does not fit a tender that is ${STATUS_LABEL[to].toLowerCase()}.`;
+  return null;
 }
 
 /** Whole days a tender has been in its current status. Never negative. */

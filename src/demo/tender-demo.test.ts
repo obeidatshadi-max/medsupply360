@@ -17,7 +17,7 @@ describe("demo tenders", () => {
 
   it("holds the details its status requires", () => {
     for (const t of DEMO_TENDERS) {
-      const fields: TenderFields = { tenderNo: t.tenderNo, estimatedValue: t.estimatedValue, deadline: t.deadline, bidValue: t.bidValue, awardAmount: t.awardAmount, closeReason: t.closeReason, contractNo: t.contractNo, contractValue: t.contractValue, deliveredOn: t.deliveredOn };
+      const fields: TenderFields = { tenderNo: t.tenderNo, estimatedValue: t.estimatedValue, deadline: t.deadline, bidValue: t.bidValue, awardAmount: t.awardAmount, closeReason: t.closeReason, closeReasonCode: t.closeReasonCode, winnerName: t.winnerName, winningPrice: t.winningPrice, expectedAwardDate: t.expectedAwardDate, contractNo: t.contractNo, contractValue: t.contractValue, deliveredOn: t.deliveredOn };
       const need = t.status === "pipeline" ? [] : missingFor(t.status, fields);
       expect(need, `${t.id} (${t.status}) is missing ${need.join(", ")}`).toEqual([]);
     }

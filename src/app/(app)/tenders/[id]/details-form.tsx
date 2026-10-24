@@ -5,7 +5,7 @@ import { updateTenderAction, type TenderFormState } from "@/server/actions/tende
 import { SubmitterField } from "@/components/submitter-field";
 import { FieldInput, type FieldValues } from "../tender-fields";
 
-const ORDER = ["authority", "productLine", "title", "tenderNo", "estimatedValue", "deadline", "bidValue", "awardAmount", "contractNo", "contractValue", "deliveredOn"] as const;
+const ORDER = ["authority", "productLine", "title", "tenderNo", "estimatedValue", "deadline", "expectedAwardDate", "bidValue", "awardAmount", "winnerName", "winningPrice", "contractNo", "contractValue", "deliveredOn"] as const;
 
 /** Corrects or completes a tender's details. The status is changed only in the move panel, which keeps the history honest. */
 export function DetailsForm({ tenderId, values }: { tenderId: string; values: FieldValues }) {
@@ -19,6 +19,7 @@ export function DetailsForm({ tenderId, values }: { tenderId: string; values: Fi
           <FieldInput key={k} name={k} value={values[k]} />
         ))}
       </div>
+      <FieldInput name="closeReasonCode" value={values.closeReasonCode} />
       <FieldInput name="closeReason" value={values.closeReason} />
       <FieldInput name="notes" value={values.notes} />
       <SubmitterField />

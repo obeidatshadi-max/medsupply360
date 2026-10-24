@@ -78,6 +78,42 @@ describe("tender list", () => {
     expect(reasons).toMatch(/unrecognised authority/);
   });
 
+  it("loads coded reasons, the winner and the expected award date; a free-text reason alone is stored as Other", async () => {
+    const H = "authority,tender no,title,product line,status,bid value,reason code,reason note,winner,winning price,expected award date";
+    const out = await imp(
+      a,
+      "tenders",
+      [
+        H,
+        "KAUH,KAUH-L1,Lost on price,equipment,lost,900,price,Too high,Rival Co,820.500,",
+        "KAUH,KAUH-L2,Lost in an old file style,equipment,lost,,,Spec was changed by the authority,,,",
+        "KAUH,KAUH-C1,Withdrawn,equipment,cancelled,,no budget,,,,",
+        "KAUH,KAUH-S1,Waiting,equipment,submitted,500,,,,,2027-02-01",
+      ].join("\n"),
+    );
+    expect(out).toMatchObject({ status: "accepted", rowsAccepted: 4 });
+    const rows = await q<{ tender_no: string; close_reason_code: string | null; close_reason: string | null; winner_name: string | null; winning_price: string | null; expected_award_date: string | null }>(
+      `select tender_no, close_reason_code, close_reason, winner_name, winning_price, expected_award_date::text from tenders where company_id = $1 and authority = 'KAUH' order by tender_no`,
+      [a],
+    );
+    expect(rows).toEqual([
+      { tender_no: "KAUH-C1", close_reason_code: "no_budget", close_reason: null, winner_name: null, winning_price: null, expected_award_date: null },
+      { tender_no: "KAUH-L1", close_reason_code: "price", close_reason: "Too high", winner_name: "Rival Co", winning_price: "820.500", expected_award_date: null },
+      { tender_no: "KAUH-L2", close_reason_code: "other", close_reason: "Spec was changed by the authority", winner_name: null, winning_price: null, expected_award_date: null },
+      { tender_no: "KAUH-S1", close_reason_code: null, close_reason: null, winner_name: null, winning_price: null, expected_award_date: "2027-02-01" },
+    ]);
+  });
+
+  it("rejects a lost tender with no reason, and a reason that does not fit its ending", async () => {
+    const H = "authority,tender no,title,product line,status,reason code";
+    const out = await imp(a, "tenders", [H, "JUH,JUH-X1,No reason,equipment,lost,", "JUH,JUH-X2,Wrong reason,equipment,lost,no budget", "JUH,JUH-X3,Unknown reason,equipment,cancelled,because"].join("\n"));
+    expect(out.status).toBe("rejected");
+    const reasons = out.rejections.map((r) => r.reason).join("|");
+    expect(reasons).toMatch(/reason it was lost/);
+    expect(reasons).toMatch(/does not fit a tender that is lost/);
+    expect(reasons).toMatch(/close reason code/);
+  });
+
   it("previews without saving and keeps companies apart", async () => {
     const before = await total("tenders");
     const dry = await imp(b, "tenders", `${HEAD}\nDRMS,,Dry run tender,mixed,,,,,,`, { dryRun: true });

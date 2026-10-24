@@ -473,6 +473,13 @@ export const tenders = pgTable(
     awardAmount: numeric("award_amount", { precision: 14, scale: 3 }),
     /** Why a tender was lost or cancelled. */
     closeReason: text("close_reason"),
+    /** Coded reason (see CLOSE_REASONS in core/tender-flow); `closeReason` stays as the free-text note. Null on tenders closed before codes existed. */
+    closeReasonCode: varchar("close_reason_code", { length: 30 }),
+    /** Optional: who won and at what price, when we lost. */
+    winnerName: varchar("winner_name", { length: 200 }),
+    winningPrice: numeric("winning_price", { precision: 14, scale: 3 }),
+    /** Optional: when the award is expected to be announced. */
+    expectedAwardDate: date("expected_award_date"),
     contractNo: varchar("contract_no", { length: 80 }),
     contractValue: numeric("contract_value", { precision: 14, scale: 3 }),
     deliveredOn: date("delivered_on"),

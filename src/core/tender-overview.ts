@@ -3,7 +3,7 @@
  * win, and what the authorities still owe. Pure and shared by the page and the tests. Nothing here applies a time limit
  * to a stage: it lists facts (dates, counts, days) and leaves the judgement to the reader.
  */
-import { AUTHORITIES, PHASES, daysInStage, phaseOf, type AuthorityCode, type PhaseKey, type TenderStatus } from "@/core/tender-flow";
+import { AUTHORITIES, CLOSE_REASONS, PHASES, closeReasonLabel, daysInStage, phaseOf, type AuthorityCode, type PhaseKey, type TenderStatus } from "@/core/tender-flow";
 import { guaranteeExposure, guaranteeState, paymentSummary } from "@/core/tender-money";
 
 export interface OverviewTender {
@@ -18,6 +18,10 @@ export interface OverviewTender {
   contractValue: number | null;
   deadline: string | null;
   closeReason: string | null;
+  closeReasonCode: string | null;
+  winnerName: string | null;
+  winningPrice: number | null;
+  expectedAwardDate: string | null;
 }
 
 export interface OverviewGuarantee {
@@ -59,7 +63,18 @@ export interface TenderOverview {
   authorities: { code: AuthorityCode; active: number; activeValue: number; won: number; lost: number; unpaid: number }[];
   deadlines: { upcoming: { id: string; title: string; authority: AuthorityCode; deadline: string; daysLeft: number; status: TenderStatus }[]; passed: { id: string; title: string; authority: AuthorityCode; deadline: string; daysAgo: number; status: TenderStatus }[] };
   guarantees: { active: number; expiredNotReturned: number; count: number; soonest: { tenderId: string; title: string; authority: AuthorityCode; amount: number; expiresOn: string; daysLeft: number }[] };
-  results: { won: number; lost: number; winRate: number | null; wonValue: number; recentLost: { id: string; title: string; authority: AuthorityCode; reason: string | null }[] };
+  results: {
+    won: number;
+    lost: number;
+    winRate: number | null;
+    wonValue: number;
+    recentLost: { id: string; title: string; authority: AuthorityCode; reason: string | null; winner: string | null; winningPrice: number | null; bidValue: number | null; aboveWinnerPct: number | null }[];
+    /** Lost tenders counted by coded reason; `uncoded` holds those closed before codes existed. */
+    lostByReason: { code: string; label: string; count: number }[];
+    uncodedLost: number;
+  };
+  /** Bids waiting for the authority's decision, by the award date someone entered. Tenders with no date are only counted. */
+  awards: { expected: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysLeft: number; status: TenderStatus }[]; overdue: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysAgo: number; status: TenderStatus }[]; withoutDate: number };
   payments: { invoiced: number; collected: number; unpaid: number };
   longestInStage: { id: string; title: string; authority: AuthorityCode; status: TenderStatus; days: number }[];
 }
@@ -112,6 +127,21 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
     .sort((a, b) => b.deadline!.localeCompare(a.deadline!))
     .map((t) => ({ id: t.id, title: t.title, authority: t.authority, deadline: t.deadline!, daysAgo: diff(t.deadline!, today), status: t.status }));
 
+  const awaiting = tenders.filter((t) => t.status === "submitted" || t.status === "technical_review" || t.status === "financial_review");
+  const dated = awaiting.filter((t) => t.expectedAwardDate);
+  const awards: TenderOverview["awards"] = {
+    expected: dated
+      .filter((t) => t.expectedAwardDate! >= today)
+      .sort((a, b) => a.expectedAwardDate!.localeCompare(b.expectedAwardDate!))
+      .slice(0, limit)
+      .map((t) => ({ id: t.id, title: t.title, authority: t.authority, expectedOn: t.expectedAwardDate!, daysLeft: diff(today, t.expectedAwardDate!), status: t.status })),
+    overdue: dated
+      .filter((t) => t.expectedAwardDate! < today)
+      .sort((a, b) => a.expectedAwardDate!.localeCompare(b.expectedAwardDate!))
+      .map((t) => ({ id: t.id, title: t.title, authority: t.authority, expectedOn: t.expectedAwardDate!, daysAgo: diff(t.expectedAwardDate!, today), status: t.status })),
+    withoutDate: awaiting.length - dated.length,
+  };
+
   const exposure = guaranteeExposure(input.guarantees, today);
   const soonest = input.guarantees
     .filter((g) => guaranteeState(g, today).state === "active" && byId.has(g.tenderId))
@@ -145,8 +175,20 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
       lost: lost.length,
       winRate: decided === 0 ? null : won.length / decided,
       wonValue: round3(won.reduce((s, t) => s + (t.awardAmount ?? t.contractValue ?? 0), 0)),
-      recentLost: lost.slice(0, limit).map((t) => ({ id: t.id, title: t.title, authority: t.authority, reason: t.closeReason })),
+      recentLost: lost.slice(0, limit).map((t) => ({
+        id: t.id,
+        title: t.title,
+        authority: t.authority,
+        reason: [closeReasonLabel(t.closeReasonCode), t.closeReason].filter(Boolean).join(" · ") || null,
+        winner: t.winnerName,
+        winningPrice: t.winningPrice,
+        bidValue: t.bidValue,
+        aboveWinnerPct: t.bidValue !== null && t.winningPrice !== null && t.winningPrice > 0 ? Math.round(((t.bidValue - t.winningPrice) / t.winningPrice) * 1000) / 10 : null,
+      })),
+      lostByReason: CLOSE_REASONS.map((r) => ({ code: r.code, label: r.label, count: lost.filter((t) => t.closeReasonCode === r.code).length })).filter((r) => r.count > 0),
+      uncodedLost: lost.filter((t) => !t.closeReasonCode).length,
     },
+    awards,
     payments: { invoiced: allInvoices.invoiced, collected: allInvoices.collected, unpaid: allInvoices.outstanding },
     longestInStage,
   };

@@ -113,6 +113,13 @@
       "when": 1792839004730,
       "tag": "0015_tender_price_history",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792860892864,
+      "tag": "0016_tender_award_details",
+      "breakpoints": true
     }
   ]
 }

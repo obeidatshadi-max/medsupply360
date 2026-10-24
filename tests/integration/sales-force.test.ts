@@ -42,7 +42,7 @@ let b: string;
 let user: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
-const tenderForm: TenderForm = { authority: "MOH", tenderNo: "", title: "Analyzer for central lab", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
+const tenderForm: TenderForm = { authority: "MOH", tenderNo: "", title: "Analyzer for central lab", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
 const form = (over: Partial<SalesPersonForm> = {}): SalesPersonForm => ({ name: "Khaled Mansour", email: "", suppliers: [], monthlySalesTarget: "", newAccountsTarget: "", visitsPerWeek: "", ...over });
 
 beforeAll(async () => {
