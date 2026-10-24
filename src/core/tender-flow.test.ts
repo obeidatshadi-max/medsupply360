@@ -19,7 +19,7 @@ import {
   type TenderFields,
 } from "./tender-flow";
 
-const none: TenderFields = { tenderNo: null, estimatedValue: null, deadline: null, bidValue: null, awardAmount: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, contractNo: null, contractValue: null, deliveredOn: null };
+const none: TenderFields = { tenderNo: null, estimatedValue: null, deadline: null, bidValue: null, awardAmount: null, closeReason: null, closeReasonCode: null, winnerName: null, winningPrice: null, expectedAwardDate: null, submittedOn: null, bidOpeningDate: null, contractNo: null, contractValue: null, deliveredOn: null };
 
 describe("tender flow", () => {
   it("knows the five authorities", () => {
@@ -100,7 +100,7 @@ describe("tender flow", () => {
 
   it("never requires the winner, the winning price or the expected award date", () => {
     expect(optionalFor("lost").map((o) => o.key)).toEqual(["winnerName", "winningPrice"]);
-    expect(optionalFor("submitted").map((o) => o.key)).toEqual(["expectedAwardDate"]);
+    expect(optionalFor("submitted").map((o) => o.key)).toEqual(["submittedOn", "bidOpeningDate", "expectedAwardDate"]);
     expect(missingFor("submitted", { ...none, bidValue: 10 })).toEqual([]);
     expect(missingFor("lost", { ...none, closeReasonCode: "price" })).toEqual([]);
   });

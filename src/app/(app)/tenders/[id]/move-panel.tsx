@@ -8,7 +8,7 @@ import { FieldInput, HiddenField, fieldClass, type FieldValues } from "../tender
 
 type Move = { to: TenderStatus; back: boolean };
 
-const FIELD_KEYS = ["authority", "tenderNo", "title", "productLine", "estimatedValue", "deadline", "bidValue", "awardAmount", "closeReason", "closeReasonCode", "winnerName", "winningPrice", "expectedAwardDate", "contractNo", "contractValue", "deliveredOn", "notes"] as const;
+const FIELD_KEYS = ["authority", "tenderNo", "title", "productLine", "estimatedValue", "deadline", "bidValue", "awardAmount", "closeReason", "closeReasonCode", "winnerName", "winningPrice", "expectedAwardDate", "submittedOn", "bidOpeningDate", "contractNo", "contractValue", "deliveredOn", "notes"] as const;
 
 /**
  * Moves the tender to its next status. The panel asks for exactly the details that status needs and carries every other

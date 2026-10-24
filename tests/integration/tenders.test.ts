@@ -19,7 +19,7 @@ let b: string;
 let userA: string;
 const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
-const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
+const blank: TenderForm = { authority: "MOH", tenderNo: "", title: "", productLine: "equipment", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "", closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "" };
 const form = (over: Partial<TenderForm> = {}): TenderForm => ({ ...blank, title: "Analyzer for central lab", ...over });
 
 beforeAll(async () => {
@@ -158,6 +158,23 @@ describe("moving tenders", () => {
     expect((await getTender(db, a, bare))!.tender).toMatchObject({ winnerName: null, winningPrice: null });
     const bad = await mk("WIN-3");
     expect((await move(bad, "lost", "financial_review", { closeReasonCode: "price", winningPrice: "lots" })).ok).toBe(false);
+  });
+
+  it("saves the date submitted and the bid opening date from the Submitted step, and refuses a future or malformed date", async () => {
+    const id = await create({ tenderNo: "SUB-1", estimatedValue: "1", deadline: "2026-12-01" });
+    await client.exec(`update tenders set status = 'preparing' where id = '${id}'`);
+    expect((await move(id, "submitted", "preparing", { bidValue: "5", submittedOn: "2999-01-01" })).ok).toBe(false);
+    expect(await move(id, "submitted", "preparing", { bidValue: "5", submittedOn: "2999-01-01" })).toEqual({ ok: false, error: "The date submitted cannot be in the future." });
+    expect((await move(id, "submitted", "preparing", { bidValue: "5", bidOpeningDate: "soon" })).ok).toBe(false);
+    expect((await move(id, "submitted", "preparing", { bidValue: "5", submittedOn: "2026-10-01", bidOpeningDate: "2026-10-03" })).ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender).toMatchObject({ submittedOn: "2026-10-01", bidOpeningDate: "2026-10-03" });
+  });
+
+  it("leaves both dates empty when none is given: they are never required", async () => {
+    const id = await create({ tenderNo: "SUB-2", estimatedValue: "1", deadline: "2026-12-01" });
+    await client.exec(`update tenders set status = 'preparing' where id = '${id}'`);
+    expect((await move(id, "submitted", "preparing", { bidValue: "5" })).ok).toBe(true);
+    expect((await getTender(db, a, id))!.tender).toMatchObject({ submittedOn: null, bidOpeningDate: null });
   });
 
   it("keeps the expected award date from the Submitted step and refuses a malformed one", async () => {

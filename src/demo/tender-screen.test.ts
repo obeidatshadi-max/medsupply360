@@ -39,6 +39,15 @@ describe("demo tender screen", () => {
     expect(tenderResultsPrefillRows("nope", false)).toBeNull();
   });
 
+  it("shows the time from handing in the bid to the decision, as the overview computes it", () => {
+    const td = o.timeToDecision;
+    expect(td.count).toBeGreaterThan(3);
+    const html = tenderScreenHtml({ generic: false });
+    expect(html).toContain(`${td.average} days on average, ${td.median} typical, from ${td.fastest} to ${td.slowest}`);
+    expect(tenderDetailHtml("d3", false)).toContain("Date submitted");
+    expect(tenderDetailHtml("d3", false)).toContain("Bid opening");
+  });
+
   it("shows a tender's item lines and totals in its drawer, and nothing for a tender without lines", () => {
     const html = tenderDetailHtml("d10", false)!;
     expect(html).toContain("Item lines");

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { isIsoDate } from "@/core/calc";
+import { businessToday } from "@/lib/business-date";
 import { parseJod } from "@/core/jod";
 import {
   PRODUCT_LINES,
@@ -61,6 +62,8 @@ const toRow = (r: Raw, ownerName: string | null = null): TenderRow => ({
   winnerName: r.winnerName,
   winningPrice: num(r.winningPrice),
   expectedAwardDate: r.expectedAwardDate,
+  submittedOn: r.submittedOn,
+  bidOpeningDate: r.bidOpeningDate,
   contractNo: r.contractNo,
   contractValue: num(r.contractValue),
   deliveredOn: r.deliveredOn,
@@ -95,6 +98,8 @@ export function formOf(t: TenderRow): TenderForm {
     winnerName: t.winnerName ?? "",
     winningPrice: amountText(t.winningPrice),
     expectedAwardDate: t.expectedAwardDate ?? "",
+    submittedOn: t.submittedOn ?? "",
+    bidOpeningDate: t.bidOpeningDate ?? "",
     contractNo: t.contractNo ?? "",
     contractValue: amountText(t.contractValue),
     deliveredOn: t.deliveredOn ?? "",
@@ -132,6 +137,8 @@ export type TenderForm = {
   winnerName: string;
   winningPrice: string;
   expectedAwardDate: string;
+  submittedOn: string;
+  bidOpeningDate: string;
   contractNo: string;
   contractValue: string;
   deliveredOn: string;
@@ -159,16 +166,19 @@ function clean(form: TenderForm): { ok: true; value: Clean } | { ok: false; erro
     if (v === "invalid") return { ok: false, error: `The ${label} must be a number in JOD, for example 12500 or 12,500.250.` };
     money[key] = v;
   }
-  const dates = {} as Record<"deadline" | "expectedAwardDate" | "deliveredOn", string | null>;
+  const dates = {} as Record<"deadline" | "expectedAwardDate" | "submittedOn" | "bidOpeningDate" | "deliveredOn", string | null>;
   for (const [key, label] of [
     ["deadline", "submission deadline"],
     ["expectedAwardDate", "expected award date"],
+    ["submittedOn", "date submitted"],
+    ["bidOpeningDate", "bid opening date"],
     ["deliveredOn", "delivery date"],
   ] as const) {
     const v = form[key].trim();
     if (v !== "" && !isIsoDate(v)) return { ok: false, error: `The ${label} is not a valid date.` };
     dates[key] = v === "" ? null : v;
   }
+  if (dates.submittedOn !== null && dates.submittedOn > businessToday()) return { ok: false, error: "The date submitted cannot be in the future." };
   return {
     ok: true,
     value: {
@@ -185,6 +195,8 @@ function clean(form: TenderForm): { ok: true; value: Clean } | { ok: false; erro
       winnerName: text(form.winnerName, 200),
       winningPrice: money.winningPrice,
       expectedAwardDate: dates.expectedAwardDate,
+      submittedOn: dates.submittedOn,
+      bidOpeningDate: dates.bidOpeningDate,
       contractNo: text(form.contractNo, 80),
       contractValue: money.contractValue,
       deliveredOn: dates.deliveredOn,
@@ -259,6 +271,8 @@ export async function createTender(db: Db, input: { companyId: string; userId: s
           winnerName: v.winnerName,
           winningPrice: money3(v.winningPrice),
           expectedAwardDate: v.expectedAwardDate,
+          submittedOn: v.submittedOn,
+          bidOpeningDate: v.bidOpeningDate,
           contractNo: v.contractNo,
           contractValue: money3(v.contractValue),
           deliveredOn: v.deliveredOn,
@@ -299,6 +313,8 @@ export async function updateTender(db: Db, input: { companyId: string; tenderId:
         winnerName: v.winnerName,
         winningPrice: money3(v.winningPrice),
         expectedAwardDate: v.expectedAwardDate,
+        submittedOn: v.submittedOn,
+        bidOpeningDate: v.bidOpeningDate,
         contractNo: v.contractNo,
         contractValue: money3(v.contractValue),
         deliveredOn: v.deliveredOn,
@@ -361,6 +377,8 @@ export async function moveTender(
           winnerName: v.winnerName,
           winningPrice: money3(v.winningPrice),
           expectedAwardDate: v.expectedAwardDate,
+          submittedOn: v.submittedOn,
+          bidOpeningDate: v.bidOpeningDate,
           contractNo: v.contractNo,
           contractValue: money3(v.contractValue),
           deliveredOn: v.deliveredOn,

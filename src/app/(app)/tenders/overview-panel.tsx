@@ -50,6 +50,13 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
           Lost or cancelled: {closed.count}. Win rate:{" "}
           {o.results.winRate === null ? "not known yet (no tender has been decided)" : `${pct(o.results.winRate)} (${o.results.won} won, ${o.results.lost} lost${o.results.wonValue > 0 ? `, ${jod(o.results.wonValue)} awarded` : ""})`}.
         </p>
+        <p className="mt-1 text-xs text-muted">
+          Time from handing in the bid to the decision:{" "}
+          {o.timeToDecision.count === 0
+            ? "not known yet (no decided tender has both dates)"
+            : `${o.timeToDecision.average} days on average, ${o.timeToDecision.median} typical, from ${o.timeToDecision.fastest} to ${o.timeToDecision.slowest} (${plural(o.timeToDecision.count, "tender")}).`}
+          {o.timeToDecision.missing > 0 ? ` ${plural(o.timeToDecision.missing, "decided tender")} without both dates left out.` : ""}
+        </p>
       </div>
 
       <div className="grid gap-[10px] md:grid-cols-2">
@@ -229,7 +236,8 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
                   <th className="py-1 pr-3 text-right font-medium">Active</th>
                   <th className="py-1 pr-3 text-right font-medium">Active value</th>
                   <th className="py-1 pr-3 text-right font-medium">Won</th>
-                  <th className="py-1 text-right font-medium">Lost</th>
+                  <th className="py-1 pr-3 text-right font-medium">Lost</th>
+                  <th className="py-1 text-right font-medium">Days to decision</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,7 +247,8 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
                     <td className="py-1 pr-3 text-right tabular-nums">{a.active}</td>
                     <td className="py-1 pr-3 text-right tabular-nums">{a.activeValue === 0 ? "—" : jod(a.activeValue)}</td>
                     <td className="py-1 pr-3 text-right tabular-nums">{a.won}</td>
-                    <td className="py-1 text-right tabular-nums">{a.lost}</td>
+                    <td className="py-1 pr-3 text-right tabular-nums">{a.lost}</td>
+                    <td className="py-1 text-right tabular-nums">{a.avgDaysToDecision ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

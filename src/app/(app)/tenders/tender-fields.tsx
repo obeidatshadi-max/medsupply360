@@ -5,7 +5,7 @@ export const fieldClass = "mt-1 block w-full rounded-md border border-line bg-wh
 
 /** What a form posts for each tender field, as the text a person would type. */
 export type FieldValues = Record<
-  "authority" | "tenderNo" | "title" | "productLine" | "estimatedValue" | "deadline" | "bidValue" | "awardAmount" | "closeReason" | "closeReasonCode" | "winnerName" | "winningPrice" | "expectedAwardDate" | "contractNo" | "contractValue" | "deliveredOn" | "notes",
+  "authority" | "tenderNo" | "title" | "productLine" | "estimatedValue" | "deadline" | "bidValue" | "awardAmount" | "closeReason" | "closeReasonCode" | "winnerName" | "winningPrice" | "expectedAwardDate" | "submittedOn" | "bidOpeningDate" | "contractNo" | "contractValue" | "deliveredOn" | "notes",
   string
 >;
 
@@ -26,6 +26,8 @@ export function valuesOf(t: TenderRow | null): FieldValues {
     winnerName: t?.winnerName ?? "",
     winningPrice: amount(t?.winningPrice ?? null),
     expectedAwardDate: t?.expectedAwardDate ?? "",
+    submittedOn: t?.submittedOn ?? "",
+    bidOpeningDate: t?.bidOpeningDate ?? "",
     contractNo: t?.contractNo ?? "",
     contractValue: amount(t?.contractValue ?? null),
     deliveredOn: t?.deliveredOn ?? "",
@@ -49,13 +51,15 @@ export const LABEL: Record<Key, string> = {
   winnerName: "Winning company (if known)",
   winningPrice: "Winning price (JOD, if known)",
   expectedAwardDate: "Expected award date (if known)",
+  submittedOn: "Date the bid was handed in",
+  bidOpeningDate: "Bid opening date (if announced)",
   contractNo: "Contract or PO number",
   contractValue: "Contract value (JOD)",
   deliveredOn: "Delivery date",
   notes: "Notes",
 };
 
-const DATE_KEYS: Key[] = ["deadline", "expectedAwardDate", "deliveredOn"];
+const DATE_KEYS: Key[] = ["deadline", "bidOpeningDate", "submittedOn", "expectedAwardDate", "deliveredOn"];
 const MONEY_KEYS: Key[] = ["estimatedValue", "bidValue", "awardAmount", "winningPrice", "contractValue"];
 
 /** One labelled input for a tender field. */

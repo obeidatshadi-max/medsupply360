@@ -55,6 +55,8 @@ export default async function TenderPage({ params }: { params: Promise<{ id: str
     ["Products", LINE_LABEL[t.productLine]],
     ["Estimated value", t.estimatedValue === null ? "—" : jod(t.estimatedValue)],
     ["Submission deadline", t.deadline ? dayText(t.deadline) : "—"],
+    ["Bid opening", t.bidOpeningDate ? dayText(t.bidOpeningDate) : "—"],
+    ["Date submitted", t.submittedOn ? dayText(t.submittedOn) : "—"],
     ["Expected award date", t.expectedAwardDate ? dayText(t.expectedAwardDate) : "—"],
     ["Our bid", t.bidValue === null ? "—" : jod(t.bidValue)],
     ...(t.winnerName || t.winningPrice !== null ? ([["Winner", `${t.winnerName ?? "Not recorded"}${t.winningPrice === null ? "" : ` · ${jod(t.winningPrice)}`}`]] as [string, string][]) : []),

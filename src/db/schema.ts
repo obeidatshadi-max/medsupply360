@@ -480,6 +480,10 @@ export const tenders = pgTable(
     winningPrice: numeric("winning_price", { precision: 14, scale: 3 }),
     /** Optional: when the award is expected to be announced. */
     expectedAwardDate: date("expected_award_date"),
+    /** Optional: the day the bid was handed in; with the decision date it gives the time to award. */
+    submittedOn: date("submitted_on"),
+    /** Optional: the day the authority opens the bids. */
+    bidOpeningDate: date("bid_opening_date"),
     contractNo: varchar("contract_no", { length: 80 }),
     contractValue: numeric("contract_value", { precision: 14, scale: 3 }),
     deliveredOn: date("delivered_on"),

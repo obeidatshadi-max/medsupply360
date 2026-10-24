@@ -22,6 +22,10 @@ export interface OverviewTender {
   winnerName: string | null;
   winningPrice: number | null;
   expectedAwardDate: string | null;
+  /** The day the bid was handed in (the recorded date, else the day it entered Submitted). */
+  submittedOn: string | null;
+  /** The day the tender was decided (entered Won or Lost), or null if it is not decided. */
+  decidedOn: string | null;
 }
 
 export interface OverviewGuarantee {
@@ -44,6 +48,21 @@ export function tenderValue(t: Pick<OverviewTender, "contractValue" | "awardAmou
   return t.contractValue ?? t.awardAmount ?? t.bidValue ?? t.estimatedValue ?? null;
 }
 
+const dayDiff = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
+/** Whole days from the bid being handed in to the decision. Null when either date is missing or the dates are in the wrong order. */
+export function daysToDecision(t: Pick<OverviewTender, "submittedOn" | "decidedOn">): number | null {
+  if (!t.submittedOn || !t.decidedOn) return null;
+  const d = dayDiff(t.submittedOn, t.decidedOn);
+  return d < 0 ? null : d;
+}
+
+const median = (xs: number[]): number => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+};
+
 const isWon = (s: TenderStatus) => s === "won" || s === "contracted" || s === "delivered" || s === "collected";
 const BEFORE_SUBMISSION: readonly TenderStatus[] = ["pipeline", "open", "preparing"];
 const isActive = (s: TenderStatus) => s !== "lost" && s !== "cancelled" && s !== "collected";
@@ -60,7 +79,7 @@ export interface PhaseSummary {
 export interface TenderOverview {
   total: number;
   phases: PhaseSummary[];
-  authorities: { code: AuthorityCode; active: number; activeValue: number; won: number; lost: number; unpaid: number }[];
+  authorities: { code: AuthorityCode; active: number; activeValue: number; won: number; lost: number; unpaid: number; avgDaysToDecision: number | null }[];
   deadlines: { upcoming: { id: string; title: string; authority: AuthorityCode; deadline: string; daysLeft: number; status: TenderStatus }[]; passed: { id: string; title: string; authority: AuthorityCode; deadline: string; daysAgo: number; status: TenderStatus }[] };
   guarantees: { active: number; expiredNotReturned: number; count: number; soonest: { tenderId: string; title: string; authority: AuthorityCode; amount: number; expiresOn: string; daysLeft: number }[] };
   results: {
@@ -75,6 +94,8 @@ export interface TenderOverview {
   };
   /** Bids waiting for the authority's decision, by the award date someone entered. Tenders with no date are only counted. */
   awards: { expected: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysLeft: number; status: TenderStatus }[]; overdue: { id: string; title: string; authority: AuthorityCode; expectedOn: string; daysAgo: number; status: TenderStatus }[]; withoutDate: number };
+  /** Days from handing in the bid to the decision, over decided tenders that have both dates. `missing` counts decided tenders without them. */
+  timeToDecision: { count: number; average: number | null; median: number | null; fastest: number | null; slowest: number | null; missing: number };
   payments: { invoiced: number; collected: number; unpaid: number };
   longestInStage: { id: string; title: string; authority: AuthorityCode; status: TenderStatus; days: number }[];
 }
@@ -103,6 +124,7 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
   for (const inv of input.invoices) invoicesByTender.set(inv.tenderId, [...(invoicesByTender.get(inv.tenderId) ?? []), inv]);
   for (const [id, rows] of invoicesByTender) unpaidByTender.set(id, paymentSummary(rows).outstanding);
 
+  const avg = (xs: number[]): number | null => (xs.length === 0 ? null : Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 10) / 10);
   const authorities = AUTHORITIES.map(({ code }) => {
     const mine = tenders.filter((t) => t.authority === code);
     const active = mine.filter((t) => isActive(t.status));
@@ -113,6 +135,7 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
       won: mine.filter((t) => isWon(t.status)).length,
       lost: mine.filter((t) => t.status === "lost").length,
       unpaid: round3(mine.reduce((s, t) => s + (unpaidByTender.get(t.id) ?? 0), 0)),
+      avgDaysToDecision: avg(mine.map(daysToDecision).filter((d): d is number => d !== null)),
     };
   });
 
@@ -189,6 +212,18 @@ export function buildTenderOverview(input: { today: string; tenders: OverviewTen
       uncodedLost: lost.filter((t) => !t.closeReasonCode).length,
     },
     awards,
+    timeToDecision: (() => {
+      const decidedTenders = tenders.filter((t) => t.decidedOn);
+      const days = decidedTenders.map(daysToDecision).filter((d): d is number => d !== null);
+      return {
+        count: days.length,
+        average: avg(days),
+        median: days.length === 0 ? null : median(days),
+        fastest: days.length === 0 ? null : Math.min(...days),
+        slowest: days.length === 0 ? null : Math.max(...days),
+        missing: decidedTenders.length - days.length,
+      };
+    })(),
     payments: { invoiced: allInvoices.invoiced, collected: allInvoices.collected, unpaid: allInvoices.outstanding },
     longestInStage,
   };

@@ -22,7 +22,7 @@ const q = async <T>(sql: string) => (await client.query<T>(sql)).rows;
 
 const blank: TenderForm = {
   authority: "MOH", tenderNo: "", title: "Diabetes supplies", productLine: "consumables", estimatedValue: "", deadline: "", bidValue: "", awardAmount: "", closeReason: "",
-  closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "",
+  closeReasonCode: "", winnerName: "", winningPrice: "", expectedAwardDate: "", submittedOn: "", bidOpeningDate: "", contractNo: "", contractValue: "", deliveredOn: "", notes: "",
 };
 const line = (over: Partial<ItemForm> = {}): ItemForm => ({ itemName: "Glucose strips 50", quantity: "100", unit: "box", estimatedUnitPrice: "", ourUnitPrice: "", ...over });
 const tender = async (over: Partial<TenderForm> = {}, company = a) => {
