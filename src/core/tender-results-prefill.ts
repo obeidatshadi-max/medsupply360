@@ -21,6 +21,12 @@ export interface PrefillTender {
   winnerName: string | null;
 }
 
+/**
+ * Spreadsheet programs run a cell that starts with = + - @ (or a tab / carriage return) as a formula. Titles and company
+ * names are typed by people, so such a cell gets a leading apostrophe; dates, codes and numbers are never changed.
+ */
+export const defuse = (v: string): string => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v);
+
 const quote = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
 /** Headings, then our bid row, then (for a lost tender whose winner is known) the winner's row. Item and price cells are left empty. */
@@ -28,9 +34,9 @@ export function prefillRows(t: PrefillTender, ourCompany: string): string[][] {
   const keys = SPECS.tender_results.fields.map((f) => f.key);
   const row = (v: Record<string, string>) => keys.map((k) => v[k] ?? "");
   const lost = t.status === "lost";
-  const common = { authority: t.authority, tenderNo: t.tenderNo ?? "", tenderTitle: t.title, awardDate: t.awardDate ?? "", currency: "JOD" };
-  const rows = [keys.map((k) => headingOf("tender_results", k)), row({ ...common, bidder: ourCompany, ourBid: "Yes", result: lost ? "lost" : "won" })];
-  if (lost && t.winnerName) rows.push(row({ ...common, bidder: t.winnerName, ourBid: "No", result: "won" }));
+  const common = { authority: t.authority, tenderNo: t.tenderNo ?? "", tenderTitle: defuse(t.title), awardDate: t.awardDate ?? "", currency: "JOD" };
+  const rows = [keys.map((k) => headingOf("tender_results", k)), row({ ...common, bidder: defuse(ourCompany), ourBid: "Yes", result: lost ? "lost" : "won" })];
+  if (lost && t.winnerName) rows.push(row({ ...common, bidder: defuse(t.winnerName), ourBid: "No", result: "won" }));
   return rows;
 }
 

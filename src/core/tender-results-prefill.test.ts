@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateImport } from "./import/validate";
-import { hasAwardResult, prefillFileName, prefillRows, rowsToCsv, type PrefillTender } from "./tender-results-prefill";
+import { defuse, hasAwardResult, prefillFileName, prefillRows, rowsToCsv, type PrefillTender } from "./tender-results-prefill";
 
 const base: PrefillTender = { authority: "KAUH", tenderNo: "KAUH-26-040", title: "Anaesthesia workstations", status: "lost", awardDate: "2026-09-05", winnerName: "Competitor A" };
 
@@ -46,6 +46,14 @@ describe("prefilled award results", () => {
     ]);
     // Left empty, the prefilled rows are not accepted: the item name is required.
     expect(validateImport("tender_results", rowsToCsv(rows), { today: "2026-10-24" }).accepted).toEqual([]);
+  });
+
+  it("defuses typed text that a spreadsheet would run as a formula, and leaves everything else alone", () => {
+    expect(["=HYPERLINK(\"http://x\")", "+1", "-2", "@SUM(A1)", "\tx", "\rx"].map(defuse)).toEqual(["'=HYPERLINK(\"http://x\")", "'+1", "'-2", "'@SUM(A1)", "'\tx", "'\rx"]);
+    expect(["Nitrile gloves", "MOH-26-1", "2026-09-05", ""].map(defuse)).toEqual(["Nitrile gloves", "MOH-26-1", "2026-09-05", ""]);
+    const [h, ours, theirs] = prefillRows({ ...base, title: "=1+1", winnerName: "@evil" }, "-Co");
+    expect([ours![h!.indexOf("Tender title")], ours![h!.indexOf("Bidder")], theirs![h!.indexOf("Bidder")]]).toEqual(["'=1+1", "'-Co", "'@evil"]);
+    expect(ours![h!.indexOf("Tender no")]).toBe("KAUH-26-040"); // codes and dates stay untouched
   });
 
   it("quotes commas and builds a safe file name", () => {
