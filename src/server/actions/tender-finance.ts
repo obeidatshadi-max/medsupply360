@@ -6,7 +6,8 @@ import { writeAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { canAccess, canEditGuarantees, canEditPayments } from "@/core/permissions";
 import { readSubmitter } from "@/core/submitter";
-import { addGuarantee, addInvoice, deleteGuarantee, deleteInvoice, setCollected, updateGuarantee, type FinanceResult, type GuaranteeForm } from "@/server/services/tender-finance";
+import { prefillFromErp, type ErpPrefill } from "@/core/tender-erp";
+import { addGuarantee, addInvoice, deleteGuarantee, deleteInvoice, setCollected, updateGuarantee, erpFactsByInvoiceNo, type FinanceResult, type GuaranteeForm } from "@/server/services/tender-finance";
 
 export type FinanceFormState = { error?: string; saved?: boolean };
 
@@ -91,4 +92,21 @@ export async function deleteInvoiceAction(fd: FormData): Promise<void> {
   const tenderId = val(fd, "tenderId");
   const r = await deleteInvoice(getDb(), { companyId: user.companyId, tenderId, invoiceId: val(fd, "invoiceId") });
   await finish(r, { companyId: user.companyId, userId: user.id, submittedBy: who.name, action: "tender.invoice_deleted", entityType: "tender_invoice", tenderId });
+}
+
+export type ErpLookupResult = { ok: true; found: true; prefill: ErpPrefill } | { ok: true; found: false } | { ok: false; error: string };
+
+/**
+ * Looks one invoice number up in the imported ERP files so the add-invoice form can be prefilled. It shows ERP data, so it is
+ * limited to people who may open the business screens (the owner); finance, who cannot, types the invoice by hand.
+ */
+export async function lookupErpInvoiceAction(invoiceNo: string): Promise<ErpLookupResult> {
+  const user = await tenderUser();
+  if (!user || !canEditPayments(user.role)) return { ok: false, error: "Only finance can record invoices." };
+  if (!canAccess(user.role, "business")) return { ok: false, error: "Your role cannot read the ERP files." };
+  const no = invoiceNo.trim().slice(0, 80);
+  if (!no) return { ok: false, error: "Enter the invoice number first." };
+  const facts = (await erpFactsByInvoiceNo(getDb(), user.companyId, [no])).get(no);
+  const prefill = prefillFromErp(facts);
+  return prefill ? { ok: true, found: true, prefill } : { ok: true, found: false };
 }

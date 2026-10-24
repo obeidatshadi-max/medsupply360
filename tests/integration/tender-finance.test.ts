@@ -178,7 +178,7 @@ describe("ERP check by invoice number", () => {
     expect((await erpFactsByInvoiceNo(db, a, ["NOPE-1"])).size).toBe(0);
     const cust = (await q<{ id: string }>(`insert into customers (company_id, code, name) values ('${a}', 'CE0', 'Early') returning id`))[0]!.id;
     await erpInvoice(a, cust, "E-0");
-    expect((await erpFactsByInvoiceNo(db, a, ["E-0"])).get("E-0")).toEqual({ found: true, snapshotDate: null, remaining: null });
+    expect((await erpFactsByInvoiceNo(db, a, ["E-0"])).get("E-0")).toEqual({ found: true, snapshotDate: null, remaining: null, invoiceDate: "2027-02-01", dueDate: null, customerName: "Early", netSales: null });
   });
 
   it("reads what the newest unpaid file lists, ignores older files and other companies", async () => {
@@ -189,9 +189,18 @@ describe("ERP check by invoice number", () => {
     await erpInvoice(b, custB, "E-1");
     await client.query(`insert into open_invoice_snapshots (company_id, snapshot_date, invoice_id, remaining_amount) values ('${a}', '2027-03-01', '${open}', 900), ('${a}', '2027-04-01', '${open}', 250)`);
     const facts = await erpFactsByInvoiceNo(db, a, ["E-1", "E-2", "NOPE-1"]);
-    expect(facts.get("E-1")).toEqual({ found: true, snapshotDate: "2027-04-01", remaining: 250 });
-    expect(facts.get("E-2")).toEqual({ found: true, snapshotDate: "2027-04-01", remaining: null });
+    expect(facts.get("E-1")).toMatchObject({ found: true, snapshotDate: "2027-04-01", remaining: 250, customerName: "Hospital" });
+    expect(facts.get("E-2")).toMatchObject({ found: true, snapshotDate: "2027-04-01", remaining: null });
     expect(facts.has("NOPE-1")).toBe(false);
-    expect((await erpFactsByInvoiceNo(db, b, ["E-1"])).get("E-1")).toEqual({ found: true, snapshotDate: null, remaining: null });
+    expect((await erpFactsByInvoiceNo(db, b, ["E-1"])).get("E-1")).toMatchObject({ found: true, snapshotDate: null, remaining: null, customerName: "Other" });
+  });
+
+  it("reads the ERP invoice's date, due date, customer and net sales (a negative line reduces it), only for this company", async () => {
+    const cust = (await q<{ id: string }>(`insert into customers (company_id, code, name) values ('${a}', 'CE2', 'King Hospital') returning id`))[0]!.id;
+    const inv = (await q<{ id: string }>(`insert into invoices (company_id, invoice_no, customer_id, invoice_date, due_date) values ('${a}', 'E-3', '${cust}', '2027-02-10', '2027-04-11') returning id`))[0]!.id;
+    const product = (await q<{ id: string }>(`insert into products (company_id, code, name, line) values ('${a}', 'PE3', 'Item', 'Consumables') returning id`))[0]!.id;
+    await client.query(`insert into sales_lines (company_id, invoice_id, line_no, product_id, quantity, net_sales) values ('${a}', '${inv}', '1', '${product}', 2, 600.5), ('${a}', '${inv}', '2', '${product}', 1, 262.25), ('${a}', '${inv}', '3', '${product}', -1, -100)`);
+    expect((await erpFactsByInvoiceNo(db, a, ["E-3"])).get("E-3")).toMatchObject({ found: true, invoiceDate: "2027-02-10", dueDate: "2027-04-11", customerName: "King Hospital", netSales: 762.75 });
+    expect((await erpFactsByInvoiceNo(db, b, ["E-3"])).has("E-3")).toBe(false);
   });
 });
