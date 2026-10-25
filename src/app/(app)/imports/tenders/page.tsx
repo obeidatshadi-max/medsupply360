@@ -48,7 +48,7 @@ export default async function TenderChannelPage() {
           <a href="/tenders/prices/download?file=template" download className="underline">Empty template</a>
         </p>
       </section>
-      <SmartUpload allowed={kinds} noun="your tender list or tender results" />
+      <SmartUpload companyId={user.companyId} allowed={kinds} noun="your tender list or tender results" />
       <TemplateDownloads kinds={kinds} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>

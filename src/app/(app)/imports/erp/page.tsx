@@ -33,7 +33,7 @@ export default async function ErpChannelPage() {
           All channels
         </a>
       </p>
-      <SmartUpload allowed={kinds} noun="the Alpha exports" />
+      <SmartUpload companyId={user.companyId} allowed={kinds} noun="the Alpha exports" />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>
   );
