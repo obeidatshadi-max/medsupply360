@@ -42,7 +42,7 @@ export interface ValidationResult {
 export const DEFAULT_MAX_ROWS = 50_000;
 
 /** Case, spaces and punctuation do not matter: "Invoice No.", "invoice_no" and "INVOICE NO" are the same header. */
-const norm = (s: string) =>
+export const norm = (s: string) =>
   s
     .replace(/^﻿/, "")
     .normalize("NFKC")

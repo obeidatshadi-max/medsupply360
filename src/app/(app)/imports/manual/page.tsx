@@ -56,7 +56,7 @@ export default async function ManualChannelPage() {
           Sales force and targets
         </Link>
       </p>
-      <SmartUpload allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
+      <SmartUpload companyId={user.companyId} allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
       <TemplateDownloads kinds={kinds} />
       <MachineDetailsForm machines={machines} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
