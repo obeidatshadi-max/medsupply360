@@ -51,7 +51,9 @@ export function reconcile(kind: ImportKind, rows: RowRef[], snapshotDate: string
       const returns = rows.filter((r) => r.values.docType === "return");
       const noCost = rows.filter((r) => r.values.productCost == null);
       lines.push({ label: "Lines loaded", value: `${count(rows.length)} (${count(sales.length)} sales, ${count(returns.length)} returns)` });
-      lines.push({ label: "Invoices", value: count(new Set(rows.map((r) => str(r, "invoiceNo"))).size) });
+      // A credit note is not an invoice: counting it as one inflates the invoice count and the "no due date" line.
+      lines.push({ label: "Invoices", value: count(new Set(sales.map((r) => str(r, "invoiceNo"))).size) });
+      lines.push({ label: "Credit notes (returns)", value: count(new Set(returns.map((r) => str(r, "invoiceNo"))).size) });
       lines.push({ label: "Dates", value: range(rows.map((r) => String(r.values.invoiceDate))) });
       lines.push({ label: "Net sales, sales lines", value: jod(sum(sales, "netSales")) });
       lines.push({ label: "Net sales, returns", value: jod(sum(returns, "netSales")) });
@@ -59,7 +61,7 @@ export function reconcile(kind: ImportKind, rows: RowRef[], snapshotDate: string
       lines.push({ label: "Product cost", value: jod(sum(rows.filter((r) => r.values.productCost != null), "productCost")) });
       lines.push({ label: "Lines without cost", value: count(noCost.length) });
       const dueByInvoice = new Map<string, boolean>();
-      for (const r of rows) dueByInvoice.set(String(r.values.invoiceNo), (dueByInvoice.get(String(r.values.invoiceNo)) ?? false) || r.values.dueDate != null);
+      for (const r of sales) dueByInvoice.set(String(r.values.invoiceNo), (dueByInvoice.get(String(r.values.invoiceNo)) ?? false) || r.values.dueDate != null);
       lines.push({ label: "Invoices without a due date", value: count([...dueByInvoice.values()].filter((has) => !has).length) });
       break;
     }
