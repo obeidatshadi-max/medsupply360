@@ -44,7 +44,7 @@ export default async function OpportunityRadarPage() {
         <PageHeading
           eyebrow={`${user.companyName} · Opportunity radar`}
           title="Opportunity radar"
-          sub="No equipment or devices appear in the imported sales yet. The radar finds customers that now buy less than they used to, machines with no known service contract, and older machines, all from the sales you import in Data."
+          sub="No equipment appears in the imported sales yet. The radar finds customers that now buy less than they used to, machines with no known service contract, and older machines, all from the sales you import in Data."
         />
         {user.role === "owner" ? (
           <Link href="/imports/manual" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">

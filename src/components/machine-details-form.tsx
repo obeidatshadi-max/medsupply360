@@ -21,7 +21,7 @@ export function MachineDetailsForm({ machines }: { machines: MachineOption[] }) 
         </p>
       </div>
       {machines.length === 0 ? (
-        <p className="text-sm text-muted">No machine yet. Import the sales file under ERP system: every equipment or device sold becomes a machine you can choose here.</p>
+        <p className="text-sm text-muted">No machine yet. Import the sales file under ERP system: every piece of equipment sold becomes a machine you can choose here.</p>
       ) : (
         <>
           <label className="block text-sm font-medium">

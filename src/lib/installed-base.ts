@@ -35,7 +35,11 @@ async function describedUnits(companyId: string): Promise<UnitInput[]> {
   }));
 }
 
-/** Equipment and devices sold to each customer, from the imported sales (returns taken off). */
+/**
+ * Equipment sold to each customer, from the imported sales (returns taken off). Devices are left out on purpose: a
+ * handheld device sold by the dozen (a glucometer, an oximeter) is a consumable-like item, not an installed machine, and
+ * made the installed base look 50 times larger. A device that is a real installed machine is added by hand in Data, Manual entry.
+ */
 async function soldGroups(companyId: string): Promise<SoldGroup[]> {
   const rows = await getDb().execute(sql`
     select c.code as customer_code, c.name as customer_name, p.code as product_code, p.name as product_name, p.line::text as line,
@@ -44,7 +48,7 @@ async function soldGroups(companyId: string): Promise<SoldGroup[]> {
     join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
     join products p on p.company_id = s.company_id and p.id = s.product_id
     join customers c on c.company_id = i.company_id and c.id = i.customer_id
-    where s.company_id = ${companyId} and p.line in ('Equipment', 'Devices')
+    where s.company_id = ${companyId} and p.line = 'Equipment'
     group by c.code, c.name, p.code, p.name, p.line
     having sum(s.quantity) >= 1`);
   return (rows.rows as Record<string, string | null>[]).map((r) => ({
@@ -59,7 +63,7 @@ async function soldGroups(companyId: string): Promise<SoldGroup[]> {
 }
 
 /**
- * Every installed machine of one company: the equipment and devices already in the imported sales, with what the owner
+ * Every installed machine of one company: the equipment already in the imported sales, with what the owner
  * has described in Data, Manual entry laid over them. Nothing has to be typed twice.
  */
 export async function companyInstalledUnits(companyId: string, line: Line | null = null): Promise<UnitInput[]> {
