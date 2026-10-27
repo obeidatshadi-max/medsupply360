@@ -42,7 +42,7 @@ export default async function InstalledBasePage() {
         <PageHeading
           eyebrow={`${user.companyName} · Installed base`}
           title="Installed base"
-          sub="No equipment or devices appear in the imported sales yet, and none has been described by hand. Import the sales file in Data: every equipment or device sold becomes a machine here, and nothing has to be typed twice."
+          sub="No equipment appears in the imported sales yet, and none has been described by hand. Import the sales file in Data: every piece of equipment sold becomes a machine here, and nothing has to be typed twice."
         />
         {user.role === "owner" ? (
           <Link href="/imports/manual" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">

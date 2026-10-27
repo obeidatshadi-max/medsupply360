@@ -40,8 +40,8 @@ beforeAll(async () => {
   rows.push("E1,1,2024-03-01,C1,P2,2,20000,12000", "E2,1,2025-05-01,C1,P3,1,900,600", "RET,1,2025-06-01,C1,P2,-1,-10000,-6000");
   for (const m of ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04"]) rows.push(`C1-${m},1,${m}-10,C1,P1,10,100,60`);
   rows.push("C1-R,1,2026-10-10,C1,P1,3,100,60");
-  // C2 bought a reader and consumables in only two earlier months.
-  rows.push("E3,1,2026-01-05,C2,P3,1,800,500", "C2-1,1,2026-01-10,C2,P1,10,500,300", "C2-2,1,2026-02-10,C2,P1,10,500,300", "C2-R,1,2026-10-09,C2,P1,1,20,10");
+  // C2 bought a reader (a device, so not a machine), one analyzer and consumables in only two earlier months.
+  rows.push("E3,1,2026-01-05,C2,P3,1,800,500", "E3b,1,2026-01-05,C2,P2,1,10000,6000", "C2-1,1,2026-01-10,C2,P1,10,500,300", "C2-2,1,2026-02-10,C2,P1,10,500,300", "C2-R,1,2026-10-09,C2,P1,1,20,10");
   await imp(a, "sales", rows.join("\n"));
   await imp(b, "products", "code,name,category,unit\nP2,Their analyzer,Equipment,piece");
   await imp(b, "customers", "code,name,segment\nC1,Their hospital,Tender");
@@ -50,9 +50,9 @@ beforeAll(async () => {
 afterAll(async () => client.close());
 
 describe("machines from the imported sales", () => {
-  it("makes a machine for every equipment or device sold, net of returns, and ignores consumables", async () => {
+  it("makes a machine for every piece of equipment sold, net of returns, and ignores consumables and devices", async () => {
     const units = await companyInstalledUnits(a);
-    expect(units.map((u) => u.code).sort()).toEqual(["ERP-C1-P2-1", "ERP-C1-P3-1", "ERP-C2-P3-1"]);
+    expect(units.map((u) => u.code).sort()).toEqual(["ERP-C1-P2-1", "ERP-C2-P2-1"]);
     const analyzer = units.find((u) => u.code === "ERP-C1-P2-1")!;
     expect(analyzer).toMatchObject({ name: "Analyzer XN", line: "Equipment", source: "erp", installedOn: "2024-03-01", warrantyEnd: null, service: null });
   });
@@ -87,7 +87,7 @@ describe("details the owner adds", () => {
     expect(r).toEqual({ ok: true });
     const after = (await companyInstalledUnits(a)).find((u) => u.code === "ERP-C1-P2-1")!;
     expect(after).toMatchObject({ source: "manual", warrantyEnd: "2026-01-31", service: "No contract", expectedMonthly: 400, installedOn: "2024-03-01", productCode: "P2" });
-    expect((await companyInstalledUnits(a)).length).toBe(3);
+    expect((await companyInstalledUnits(a)).length).toBe(2);
     const c1 = (await companyInstalledBase(a, TODAY)).accounts.find((x) => x.customerCode === "C1")!;
     expect(c1).toMatchObject({ expectedMonthly: 400, expectedSource: "typed" });
   });

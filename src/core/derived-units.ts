@@ -2,7 +2,7 @@
  * Machines taken from the ERP sales that were already imported, so the equipment list does not have to be typed again.
  * Pure.
  *
- * Every equipment or device sold to a customer is a machine at that customer. The first sale date stands in for the
+ * Every piece of equipment sold to a customer is a machine at that customer (devices are added by hand, see lib/installed-base). The first sale date stands in for the
  * install date (it is when the machine was sold, not proof of when it was fitted). Warranty and service status are not
  * in the sales file, so they stay unrecorded until the owner adds them in Data, Manual entry. A machine the owner has
  * described there replaces its derived twin.

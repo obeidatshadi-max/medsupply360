@@ -180,3 +180,41 @@ describe("sales force and targets", () => {
     expect(out.rejections).toHaveLength(3);
   });
 });
+
+describe("account owner names are linked to the sales force", () => {
+  let c: string;
+  beforeAll(async () => {
+    c = (await q<{ id: string }>(`insert into companies (slug, name) values ('own', 'Own') returning id`))[0]!.id;
+  });
+  const holder = async (code: string) => (await q<{ n: string | null }>(`select sp.name n from customers cu left join sales_people sp on sp.id = cu.sales_person_id where cu.company_id = $1 and cu.code = $2`, [c, code]))[0]!.n;
+
+  it("gives accounts to the person whose name matches, whichever file comes first", async () => {
+    await imp(c, "customers", "code,name,account owner\nC1,One,Rana Haddad\nC2,Two,  omar khalil \nC3,Three,Nobody Known\nC4,Four,");
+    expect(await holder("C1")).toBeNull();
+    const out = await imp(c, "sales_people", "name,monthly sales target\nRana Haddad,1000\nOmar Khalil,2000");
+    expect(out.summary.find((l) => l.label.startsWith("Accounts given"))?.value).toBe("2");
+    expect([await holder("C1"), await holder("C2"), await holder("C3"), await holder("C4")]).toEqual(["Rana Haddad", "Omar Khalil", null, null]);
+    const again = await imp(c, "customers", "code,name,account owner\nC5,Five,rana haddad");
+    expect(again.summary.find((l) => l.label.startsWith("Accounts given"))?.value).toBe("1");
+    expect(await holder("C5")).toBe("Rana Haddad");
+  });
+
+  it("never overwrites an account someone holds, nor links to a turned-off person", async () => {
+    await q(`update customers set sales_person_id = (select id from sales_people where company_id = $1 and name = 'Omar Khalil') where company_id = $1 and code = 'C1'`, [c]);
+    await q(`update sales_people set active = false where company_id = $1 and name = 'Omar Khalil'`, [c]);
+    await imp(c, "customers", "code,name,account owner\nC1,One,Rana Haddad\nC6,Six,Omar Khalil");
+    expect(await holder("C1")).toBe("Omar Khalil");
+    expect(await holder("C6")).toBeNull();
+  });
+});
+
+describe("account owner linking stays inside one company", () => {
+  it("does not give another company's accounts to a person with the same name", async () => {
+    const x = (await q<{ id: string }>(`insert into companies (slug, name) values ('x1', 'X1') returning id`))[0]!.id;
+    const y = (await q<{ id: string }>(`insert into companies (slug, name) values ('y1', 'Y1') returning id`))[0]!.id;
+    await imp(x, "customers", "code,name,account owner\nC1,One,Same Name");
+    await imp(y, "sales_people", "name\nSame Name");
+    const held = await q<{ n: string | null }>(`select sales_person_id::text n from customers where company_id = $1`, [x]);
+    expect(held[0]!.n).toBeNull();
+  });
+});

@@ -52,7 +52,7 @@ export default async function ServicePage() {
         <PageHeading
           eyebrow={`${user.companyName} · Service & support`}
           title="Service & support"
-          sub="No equipment or devices appear in the imported sales yet. Every machine sold becomes a machine here; add its warranty end and service status in Data, Manual entry."
+          sub="No equipment appears in the imported sales yet. Every machine sold becomes a machine here; add its warranty end and service status in Data, Manual entry."
         />
         {user.role === "owner" ? (
           <Link href="/imports/manual" className="rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
