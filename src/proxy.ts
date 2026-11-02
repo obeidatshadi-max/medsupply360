@@ -15,10 +15,14 @@ const openAccess = () => process.env.OPEN_ACCESS === "true";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
-  if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  if (pathname === "/" || pathname === "/ar") {
+    // The front page is for visitors without a session. Anyone signed in (or with open access on) goes to the dashboard.
+    if (request.cookies.has(SESSION_COOKIE) || openAccess()) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
   }
   if (!request.cookies.has(SESSION_COOKIE) && !openAccess()) {
     const url = request.nextUrl.clone();

@@ -36,3 +36,7 @@ The eight sample customers have invented but believable names, and the money fig
 The strip under the top bar shows only when data was last integrated. The current day and time and a "screen updated" time are deliberately not shown, so there is no release-time file to maintain. Basic / Advanced is a small switch in the top bar.
 
 The demo's Netlify site is `sadaf-360-demo`, ID `5bf23be4-0c94-481c-b31d-1a44a8f5eb22`. It is a separate static deployment. Publish a staging copy of the complete `demo/` directory from outside the main app configuration, using the explicit demo site ID, so the main app's Next.js adapter and database deployment settings cannot be applied to this static site.
+
+## Front page
+
+The app (`/`, Arabic at `/ar`) and the demo show the same front page, written once in `src/lib/landing/copy.ts`. The app renders it with `src/components/landing/landing-page.tsx`; the demo renders it with `src/demo/landing-html.ts` (plain HTML and CSS, bundled by `npm run demo:build`). In the app, visitors with a session (or with open access on) are sent straight to the dashboard by `src/proxy.ts`. In the demo it shows first; "Enter the demo" hides it for the rest of the browser session, and a link with `?level=` or `#app` skips it. Change wording in `copy.ts` only, then rebuild the demo. All figures on it are made up and say so. The Arabic has not had a native review.

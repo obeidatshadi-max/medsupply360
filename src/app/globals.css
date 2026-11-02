@@ -40,3 +40,8 @@ body {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
 }
+
+/* Public front page: Arabic reads better with a system font that has Arabic shapes. */
+.landing[dir="rtl"] {
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
