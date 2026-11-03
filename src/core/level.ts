@@ -20,7 +20,7 @@ export function parseLevel(value: unknown): Level {
 }
 
 /** Screens that belong to the Advanced version only. */
-export const ADVANCED_ONLY = ["/tenders", "/installed-base", "/service", "/support-functions", "/opportunity-radar"] as const;
+export const ADVANCED_ONLY = ["/tenders", "/installed-base", "/service", "/expiring", "/support-functions", "/opportunity-radar"] as const;
 
 const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`);
 

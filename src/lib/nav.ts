@@ -30,6 +30,7 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
       main: [
         { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
         { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
+        { label: "Expiry alerts", icon: "◷", href: "/expiring", match: ["/expiring"] },
         { label: "Upload equipment", icon: "⇄", href: "/imports/equipment", match: ["/imports/equipment"] },
       ],
       explore: [],
@@ -60,6 +61,7 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
     { label: "Company profile", icon: "▧", href: "/company-profile", match: ["/company-profile"] },
     { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
     { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
+    { label: "Expiry alerts", icon: "◷", href: "/expiring", match: ["/expiring"] },
     { label: "Support functions", icon: "◇", href: "/support-functions", match: ["/support-functions"] },
     { label: "Opportunity radar", icon: "✧", href: "/opportunity-radar", match: ["/opportunity-radar"] },
     ...(guest ? [] : [{ label: "Sample data", icon: "◇", href: "/sample", match: ["/sample"], exclude: ["/sample/tenders", "/sample/tender-prices"] }]),

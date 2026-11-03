@@ -31,6 +31,10 @@ export interface InstalledUnit {
   /** Actual monthly consumable purchases (JOD). */
   actual: number;
   service: "Active" | "No contract" | "Expiring";
+  /** The service contract end date (YYYY-MM-DD) and the customer contact to call, when recorded. */
+  contractEnd?: string;
+  contactName?: string;
+  contactPhone?: string;
   util: number;
   warranty: string;
   installed: string;
@@ -136,6 +140,9 @@ export const units: InstalledUnit[] = [
     expected: 4840,
     actual: 2411,
     service: "Active",
+    contractEnd: "2027-01-05",
+    contactName: "Rana Haddad",
+    contactPhone: "+962 7 9000 0001",
     util: 61,
     warranty: "31 Mar 2027",
     installed: "2023",
@@ -168,6 +175,9 @@ export const units: InstalledUnit[] = [
     expected: 3584,
     actual: 3033,
     service: "Active",
+    contractEnd: "2026-12-20",
+    contactName: "Omar Khalil",
+    contactPhone: "+962 7 9000 0002",
     util: 83,
     warranty: "31 Mar 2027",
     installed: "2024",
@@ -184,6 +194,9 @@ export const units: InstalledUnit[] = [
     expected: 1406,
     actual: 817,
     service: "Expiring",
+    contractEnd: "2026-10-30",
+    contactName: "Lina Saleh",
+    contactPhone: "+962 7 9000 0003",
     util: 56,
     warranty: "31 Mar 2027",
     installed: "2020",
