@@ -24,6 +24,17 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
   const owner = role === "owner";
   const tender: NavItem = { label: "Tenders", icon: "▣", href: "/tenders", match: ["/tenders"] };
   // Department users (tender, finance) get the tender section and nothing else.
+  if (role === "maintenance") {
+    // The service department: the machine screens and the equipment upload, nothing else.
+    return {
+      main: [
+        { label: "Installed base", icon: "▣", href: "/installed-base", match: ["/installed-base"] },
+        { label: "Service & support", icon: "⚙", href: "/service", match: ["/service"] },
+        { label: "Upload equipment", icon: "⇄", href: "/imports/equipment", match: ["/imports/equipment"] },
+      ],
+      explore: [],
+    };
+  }
   if (!canAccess(role, "business")) {
     // The tender department also uploads its tender list and results; finance only works inside Tenders.
     const upload: NavItem = { label: "Upload tenders", icon: "⇄", href: "/imports/tenders", match: ["/imports/tenders"] };

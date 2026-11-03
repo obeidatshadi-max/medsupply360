@@ -3,7 +3,7 @@
  * opportunity. Pure. It uses only what is recorded on the equipment list (service status and warranty end). It says
  * nothing about uptime or usage, because the app holds no service events or operating hours.
  */
-import { WARRANTY_SOON_DAYS, type UnitInput } from "./installed-base";
+import { WARRANTY_SOON_DAYS, effectiveService, type UnitInput } from "./installed-base";
 
 export const SERVICE_GROUPS = [
   "out_of_warranty_uncovered",
@@ -32,10 +32,11 @@ export const ACTION_GROUPS: readonly ServiceGroup[] = ["out_of_warranty_uncovere
 const DAY = 86_400_000;
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY);
 
-export function serviceGroup(u: Pick<UnitInput, "service" | "warrantyEnd">, today: string): ServiceGroup {
-  if (u.service === "Active") return "covered";
-  if (u.service === "Expiring") return "contract_expiring";
-  if (u.service === null) return "not_recorded";
+export function serviceGroup(u: Pick<UnitInput, "service" | "warrantyEnd" | "contractStart" | "contractEnd">, today: string): ServiceGroup {
+  const service = effectiveService(u, today);
+  if (service === "Active") return "covered";
+  if (service === "Expiring") return "contract_expiring";
+  if (service === null) return "not_recorded";
   // "No contract": where it falls depends on the warranty.
   if (u.warrantyEnd === null) return "uncovered_date_unknown";
   const left = daysBetween(today, u.warrantyEnd);

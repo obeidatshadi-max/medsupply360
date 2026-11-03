@@ -16,6 +16,11 @@ export interface MachineDetailsForm {
   warrantyEnd: string;
   service: string;
   expectedMonthly: string;
+  contractStart?: string;
+  contractEnd?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }
 
 export interface MachineDetails {
@@ -24,6 +29,11 @@ export interface MachineDetails {
   warrantyEnd: string | null;
   service: ServiceStatus | null;
   expectedMonthly: number | null;
+  contractStart?: string | null;
+  contractEnd?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
 }
 
 export type MachineDetailsResult = { ok: true; value: MachineDetails } | { ok: false; error: string };
@@ -51,6 +61,34 @@ export function cleanMachineDetails(form: MachineDetailsForm, today: string): Ma
   const expectedMonthly = amount === "" ? null : parseAmount(amount);
   if (amount !== "" && expectedMonthly === null) return { ok: false, error: "The expected consumables a month must be a number in JOD, or empty." };
 
-  if (installedOn === null && warrantyEnd === null && service === "" && expectedMonthly === null) return { ok: false, error: "Fill in at least one detail: warranty end, service status, install date or expected consumables." };
-  return { ok: true, value: { code, installedOn: installedOn as string | null, warrantyEnd: warrantyEnd as string | null, service: (service || null) as ServiceStatus | null, expectedMonthly } };
+  const contractStart = date(form.contractStart ?? "", "The contract start");
+  if (contractStart !== null && typeof contractStart === "object") return { ok: false, error: contractStart.error };
+  const contractEnd = date(form.contractEnd ?? "", "The contract end");
+  if (contractEnd !== null && typeof contractEnd === "object") return { ok: false, error: contractEnd.error };
+  if (typeof contractStart === "string" && typeof contractEnd === "string" && contractEnd < contractStart) return { ok: false, error: "The contract cannot end before it starts." };
+
+  const contactName = (form.contactName ?? "").trim();
+  const contactPhone = (form.contactPhone ?? "").trim();
+  const contactEmail = (form.contactEmail ?? "").trim();
+  if (contactName.length > 200) return { ok: false, error: "The contact name is too long." };
+  if (contactPhone.length > 60) return { ok: false, error: "The contact phone is too long." };
+  if (contactEmail !== "" && (contactEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))) return { ok: false, error: "The contact email does not look like an email address." };
+
+  const nothing = installedOn === null && warrantyEnd === null && service === "" && expectedMonthly === null && contractStart === null && contractEnd === null && contactName === "" && contactPhone === "" && contactEmail === "";
+  if (nothing) return { ok: false, error: "Fill in at least one detail: warranty end, service contract, contract dates, contact, install date or expected consumables." };
+  return {
+    ok: true,
+    value: {
+      code,
+      installedOn: installedOn as string | null,
+      warrantyEnd: warrantyEnd as string | null,
+      service: (service || null) as ServiceStatus | null,
+      expectedMonthly,
+      contractStart: contractStart as string | null,
+      contractEnd: contractEnd as string | null,
+      contactName: contactName || null,
+      contactPhone: contactPhone || null,
+      contactEmail: contactEmail || null,
+    },
+  };
 }

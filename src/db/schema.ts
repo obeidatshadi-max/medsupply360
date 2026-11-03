@@ -23,7 +23,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-export const userRole = pgEnum("user_role", ["owner", "admin", "viewer", "tender", "finance"]);
+export const userRole = pgEnum("user_role", ["owner", "admin", "viewer", "tender", "finance", "maintenance"]);
 
 export const companies = pgTable("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -421,6 +421,13 @@ export const installedUnits = pgTable(
     service: serviceStatus("service"),
     /** Estimated, not measured: consumables the unit should use per month (JOD). NULL = no estimate. */
     expectedMonthlyConsumables: numeric("expected_monthly_consumables", { precision: 14, scale: 3 }),
+    /** The service contract's own dates, when there is one. They set the service status (see effectiveService in core/installed-base). */
+    contractStart: date("contract_start"),
+    contractEnd: date("contract_end"),
+    /** Who to call about this machine at the customer. */
+    contactName: varchar("contact_name", { length: 200 }),
+    contactPhone: varchar("contact_phone", { length: 60 }),
+    contactEmail: varchar("contact_email", { length: 255 }),
     importBatchId: uuid("import_batch_id"),
   },
   (t) => [

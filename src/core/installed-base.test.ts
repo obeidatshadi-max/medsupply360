@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInstalledBase, recoveryScenario, unitFlags, type UnitInput } from "./installed-base";
+import { buildInstalledBase, effectiveService, recoveryScenario, unitFlags, type UnitInput } from "./installed-base";
 
 const TODAY = "2026-10-20";
 const unit = (over: Partial<UnitInput> = {}): UnitInput => ({
@@ -82,5 +82,27 @@ describe("recoveryScenario", () => {
   it("keeps shares between 0 and 1", () => {
     expect(recoveryScenario(1000, 5, 2)).toEqual({ annualRevenue: 12000, annualProfit: 12000 });
     expect(recoveryScenario(1000, -1, 0.3)).toEqual({ annualRevenue: 0, annualProfit: 0 });
+  });
+});
+
+describe("effectiveService: the contract end date sets the status", () => {
+  it("keeps the typed status when there is no contract end", () => {
+    expect(effectiveService(unit({ service: "Active" }), TODAY)).toBe("Active");
+    expect(effectiveService(unit({ service: null }), TODAY)).toBeNull();
+  });
+
+  it("calls a contract ended, ending within 60 days or active by its end date, whatever was typed", () => {
+    expect(effectiveService(unit({ service: "Active", contractEnd: "2026-10-19" }), TODAY)).toBe("No contract");
+    expect(effectiveService(unit({ service: "Active", contractEnd: "2026-12-19" }), TODAY)).toBe("Expiring");
+    expect(effectiveService(unit({ service: "No contract", contractEnd: "2026-12-20" }), TODAY)).toBe("Active");
+  });
+
+  it("ignores a contract that has not started yet", () => {
+    expect(effectiveService(unit({ service: "No contract", contractStart: "2026-11-01", contractEnd: "2027-11-01" }), TODAY)).toBe("No contract");
+  });
+
+  it("says how many days a contract has left in the flags", () => {
+    expect(unitFlags(unit({ contractEnd: "2026-11-19" }), TODAY).map((f) => f.text)).toContain("Service contract ends in 30 days");
+    expect(unitFlags(unit({ warrantyEnd: "2025-01-01", service: "Active", contractEnd: "2026-10-01" }), TODAY).map((f) => f.text)).toContain("No service contract");
   });
 });

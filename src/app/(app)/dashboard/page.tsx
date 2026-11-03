@@ -17,6 +17,8 @@ import { dateRange, dayText, jod, jodShort, pct, signedPct } from "@/lib/format"
 import { briefAlerts, briefSignals } from "@/lib/owner-brief";
 import { OwnerBrief, type BriefCard } from "@/components/owner-brief";
 import { TenderDataStrip } from "@/components/tender-data-strip";
+import { ServiceDataStrip } from "@/components/service-data-strip";
+import { lastServiceUpdate } from "@/lib/service-data";
 import { companyChannelStatus } from "@/lib/channel-status";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -32,12 +34,13 @@ export default async function DashboardPage() {
   const line = await currentLine();
   const d = await companyDataSummary(user.companyId);
   // Year-to-date windows end at the newest invoice / receipt, so old imports are not compared against a longer last-year window.
-  const [allSales, cash, ar, stock, channels] = await Promise.all([
+  const [allSales, cash, ar, stock, channels, lastService] = await Promise.all([
     companySalesByLine(user.companyId, windowEnd(today, d.latestInvoice)),
     companyCash(user.companyId, windowEnd(today, d.latestReceipt)),
     companyReceivables(user.companyId),
     companyStockRisk(user.companyId, line),
     companyChannelStatus(user.companyId),
+    lastServiceUpdate(user.companyId),
   ]);
   const sales = salesForLine(allSales, line);
   const empty = d.products + d.customers + d.invoices + d.receipts + d.stockTransactions + d.installedUnits === 0 && !d.openInvoices && !d.stock;
@@ -212,7 +215,7 @@ export default async function DashboardPage() {
       />
       {empty ? null : <LineFilter current={line} note="Sales, margin and stock follow the line you choose. Cash collected and unpaid invoices are not split by line." />}
       {empty ? null : <FreshnessBanner freshness={freshness} canImport={user.role === "owner"} />}
-      {empty ? null : <div className="mb-4"><TenderDataStrip status={channels.tender} now={new Date()} uploadHref={user.role === "owner" ? "/imports/tenders" : null} /></div>}
+      {empty ? null : <div className="mb-4"><TenderDataStrip status={channels.tender} now={new Date()} uploadHref={user.role === "owner" ? "/imports/tenders" : null} /><div className="mt-2"><ServiceDataStrip lastUpdate={lastService.lastUpdate} by={lastService.by} now={new Date()} uploadHref={user.role === "owner" ? "/imports/manual" : null} /></div></div>}
       {empty ? null : <OwnerBrief cards={cards} alerts={alerts} />}
       <details className="group rounded-[10px] border border-line bg-white p-4 md:p-5">
         <summary className="cursor-pointer text-sm font-semibold">More figures and the data you have loaded</summary>

@@ -26,6 +26,13 @@ export interface UnitInput {
   service: ServiceStatus | null;
   /** JOD a month the unit should use in consumables. Null = nobody estimated it. */
   expectedMonthly: number | null;
+  /** The service contract's own dates. When the end date is known it sets the service status (see effectiveService). */
+  contractStart?: string | null;
+  contractEnd?: string | null;
+  /** Who to call about this machine at the customer. */
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
 }
 
 export interface UnitFlag {
@@ -66,20 +73,37 @@ export interface InstalledBase {
 }
 
 export const WARRANTY_SOON_DAYS = 90;
+/** A service contract ending within this many days is "Expiring". */
+export const CONTRACT_SOON_DAYS = 60;
 
 const DAY = 86_400_000;
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY);
 
+/**
+ * The service status to act on. A recorded contract end date wins over the typed status: ended = No contract, within
+ * CONTRACT_SOON_DAYS = Expiring, later = Active. A contract that has not started yet, or no end date, leaves the typed status as it is.
+ */
+export function effectiveService(u: Pick<UnitInput, "service" | "contractStart" | "contractEnd">, today: string): ServiceStatus | null {
+  if (!u.contractEnd) return u.service;
+  if (u.contractStart && u.contractStart > today) return u.service;
+  const left = daysBetween(today, u.contractEnd);
+  return left < 0 ? "No contract" : left <= CONTRACT_SOON_DAYS ? "Expiring" : "Active";
+}
+
 export function unitFlags(u: UnitInput, today: string): UnitFlag[] {
   const flags: UnitFlag[] = [];
+  const service = effectiveService(u, today);
   const left = u.warrantyEnd === null ? null : daysBetween(today, u.warrantyEnd);
   if (left !== null && left < 0) {
     flags.push({ kind: "warranty_ended", text: "Warranty ended" });
-    if (u.service === "No contract" || u.service === null) flags.push({ kind: "service", text: "No service contract" });
+    if (service === "No contract" || service === null) flags.push({ kind: "service", text: "No service contract" });
   } else if (left !== null && left <= WARRANTY_SOON_DAYS) {
     flags.push({ kind: "warranty_soon", text: `Warranty ends in ${left} day${left === 1 ? "" : "s"}` });
   }
-  if (u.service === "Expiring") flags.push({ kind: "service", text: "Service contract expiring" });
+  if (service === "Expiring") {
+    const days = u.contractEnd ? daysBetween(today, u.contractEnd) : null;
+    flags.push({ kind: "service", text: days === null ? "Service contract expiring" : `Service contract ends in ${days} day${days === 1 ? "" : "s"}` });
+  }
   return flags;
 }
 

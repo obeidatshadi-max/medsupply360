@@ -376,9 +376,18 @@ export const SPECS: Record<ImportKind, FileSpec> = {
       f("warrantyEnd", ["warranty end", "warranty expiry", "warranty end date", "warranty"], false, date),
       f("service", ["service", "service status", "agreement status", "contract status"], false, serviceStatus),
       f("expectedMonthlyConsumables", ["expected monthly consumables", "monthly consumables", "expected consumables"], false, nonNegativeMoney),
+      f("contractStart", ["contract start", "contract start date", "service contract start", "contract begins"], false, date),
+      f("contractEnd", ["contract end", "contract end date", "service contract end", "contract expiry", "contract expires"], false, date),
+      f("contactName", ["contact", "contact name", "contact person", "customer contact"], false, text(200)),
+      f("contactPhone", ["contact phone", "contact mobile", "contact telephone", "phone", "mobile"], false, text(60)),
+      f("contactEmail", ["contact email", "contact e-mail", "email", "e-mail"], false, text(255)),
     ],
     check: (v) =>
-      v.installedOn != null && v.warrantyEnd != null && String(v.warrantyEnd) < String(v.installedOn) ? "warranty ends before the installation date" : null,
+      v.installedOn != null && v.warrantyEnd != null && String(v.warrantyEnd) < String(v.installedOn)
+        ? "warranty ends before the installation date"
+        : v.contractStart != null && v.contractEnd != null && String(v.contractEnd) < String(v.contractStart)
+          ? "the service contract ends before it starts"
+          : null,
   },
   tenders: {
     kind: "tenders",

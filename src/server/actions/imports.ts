@@ -33,7 +33,7 @@ const formSchema = z.object({
 
 export async function importAction(_prev: ImportActionState, formData: FormData): Promise<ImportActionState> {
   const user = await getCurrentUser();
-  if (!user || user.guest || (user.role !== "owner" && user.role !== "tender")) return { error: "Only the company owner and the tender department can import data." };
+  if (!user || user.guest || (user.role !== "owner" && user.role !== "tender" && user.role !== "maintenance")) return { error: "Only the owner, the tender department and the maintenance department can import data." };
 
   const parsed = formSchema.safeParse({
     kind: formData.get("kind"),
@@ -43,7 +43,7 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   if (!parsed.success) return { error: "Choose the type of file." };
   const { kind, mode, snapshotDate } = parsed.data;
   // The tender department uploads its own files only; every other type stays with the owner.
-  if (!canImportKind(user.role, kind)) return { error: "The tender department can upload the tender list and tender results only. Ask the owner to load other files." };
+  if (!canImportKind(user.role, kind)) return { error: user.role === "maintenance" ? "The maintenance department can upload the installed equipment file only. Ask the owner to load other files." : "The tender department can upload the tender list and tender results only. Ask the owner to load other files." };
   if (snapshotDate !== "" && !isIsoDate(snapshotDate)) return { error: "The snapshot date is not a valid date." };
 
   // A check changes nothing, so only a real import needs a name.

@@ -10,6 +10,10 @@ import { currentLine } from "@/lib/line";
 import { PeriodTag } from "@/components/period-tag";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { RecoveryScenario } from "@/components/recovery-scenario";
+import { canAccess } from "@/core/permissions";
+import { ServiceDataStrip } from "@/components/service-data-strip";
+import { canUploadEquipment } from "@/core/permissions";
+import { lastServiceUpdate } from "@/lib/service-data";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod, pct } from "@/lib/format";
@@ -21,12 +25,13 @@ export const metadata: Metadata = { title: "Installed base" };
 const n = (v: number) => v.toLocaleString("en-US");
 
 export default async function InstalledBasePage() {
-  const user = await requireUser();
+  const user = await requireUser("service");
   if (!levelAllows(await currentLevel(), user.role, "/installed-base")) return <AdvancedGate title="Installed base" />;
   if (user.guest) {
     return <PageHeading eyebrow="Installed base" title="Installed base" sub="Please sign in with a company account to see this page. It uses the sales you imported." />;
   }
   const line = await currentLine();
+  const lastService = await lastServiceUpdate(user.companyId);
   const r = await companyInstalledBase(user.companyId, businessToday(), line);
   if (r.totals.units === 0 && line !== null) {
     return (
@@ -68,6 +73,7 @@ export default async function InstalledBasePage() {
         title="Installed base"
         sub="Equipment sold to customers, taken from the sales you imported, and whether they still buy the consumables it needs. Sales are recorded per customer, so the comparison is made per customer. A gap is a reason to ask, not proof of a lost sale."
       />
+      <ServiceDataStrip lastUpdate={lastService.lastUpdate} by={lastService.by} now={new Date()} uploadHref={canUploadEquipment(user.role) ? (user.role === "owner" ? "/imports/manual" : "/imports/equipment") : null} />
       <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines. Purchases are the customer's consumables." />
       <PeriodTag from={r.window.from} to={r.window.to} label="Purchases" />
       {t.gapMonthly > 0 ? (
@@ -102,7 +108,7 @@ export default async function InstalledBasePage() {
               {r.accounts.map((a) => (
                 <tr key={a.customerCode} className="border-t border-line align-top">
                   <td className="px-3 py-2">
-                    <CustomerLink code={a.customerCode} name={a.customerName} />
+                    <CustomerLink code={a.customerCode} name={a.customerName} plain={!canAccess(user.role, "business")} />
                     <ul className="mt-1 space-y-0.5 text-xs text-muted">
                       {a.units.map((u) => (
                         <li key={u.code}>
