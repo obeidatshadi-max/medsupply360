@@ -77,10 +77,10 @@ export function AppFrame({
         aria-label="Sidebar"
         className={`${open ? "fixed inset-y-0 left-0 z-20 flex w-[min(86vw,300px)] shadow-2xl" : "hidden"} h-dvh flex-col bg-side px-4 py-[27px] text-[#e9efeb] md:sticky md:top-0 md:z-auto md:flex md:w-auto md:shadow-none xl:px-[18px]`}
       >
-        <div className="px-3 text-[25px] font-bold tracking-[-0.6px]">
+        <Link href="/?home=1" aria-label="MedSupply360 home page" className="block rounded-[7px] px-3 text-[25px] font-bold tracking-[-0.6px] hover:text-white">
           MEDSUPPLY<span className="text-gold-soft">360</span>
           <small className="mt-[5px] block text-[10px] font-normal uppercase tracking-[2px] text-[#a7bab2]">{companyName} · BUSINESS CONTROL TOWER</small>
-        </div>
+        </Link>
         <p className="mx-3 mb-2.5 mt-9 text-[10px] tracking-[1.8px] text-side-muted">YOUR BUSINESS</p>
         <nav aria-label="Main" className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-color:#455952_transparent] [scrollbar-width:thin]">
           <ul>{main.map(renderItem)}</ul>
@@ -117,6 +117,12 @@ export function AppFrame({
             >
               ☰
             </button>
+            <Link
+              href="/?home=1"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-[7px] border border-line bg-white px-3 py-1.5 text-sm hover:border-brand hover:bg-[#f0f6f2] md:min-h-0"
+            >
+              <span aria-hidden>⌂</span> Home
+            </Link>
             <p className="hidden text-xs text-muted md:block">
               {companyName} / <b className="text-ink">{crumb}</b>
             </p>
