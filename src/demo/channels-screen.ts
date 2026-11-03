@@ -158,6 +158,33 @@ export interface DemoMachine {
 }
 
 /** The caller passes the machines of the customer being presented, so one customer's machines never show under another's name. */
+const CONTRACT_FIELDS =
+  `<label>Service contract starts<input name="contractStart" type="date"></label>` +
+  `<label>Service contract ends<input name="contractEnd" type="date"></label>` +
+  `<label>Contact at the customer<input name="contactName" maxlength="200" placeholder="Name"></label>` +
+  `<label>Contact phone<input name="contactPhone" maxlength="60" inputmode="tel" placeholder="Optional"></label>` +
+  `<label>Contact email<input name="contactEmail" type="email" maxlength="255" placeholder="Optional"></label>`;
+
+/** The "Add a new machine" form: a machine the sales do not show. Nothing is saved in the demo. */
+export function newMachineHtml(machines: readonly DemoMachine[]): string {
+  const accounts = [...new Set(machines.map((u) => u.account))];
+  const options = accounts.map((a) => `<option value="${esc(a)}"></option>`).join("");
+  const service = SERVICE_OPTIONS.map((o) => `<option>${esc(o)}</option>`).join("");
+  return (
+    `<form id="demoNewMachineForm" class="panel" autocomplete="off"><div class="panelhead"><div><h2>Add a new machine</h2><p class="sub">For a machine that is not in the sales files, such as one bought elsewhere or a loan unit. Give it a code (its serial number is a good one), a name and its customer. All the other fields are optional and can be added later.</p></div></div>` +
+    `<div class="formgrid">` +
+    `<label>Machine code<input name="code" maxlength="80" placeholder="e.g. serial number"></label>` +
+    `<label>Machine name<input name="name" maxlength="300" placeholder="e.g. Portable X-ray unit"></label>` +
+    `<label>Customer (type the name, then choose)<input name="customer" list="demoNewMachineCustomers" placeholder="Customer"></label><datalist id="demoNewMachineCustomers">${options}</datalist>` +
+    `<label>Installed on<input name="installedOn" type="date"></label>` +
+    `<label>Warranty ends<input name="warrantyEnd" type="date"></label>` +
+    `<label>Service contract<select name="service"><option value="">Not known</option>${service}</select></label>` +
+    `<label>Consumables it should use a month (JOD)<input name="expectedMonthly" inputmode="decimal" placeholder="Optional"></label>` +
+    CONTRACT_FIELDS +
+    `</div><p style="margin-top:12px"><button type="submit" class="primary" style="width:auto">Add the machine</button> <span class="mini">The live app adds it after the person types a name; here nothing is saved.</span></p></form>`
+  );
+}
+
 export function machineDetailsHtml(machines: readonly DemoMachine[]): string {
   const options = machines.map((u) => `<option value="${esc(u.id)}">${esc(u.account)} · ${esc(u.name)}</option>`).join("");
   const service = SERVICE_OPTIONS.map((o) => `<option>${esc(o)}</option>`).join("");
@@ -169,6 +196,7 @@ export function machineDetailsHtml(machines: readonly DemoMachine[]): string {
     `<label>Service contract<select name="service"><option value="">Not known</option>${service}</select></label>` +
     `<label>Installed on (if different from the first sale)<input name="installedOn" type="date"></label>` +
     `<label>Consumables it should use a month (JOD)<input name="expectedMonthly" inputmode="decimal" placeholder="Optional"></label>` +
+    CONTRACT_FIELDS +
     `</div><p style="margin-top:12px"><button type="submit" class="primary" style="width:auto">Save the details</button> <span class="mini">The live app saves them after the owner types a name; here it saves nothing.</span></p></form>`
   );
 }
@@ -179,6 +207,7 @@ export function manualChannelHtml(machines: readonly DemoMachine[]): string {
     `<div class="info">Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV. Check what the app understood, then confirm. A starter file is available for each type.</div>` +
     sampleBox("manual", "A made-up workbook with a guide tab, an equipment list that starts under a title, the sales team, and a tab that is not data.") +
     `<div style="margin-top:20px">${machineDetailsHtml(machines)}</div>` +
+    `<div style="margin-top:20px">${newMachineHtml(machines)}</div>` +
     `<p class="mini"><button class="linkbtn" data-route="salesforce">Sales force and targets</button></p>`
   );
 }

@@ -7,6 +7,8 @@ import { SmartUpload } from "@/components/smart-upload";
 import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
 import { MachineDetailsForm } from "@/components/machine-details-form";
+import { NewMachineForm } from "@/components/new-machine-form";
+import { listCustomerOptions } from "@/server/services/machine-details";
 import { SupportEntry } from "@/components/support-entry";
 import { CHANNEL_INFO } from "@/core/channels";
 import { getDb } from "@/db/client";
@@ -27,7 +29,7 @@ export default async function ManualChannelPage() {
     );
   }
   const kinds = CHANNEL_INFO.manual.kinds;
-  const [indicators, units] = await Promise.all([listIndicators(getDb(), user.companyId), companyInstalledUnits(user.companyId)]);
+  const [indicators, units, customerOptions] = await Promise.all([listIndicators(getDb(), user.companyId), companyInstalledUnits(user.companyId), listCustomerOptions(getDb(), user.companyId)]);
   // Two identical machines at one customer are told apart by a number.
   const seen = new Map<string, number>();
   const totals = new Map<string, number>();
@@ -59,6 +61,7 @@ export default async function ManualChannelPage() {
       <SmartUpload companyId={user.companyId} allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
       <TemplateDownloads kinds={kinds} />
       <MachineDetailsForm machines={machines} />
+      <NewMachineForm customers={customerOptions} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
       <SupportEntry indicators={indicators} today={businessToday()} />
     </div>

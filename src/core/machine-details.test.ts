@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanMachineDetails, type MachineDetailsForm } from "./machine-details";
+import { cleanMachineDetails, cleanNewMachine, type MachineDetailsForm } from "./machine-details";
 
 const TODAY = "2026-10-20";
 const form = (over: Partial<MachineDetailsForm> = {}): MachineDetailsForm => ({ code: "ERP-C1-P3-1", installedOn: "", warrantyEnd: "2028-01-31", service: "Active", expectedMonthly: "450", ...over });
@@ -39,5 +39,35 @@ describe("cleanMachineDetails", () => {
   });
   it("counts a contact alone as a detail", () => {
     expect(cleanMachineDetails(form({ warrantyEnd: "", service: "", expectedMonthly: "", contactName: "Rana" }), TODAY).ok).toBe(true);
+  });
+});
+
+describe("cleanNewMachine", () => {
+  const base = { code: " SN-2041 ", name: " Portable X-ray ", customerCode: "C-0001", installedOn: "", warrantyEnd: "", service: "", expectedMonthly: "" };
+
+  it("accepts a machine with only a code, a name and a customer", () => {
+    expect(cleanNewMachine(base, TODAY)).toMatchObject({ ok: true, value: { code: "SN-2041", name: "Portable X-ray", customerCode: "C-0001", details: { warrantyEnd: null, service: null } } });
+  });
+
+  it("keeps the optional details and contract dates when given", () => {
+    const r = cleanNewMachine({ ...base, warrantyEnd: "2028-01-31", service: "Active", contractStart: "2026-01-01", contractEnd: "2027-01-01", contactName: "Rana" }, TODAY);
+    expect(r).toMatchObject({ ok: true, value: { details: { warrantyEnd: "2028-01-31", service: "Active", contractEnd: "2027-01-01", contactName: "Rana" } } });
+  });
+
+  it("needs a code, a name and a customer", () => {
+    expect(cleanNewMachine({ ...base, code: " " }, TODAY).ok).toBe(false);
+    expect(cleanNewMachine({ ...base, name: "" }, TODAY).ok).toBe(false);
+    expect(cleanNewMachine({ ...base, customerCode: "" }, TODAY).ok).toBe(false);
+  });
+
+  it("refuses the ERP- prefix that belongs to machines taken from the sales, and too-long text", () => {
+    expect(cleanNewMachine({ ...base, code: "ERP-C1-P1-1" }, TODAY).ok).toBe(false);
+    expect(cleanNewMachine({ ...base, code: "x".repeat(81) }, TODAY).ok).toBe(false);
+    expect(cleanNewMachine({ ...base, name: "x".repeat(301) }, TODAY).ok).toBe(false);
+  });
+
+  it("still checks the details it is given", () => {
+    expect(cleanNewMachine({ ...base, contractStart: "2027-01-01", contractEnd: "2026-01-01" }, TODAY).ok).toBe(false);
+    expect(cleanNewMachine({ ...base, installedOn: "2999-01-01" }, TODAY).ok).toBe(false);
   });
 });

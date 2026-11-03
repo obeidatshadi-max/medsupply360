@@ -6,10 +6,13 @@ import { SmartUpload } from "@/components/smart-upload";
 import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
 import { MachineDetailsForm } from "@/components/machine-details-form";
+import { NewMachineForm } from "@/components/new-machine-form";
+import { listCustomerOptions } from "@/server/services/machine-details";
 import { ServiceDataStrip } from "@/components/service-data-strip";
 import { MAINTENANCE_UPLOAD_KINDS, canUploadEquipment } from "@/core/permissions";
 import { companyInstalledUnits } from "@/lib/installed-base";
 import { lastServiceUpdate } from "@/lib/service-data";
+import { getDb } from "@/db/client";
 
 export const metadata: Metadata = { title: "Upload equipment" };
 
@@ -25,7 +28,7 @@ export default async function EquipmentUploadPage() {
     );
   }
   const kinds = MAINTENANCE_UPLOAD_KINDS;
-  const [units, last] = await Promise.all([companyInstalledUnits(user.companyId), lastServiceUpdate(user.companyId)]);
+  const [units, last, customerOptions] = await Promise.all([companyInstalledUnits(user.companyId), lastServiceUpdate(user.companyId), listCustomerOptions(getDb(), user.companyId)]);
   // Two identical machines at one customer are told apart by a number.
   const seen = new Map<string, number>();
   const totals = new Map<string, number>();
@@ -57,6 +60,7 @@ export default async function EquipmentUploadPage() {
       <SmartUpload companyId={user.companyId} allowed={kinds} noun="your installed-equipment list" />
       <TemplateDownloads kinds={kinds} />
       <MachineDetailsForm machines={machines} />
+      <NewMachineForm customers={customerOptions} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>
   );

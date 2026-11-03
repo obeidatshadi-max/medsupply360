@@ -39,6 +39,7 @@ describe("describeAction", () => {
 
   it("names the machine when its details were added", () => {
     expect(describeAction("machine.details_saved", { name: "Analyzer at Hospital A" })).toBe("Added details to a machine (Analyzer at Hospital A)");
+    expect(describeAction("machine.details_saved", { name: "Portable X-ray", added: true })).toBe("Added a new machine (Portable X-ray)");
     expect(areaOf("machine.details_saved")).toBe("Machines");
   });
 
