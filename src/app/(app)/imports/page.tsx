@@ -26,7 +26,7 @@ export default async function ImportsPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Data`}
         title="Data channels"
-        sub="Data reaches the app by three channels, each with its own source. Open a channel to load files. Whatever you upload is read, recognised and previewed first, and nothing is saved until you confirm."
+        sub="Data comes in three ways, each from its own source. Open one to upload files. You see a preview first. Nothing is saved until you confirm."
       />
       <DataTabs current="imports" owner history />
       <div className="grid gap-4 md:grid-cols-3">

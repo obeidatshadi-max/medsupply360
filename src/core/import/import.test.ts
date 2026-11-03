@@ -206,7 +206,7 @@ describe("validateImport: snapshots", () => {
 
   it("needs a snapshot date from a column or the upload form", () => {
     const text = `${open}\nI1,C1,2026-06-01,2026-08-30,500`;
-    expect(run("open_invoices", text).fatal).toMatch(/no snapshot date/);
+    expect(run("open_invoices", text).fatal).toMatch(/it has no date/);
     expect(run("open_invoices", text, "2026-10-08")).toMatchObject({ fatal: null, snapshotDate: "2026-10-08" });
   });
 

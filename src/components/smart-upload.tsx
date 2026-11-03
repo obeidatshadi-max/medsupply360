@@ -237,7 +237,7 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
       }
       if (mode === "check") setChecked(true);
     } catch {
-      setError("The upload was interrupted. Check Recent imports to see what was saved, then try the rest again.");
+      setError("The upload was interrupted. Check Recent uploads to see what was saved, then upload the rest again.");
     } finally {
       setBusy(false);
     }
@@ -262,7 +262,7 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
           </label>
           <input id={inputId} name="files" type="file" multiple accept=".xlsx,.csv,text/csv" onChange={(e) => void pick(e.target.files)} className={field} />
           <p className="mt-1 text-xs text-muted">
-            Drop {noun}. Every tab of a workbook is read on its own and its type is recognised from the column headings, even when the headings start a few rows down. You see what was understood below before anything is saved.
+            Choose {noun}. Each tab of a workbook is read as its own file. The app finds the type of each file from its column headings, even when they start a few rows down. You see the result below before anything is saved.
           </p>
         </div>
 
@@ -292,7 +292,10 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
                   <span className="text-xs text-muted">Not uploaded</span>
                 )}
                 {i.skipped === null && i.kind !== "" && SPECS[i.kind].snapshot === true ? (
-                  <input aria-label={`Snapshot date of ${label(i)}`} type="date" value={i.snapshotDate} onChange={(e) => void change(i.id, { snapshotDate: e.target.value })} className="rounded-md border border-line bg-white px-2 py-1.5 text-sm" />
+                  <label className="block text-xs text-muted">
+                    Date of this list (snapshot date)
+                    <input aria-label={`Snapshot date of ${label(i)}`} type="date" value={i.snapshotDate} onChange={(e) => void change(i.id, { snapshotDate: e.target.value })} className="rounded-md border border-line bg-white px-2 py-1.5 text-sm" />
+                  </label>
                 ) : (
                   <span />
                 )}
@@ -301,14 +304,14 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
             ))}
           </ul>
         ) : null}
-        {unclear.length > 0 ? <p className="text-xs text-gold">{unclear.length === 1 ? "One tab is" : `${unclear.length} tabs are`} not recognised. Choose the type above, or leave {unclear.length === 1 ? "it" : "them"} out of the upload.</p> : null}
+        {unclear.length > 0 ? <p className="text-xs text-gold">{unclear.length === 1 ? "The app does not know the type of one tab." : `The app does not know the type of ${unclear.length} tabs.`} Choose the type above, or leave {unclear.length === 1 ? "it" : "them"} out of the upload.</p> : null}
 
         <SubmitterField />
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" disabled={busy || !checked || ready === 0} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-ink disabled:opacity-60">
             {busy ? "Working…" : ready > 1 ? `Confirm and save ${ready} files` : "Confirm and save"}
           </button>
-          <span className="text-xs text-muted">{ready === 0 ? "Nothing to save yet." : checked ? "Preview is ready below. Nothing is saved until you confirm." : "Reading and checking…"}</span>
+          <span className="text-xs text-muted">{ready === 0 ? "Nothing to save yet. Choose a file first." : checked ? "Preview is ready below. Nothing is saved until you confirm." : "Reading and checking…"}</span>
         </div>
       </form>
 
@@ -346,9 +349,9 @@ function note(i: Item): string {
   if (i.kind === "") {
     return i.elsewhere
       ? `Looks like ${SPECS[i.elsewhere].title}, which belongs in ${CHANNEL_INFO[channelOfKind(i.elsewhere)].title}. Upload it there.`
-      : `Type not recognised${rows}: choose it`;
+      : `The app does not know the type${rows}: choose it`;
   }
-  return `${i.how === "recognised" ? "Type recognised from the headings" : "Type chosen by you"}${rows}${head}`;
+  return `${i.how === "recognised" ? "Type found from the column headings" : "Type chosen by you"}${rows}${head}`;
 }
 
 /**
@@ -393,7 +396,7 @@ function ColumnPicker({ item, onMap }: { item: Item; onMap: (fieldKey: string, h
     <div className="space-y-2 rounded-md border border-gold bg-surface px-3 py-2 md:col-span-3">
       {required.length > 0 ? (
         <>
-          <p className="text-xs font-medium">The importer needs these columns but could not find them by name. Pick the matching column from your file; it is remembered for next time.</p>
+          <p className="text-xs font-medium">The app could not find these columns by name. Choose the matching column from your file. The app remembers your choice for next time.</p>
           {required.map(row)}
         </>
       ) : null}

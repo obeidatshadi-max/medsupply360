@@ -156,7 +156,7 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
     fileDate = options.snapshotDate ?? candidates.map((c) => c.values.snapshotDate).find((d): d is string => typeof d === "string") ?? null;
     if (fileDate === null) {
       if (candidates.length === 0 && rejected.length > 0) return { ...empty(kind, "", delimiter), rowsTotal: dataRows.length, rejected, warnings, ignoredColumns: ignored, fatal: null };
-      return empty(kind, "This file is a point-in-time snapshot but has no snapshot date. Add a Snapshot Date column or enter the date when uploading.", delimiter);
+      return empty(kind, "This file is a list as of one date, but it has no date. Add a Snapshot Date column, or enter the date when you upload.", delimiter);
     }
     if (fileDate > options.today) return empty(kind, `The snapshot date ${fileDate} is in the future.`, delimiter);
   }

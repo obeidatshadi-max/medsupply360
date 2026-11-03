@@ -44,7 +44,7 @@ export default async function ManualChannelPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Data channels`}
         title="Manual entry"
-        sub="Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and the support-function indicators. Upload a workbook or CSV and the tool reads each tab, recognises what it is, and shows you the result to confirm. A person already on the Sales force page is updated by name; a blank cell never erases what is recorded."
+        sub="Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV. The app reads each tab and shows you the result to confirm. A person already on the Sales force page is updated by name. A blank cell never erases what is saved."
       />
       <DataTabs current="imports" owner history />
       <p className="text-sm">

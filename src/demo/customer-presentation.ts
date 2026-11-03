@@ -126,7 +126,7 @@ export function createCustomerPresentation(hooks: Hooks) {
       `<label for="app-import-kind">Current app file type<select id="app-import-kind">${Object.entries(SPECS).map(([k, s]) => `<option value="${k}" ${k === checkKind ? "selected" : ""}>${esc(s.title)}</option>`).join("")}</select></label>
       <label for="app-import-file">Check CSV files (one or several at once)<input id="app-import-file" type="file" multiple accept=".csv,text/csv"></label>
       <div class="profile-actions"><button id="app-template">Download current app sample CSV</button><button id="app-template-check">Check selected sample</button></div>
-      <p class="mini">Up to 4.5 MB each. The live app recognises each file's type from its column headings; here a file whose type is not recognised is checked as the type selected above. Snapshot date for this teaching example: ${DEMO_AS_OF}. These are format checks; cross-file references and accounting totals still require the real app and reconciliation.</p>
+      <p class="mini">Up to 4.5 MB each. The live app finds the type of each file from its column headings. Here, a file of unknown type is checked as the type selected above. Date of the list (snapshot date) in this example: ${DEMO_AS_OF}. These are format checks; cross-file references and accounting totals still require the real app and reconciliation.</p>
       <div class="profile-actions"><button id="snapshot-good">Try complete stock snapshot</button><button id="snapshot-bad">Try rejected replacement</button></div>
       <p id="snapshot-value">Retained sample stock: <b>${qty} units</b></p><div id="app-import-result" role="status">${checkResult}</div>`);
   }
@@ -143,7 +143,7 @@ export function createCustomerPresentation(hooks: Hooks) {
     const typed = files.map((f) => { const found = detectKind(f.raw); return { ...f, kind: found.kind ?? checkKind, recognised: found.kind !== null }; })
       .sort((a, b) => IMPORT_ORDER.indexOf(a.kind) - IMPORT_ORDER.indexOf(b.kind));
     checkResult = typed.map((f) => checkHtml(f.raw, f.kind, false,
-      `<p class="mini">${esc(f.name)} · ${esc(SPECS[f.kind].title)} (${f.recognised ? "recognised from the headings" : "type not recognised, checked as the selected type"})</p>`)).join("");
+      `<p class="mini">${esc(f.name)} · ${esc(SPECS[f.kind].title)} (${f.recognised ? "type found from the column headings" : "the app does not know the type, so it is checked as the selected type"})</p>`)).join("");
     const result = document.querySelector("#app-import-result"); if (result) result.innerHTML = checkResult;
   }
   function showCheck(raw: string, kind = checkKind, simulate = false) {
