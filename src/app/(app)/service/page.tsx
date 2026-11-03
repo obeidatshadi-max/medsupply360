@@ -84,6 +84,7 @@ export default async function ServicePage() {
         sub={`Which installed machines are under a service contract, and which are a contract to sell or renew, on ${dayText(today)}. Machines come from the sales you imported; a warranty end or service status shows only once the owner has added it in Data, Manual entry. The most urgent come first: out of warranty with no contract.`}
       />
       <ServiceDataStrip lastUpdate={lastService.lastUpdate} by={lastService.by} now={new Date()} uploadHref={canUploadEquipment(user.role) ? (user.role === "owner" ? "/imports/manual" : "/imports/equipment") : null} />
+      <p className="text-sm"><Link href="/expiring" className="text-brand underline underline-offset-2">Expiry alerts</Link>: contracts and warranties ending within 90 days, with who to call.</p>
       <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines." />
       {t.toFollowUp > 0 ? (
         <p>

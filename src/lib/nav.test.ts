@@ -25,11 +25,11 @@ describe("navItems", () => {
     expect(navItems(OWNER).main.every((i) => i.href)).toBe(true);
   });
 
-  it("lists the demo's five EXPLORE screens first; all five are built", () => {
+  it("lists the demo's six EXPLORE screens first; all six are built", () => {
     for (const o of [OWNER, { guest: false, role: "admin" } as O, { guest: true, role: "viewer" } as O]) {
       const explore = navItems(o).explore;
-      expect(explore.slice(0, 5).map((i) => i.label)).toEqual(["Company profile", "Installed base", "Service & support", "Support functions", "Opportunity radar"]);
-      expect(explore.slice(0, 5).filter((i) => i.href).map((i) => i.href)).toEqual(["/company-profile", "/installed-base", "/service", "/support-functions", "/opportunity-radar"]);
+      expect(explore.slice(0, 6).map((i) => i.label)).toEqual(["Company profile", "Installed base", "Service & support", "Expiry alerts", "Support functions", "Opportunity radar"]);
+      expect(explore.slice(0, 6).filter((i) => i.href).map((i) => i.href)).toEqual(["/company-profile", "/installed-base", "/service", "/expiring", "/support-functions", "/opportunity-radar"]);
     }
     expect(navItems({ guest: false, role: "tender" }).explore).toEqual([]);
   });
@@ -57,8 +57,8 @@ describe("navItems", () => {
   });
 
   it("gives the maintenance department the machine screens and its upload, nothing else", () => {
-    expect(labels({ guest: false, role: "maintenance" })).toEqual(["Installed base", "Service & support", "Upload equipment"]);
-    expect(navItems({ guest: false, role: "maintenance", level: "basic" }).main.map((i) => i.href)).toEqual(["/installed-base", "/service", "/imports/equipment"]);
+    expect(labels({ guest: false, role: "maintenance" })).toEqual(["Installed base", "Service & support", "Expiry alerts", "Upload equipment"]);
+    expect(navItems({ guest: false, role: "maintenance", level: "basic" }).main.map((i) => i.href)).toEqual(["/installed-base", "/service", "/expiring", "/imports/equipment"]);
   });
 
   it("shows Settings to the owner only and Tenders to owner and administrator", () => {
@@ -72,7 +72,7 @@ describe("navItems", () => {
 
 describe("Basic and Advanced", () => {
   const hrefs = (o: O) => [...navItems(o).main, ...navItems(o).explore].flatMap((i) => (i.href ? [i.href] : []));
-  const ADV = ["/tenders", "/installed-base", "/service", "/support-functions", "/opportunity-radar"];
+  const ADV = ["/tenders", "/installed-base", "/service", "/expiring", "/support-functions", "/opportunity-radar"];
 
   it("lists every screen on Advanced, and starts on Advanced", () => {
     for (const level of [undefined, "advanced"] as const) for (const href of ADV) expect(hrefs({ ...OWNER, level })).toContain(href);
