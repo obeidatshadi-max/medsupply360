@@ -5,7 +5,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeading } from "@/components/page-heading";
 import { TenderTabs } from "@/components/tender-tabs";
-import { canEditTender } from "@/core/permissions";
+import { canEditTender, canUploadTenders } from "@/core/permissions";
+import { TenderDataStrip } from "@/components/tender-data-strip";
+import { companyChannelStatus } from "@/lib/channel-status";
 import { AUTHORITIES, LINE_LABEL, PHASES, STAGE, STATUS_LABEL, daysInStage, isAuthority, phaseOf, type PhaseKey } from "@/core/tender-flow";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
@@ -31,7 +33,7 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
   const phase = PHASE_FILTERS.some((p) => p.key === one(sp.phase)) ? (one(sp.phase) as PhaseKey) : "";
 
   const today = businessToday();
-  const [all, overview, owners] = await Promise.all([listTenders(getDb(), user.companyId), companyTenderOverview(getDb(), user.companyId, today), listSalesPeople(getDb(), user.companyId)]);
+  const [all, overview, owners, channels] = await Promise.all([listTenders(getDb(), user.companyId), companyTenderOverview(getDb(), user.companyId, today), listSalesPeople(getDb(), user.companyId), companyChannelStatus(user.companyId)]);
   const rows = all.filter((t) => (!authority || t.authority === authority) && (!phase || phaseOf(t.status) === phase) && matchesOwner(ownerFilter, t.ownerId));
   // Only people who hold a tender (or are still active) are worth a filter button.
   const ownerChips = owners.filter((o) => o.active || o.tenders > 0);
@@ -57,6 +59,7 @@ export default async function TendersPage({ searchParams }: { searchParams: Prom
         sub="Every tender from the first sign of a purchase to the money collected, with the overview first and the full list below. Days in stage is only a count, not a deadline."
       />
       <TenderTabs current="list" />
+      <TenderDataStrip status={channels.tender} now={new Date()} uploadHref={canUploadTenders(user.role) ? "/imports/tenders" : null} />
       {canEditTender(user.role) ? (
         <Link href="/tenders/new" className="inline-block rounded-[7px] bg-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#125747]">
           Record a tender

@@ -191,3 +191,16 @@ export function tenderChannelHtml(): string {
     `<p class="mini"><button class="linkbtn" data-route="tenders">Open Tenders</button></p>`
   );
 }
+
+/** The one-line "Tender data" status the live app shows on the owner overview and the Tenders page (same rule, demo clock). */
+export function tenderDataStripHtml(): string {
+  const s = demoChannelStatus().tender;
+  const state = channelState(s, DEMO_NOW);
+  const days = CHANNEL_INFO.tender.staleAfterDays;
+  return (
+    `<p role="status" class="info" style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 14px"><b>Tender data</b>` +
+    `<span class="tag" style="${STATE_STYLE[state]}">${STATE_LABEL[state]}</span>` +
+    `<span>${esc(lastUpdateText(s, DEMO_NOW))}.${state === "stale" ? ` Nothing for more than ${days} days.` : ""}</span>` +
+    `<button class="linkbtn" data-route="chan-tender" style="margin-inline-start:auto">Upload tender files</button></p>`
+  );
+}

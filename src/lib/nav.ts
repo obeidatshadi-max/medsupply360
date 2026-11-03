@@ -1,5 +1,5 @@
 import { DEFAULT_LEVEL, levelAllows, type Level } from "@/core/level";
-import { canAccess, canSeeHistory, canSeeSalesForce, type Role } from "@/core/permissions";
+import { canAccess, canSeeHistory, canSeeSalesForce, canUploadTenders, type Role } from "@/core/permissions";
 
 /**
  * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Data" and the
@@ -24,7 +24,11 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
   const owner = role === "owner";
   const tender: NavItem = { label: "Tenders", icon: "▣", href: "/tenders", match: ["/tenders"] };
   // Department users (tender, finance) get the tender section and nothing else.
-  if (!canAccess(role, "business")) return { main: [tender], explore: [] };
+  if (!canAccess(role, "business")) {
+    // The tender department also uploads its tender list and results; finance only works inside Tenders.
+    const upload: NavItem = { label: "Upload tenders", icon: "⇄", href: "/imports/tenders", match: ["/imports/tenders"] };
+    return { main: canUploadTenders(role) ? [tender, upload] : [tender], explore: [] };
+  }
   const main: NavItem[] = [
     { label: "Owner overview", icon: "◫", href: "/dashboard", match: ["/dashboard"] },
     { label: "Products & suppliers", icon: "▦", href: "/portfolio", match: ["/portfolio"] },

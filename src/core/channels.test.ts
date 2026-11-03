@@ -25,6 +25,13 @@ describe("channels", () => {
     expect(channelState({ channel: "manual", lastUpdate: "2026-09-01T00:00:00Z" }, now)).toBe("fresh");
   });
 
+  it("expects the tender department to feed its channel every few working days", () => {
+    const tender = (lastUpdate: string): Pick<ChannelStatus, "channel" | "lastUpdate"> => ({ channel: "tender", lastUpdate });
+    expect(CHANNEL_INFO.tender.staleAfterDays).toBe(3);
+    expect(channelState(tender("2026-10-17T08:00:00Z"), now)).toBe("fresh");
+    expect(channelState(tender("2026-10-16T07:00:00Z"), now)).toBe("stale");
+  });
+
   it("words the last update", () => {
     expect(lastUpdateText(status(null), now)).toBe("Nothing received yet");
     expect(lastUpdateText(status("2026-10-20T01:00:00Z"), now)).toBe("Last update today");

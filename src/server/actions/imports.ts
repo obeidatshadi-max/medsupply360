@@ -8,6 +8,7 @@ import { SPECS, type ImportKind } from "@/core/import/specs";
 import { isIsoDate } from "@/core/calc";
 import { readSubmitter } from "@/core/submitter";
 import { writeAudit } from "@/lib/audit";
+import { canImportKind } from "@/core/permissions";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 
@@ -32,7 +33,7 @@ const formSchema = z.object({
 
 export async function importAction(_prev: ImportActionState, formData: FormData): Promise<ImportActionState> {
   const user = await getCurrentUser();
-  if (!user || user.guest || user.role !== "owner") return { error: "Only the company owner can import data." };
+  if (!user || user.guest || (user.role !== "owner" && user.role !== "tender")) return { error: "Only the company owner and the tender department can import data." };
 
   const parsed = formSchema.safeParse({
     kind: formData.get("kind"),
@@ -41,6 +42,8 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   });
   if (!parsed.success) return { error: "Choose the type of file." };
   const { kind, mode, snapshotDate } = parsed.data;
+  // The tender department uploads its own files only; every other type stays with the owner.
+  if (!canImportKind(user.role, kind)) return { error: "The tender department can upload the tender list and tender results only. Ask the owner to load other files." };
   if (snapshotDate !== "" && !isIsoDate(snapshotDate)) return { error: "The snapshot date is not a valid date." };
 
   // A check changes nothing, so only a real import needs a name.

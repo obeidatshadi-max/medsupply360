@@ -9,6 +9,7 @@
  *   finance  the finance staff who fill guarantees and payments on tenders: the tender section only.
  */
 import type { TenderStatus } from "@/core/tender-flow";
+import type { ImportKind } from "@/core/import/specs";
 
 export const ROLES = ["owner", "admin", "viewer", "tender", "finance"] as const;
 export type Role = (typeof ROLES)[number];
@@ -38,7 +39,7 @@ export const ROLE_LABEL: Record<Role, { name: string; note: string }> = {
   owner: { name: "Owner", note: "Everything, including Settings and importing files" },
   admin: { name: "Administrator", note: "All business screens and tenders; cannot import or change users" },
   viewer: { name: "Viewer", note: "Reads the business screens only" },
-  tender: { name: "Tender department", note: "Tender section only; updates tender stages" },
+  tender: { name: "Tender department", note: "Tender section only; updates tender stages and uploads the tender list and tender results" },
   finance: { name: "Finance", note: "Tender section only; updates guarantees and payments" },
 };
 
@@ -56,6 +57,21 @@ export function canMoveTender(role: Role, from: TenderStatus, to: TenderStatus):
   if (role === "finance") return collection;
   return false;
 }
+
+/** The only file types the tender department may upload: its own tender list and the award results. */
+export const TENDER_UPLOAD_KINDS = ["tenders", "tender_results"] as const satisfies readonly ImportKind[];
+
+/**
+ * Who may upload a file of this type. The owner may upload any type. The tender department may upload only the tender list
+ * and tender results (never ERP files, sales force or machines), and a file never moves a tender's stage.
+ */
+export function canImportKind(role: Role, kind: ImportKind): boolean {
+  if (role === "owner") return true;
+  return role === "tender" && (TENDER_UPLOAD_KINDS as readonly string[]).includes(kind);
+}
+
+/** Whether the person may open the tender upload page at all. */
+export const canUploadTenders = (role: Role): boolean => role === "owner" || role === "tender";
 
 /** Who keeps the sales force and assigns products, accounts and tenders to it: the CEO. */
 export const canManageSalesForce = (role: Role): boolean => role === "owner";

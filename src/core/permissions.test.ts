@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canManageSupport, canEditProfile, canManageActions, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
+import { TENDER_UPLOAD_KINDS, canImportKind, canUploadTenders, ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canManageSupport, canEditProfile, canManageActions, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
 
 describe("permissions", () => {
   it("lets the owner open everything", () => {
@@ -81,5 +81,28 @@ describe("tender money permissions", () => {
     expect(canEditPayments("owner")).toBe(true);
     expect(canEditPayments("finance")).toBe(true);
     for (const role of ["tender", "admin", "viewer"] as const) expect(canEditPayments(role)).toBe(false);
+  });
+});
+
+describe("who may upload which file", () => {
+  it("lets the owner upload anything", () => {
+    for (const kind of ["sales", "open_invoices", "tenders", "tender_results", "installed_units", "sales_people"] as const) expect(canImportKind("owner", kind)).toBe(true);
+  });
+
+  it("lets the tender department upload the tender list and tender results only", () => {
+    expect([...TENDER_UPLOAD_KINDS]).toEqual(["tenders", "tender_results"]);
+    for (const kind of TENDER_UPLOAD_KINDS) expect(canImportKind("tender", kind)).toBe(true);
+    for (const kind of ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions", "installed_units", "sales_people"] as const) {
+      expect(canImportKind("tender", kind), kind).toBe(false);
+    }
+  });
+
+  it("keeps everyone else from uploading", () => {
+    for (const role of ["admin", "viewer", "finance"] as const) {
+      expect(canImportKind(role, "tenders")).toBe(false);
+      expect(canUploadTenders(role)).toBe(false);
+    }
+    expect(canUploadTenders("owner")).toBe(true);
+    expect(canUploadTenders("tender")).toBe(true);
   });
 });
