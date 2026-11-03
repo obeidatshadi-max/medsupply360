@@ -252,4 +252,11 @@ describe("validateImport: stock transactions and installed units", () => {
     expect(r.accepted.map((a) => a.row)).toEqual([3]);
     expect(r.rejected[0].reason).toBe("warranty ends before the installation date");
   });
+
+  it("reads contract dates and contacts, and rejects a contract that ends before it starts", () => {
+    const r = run("installed_units", "unit code,customer code,name,contract start,contract end,contact name,contact phone,contact email\nU1,C1,Analyzer,2026-01-01,2027-01-01,Rana,0790000000,rana@example.com\nU2,C1,Analyzer,2027-01-01,2026-01-01,,,");
+    expect(r.accepted.map((a) => a.row)).toEqual([2]);
+    expect(r.accepted[0].values).toMatchObject({ contractStart: "2026-01-01", contractEnd: "2027-01-01", contactName: "Rana", contactPhone: "0790000000", contactEmail: "rana@example.com" });
+    expect(r.rejected[0].reason).toBe("the service contract ends before it starts");
+  });
 });

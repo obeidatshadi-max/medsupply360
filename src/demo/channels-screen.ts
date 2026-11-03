@@ -4,6 +4,7 @@
  * app's own recognition (src/core/import/workbook.ts) on a made-up workbook, so the demo shows what the live upload does.
  * Nothing here is saved anywhere; the people and figures are invented.
  */
+import { serviceDataState, serviceDataText, SERVICE_STALE_AFTER_DAYS } from "@/core/service-data";
 import { CHANNELS, CHANNEL_INFO, channelOfKind, channelState, lastUpdateText, type Channel, type ChannelStatus } from "@/core/channels";
 import { SPECS } from "@/core/import/specs";
 import { readWorkbook, type SheetGrid } from "@/core/import/workbook";
@@ -202,5 +203,18 @@ export function tenderDataStripHtml(): string {
     `<span class="tag" style="${STATE_STYLE[state]}">${STATE_LABEL[state]}</span>` +
     `<span>${esc(lastUpdateText(s, DEMO_NOW))}.${state === "stale" ? ` Nothing for more than ${days} days.` : ""}</span>` +
     `<button class="linkbtn" data-route="chan-tender" style="margin-inline-start:auto">Upload tender files</button></p>`
+  );
+}
+
+/** The "Service data" status line the live app shows on the owner overview, Installed base and Service & support (demo clock). */
+export function serviceDataStripHtml(): string {
+  const lastUpdate = "2026-09-20T08:15:00Z";
+  const by = "Sami Nasser";
+  const state = serviceDataState(lastUpdate, DEMO_NOW);
+  return (
+    `<p role="status" class="info" style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 14px"><b>Service data</b>` +
+    `<span class="tag" style="${STATE_STYLE[state]}">${state === "never" ? "No service data yet" : STATE_LABEL[state]}</span>` +
+    `<span>${esc(serviceDataText(lastUpdate, by, DEMO_NOW))}.${state === "stale" ? ` Nothing for more than ${SERVICE_STALE_AFTER_DAYS} days.` : ""}</span>` +
+    `<button class="linkbtn" data-route="chan-manual" style="margin-inline-start:auto">Update equipment data</button></p>`
   );
 }

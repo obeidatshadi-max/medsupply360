@@ -9,6 +9,10 @@ import { LineFilter } from "@/components/line-filter";
 import { currentLine } from "@/lib/line";
 import { AssignActionLink } from "@/components/assign-action-link";
 import { ACTION_GROUPS, GROUP_LABEL, SERVICE_GROUPS, buildServiceView, type ServiceGroup } from "@/core/service-support";
+import { canAccess } from "@/core/permissions";
+import { ServiceDataStrip } from "@/components/service-data-strip";
+import { canUploadEquipment } from "@/core/permissions";
+import { lastServiceUpdate } from "@/lib/service-data";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, pct } from "@/lib/format";
@@ -29,12 +33,13 @@ function warrantyText(days: number | null, end: string | null): string {
 }
 
 export default async function ServicePage() {
-  const user = await requireUser();
+  const user = await requireUser("service");
   if (!levelAllows(await currentLevel(), user.role, "/service")) return <AdvancedGate title="Service & support" />;
   if (user.guest) {
     return <PageHeading eyebrow="Service & support" title="Service & support" sub="Please sign in with a company account to see this page. It uses the sales you imported." />;
   }
   const today = businessToday();
+  const lastService = await lastServiceUpdate(user.companyId);
   const line = await currentLine();
   const v = buildServiceView(await companyInstalledUnits(user.companyId, line), today);
   if (v.totals.units === 0 && line !== null) {
@@ -78,6 +83,7 @@ export default async function ServicePage() {
         title="Service & support"
         sub={`Which installed machines are under a service contract, and which are a contract to sell or renew, on ${dayText(today)}. Machines come from the sales you imported; a warranty end or service status shows only once the owner has added it in Data, Manual entry. The most urgent come first: out of warranty with no contract.`}
       />
+      <ServiceDataStrip lastUpdate={lastService.lastUpdate} by={lastService.by} now={new Date()} uploadHref={canUploadEquipment(user.role) ? (user.role === "owner" ? "/imports/manual" : "/imports/equipment") : null} />
       <LineFilter current={line} note="Machines follow the line of their product. A machine with no product on the list shows only under All lines." />
       {t.toFollowUp > 0 ? (
         <p>
@@ -113,6 +119,7 @@ export default async function ServicePage() {
                 <th className="px-3 py-2 font-medium">Machine</th>
                 <th className="px-3 py-2 font-medium">Customer</th>
                 <th className="px-3 py-2 font-medium">Warranty</th>
+                <th className="px-3 py-2 font-medium">Contract ends</th>
                 <th className="px-3 py-2 font-medium">Service position</th>
               </tr>
             </thead>
@@ -124,9 +131,10 @@ export default async function ServicePage() {
                     {isDerivedCode(r.unit.code) ? null : <span className="block text-xs text-muted">{r.unit.code}</span>}
                   </td>
                   <td className="px-3 py-2">
-                    <CustomerLink code={r.unit.customerCode} name={r.unit.customerName} />
+                    <CustomerLink code={r.unit.customerCode} name={r.unit.customerName} plain={!canAccess(user.role, "business")} />
                   </td>
                   <td className="px-3 py-2 tabular-nums">{warrantyText(r.warrantyDays, r.unit.warrantyEnd)}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.unit.contractEnd ? dayText(r.unit.contractEnd) : <span className="text-muted">Not recorded</span>}</td>
                   <td className="px-3 py-2">
                     <span className={`rounded px-2 py-0.5 text-xs ${tag(r.group)}`}>{GROUP_LABEL[r.group]}</span>
                   </td>

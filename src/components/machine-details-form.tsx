@@ -59,6 +59,27 @@ export function MachineDetailsForm({ machines }: { machines: MachineOption[] }) 
               Consumables it should use a month (JOD)
               <input name="expectedMonthly" inputMode="decimal" placeholder="Optional" className={field} />
             </label>
+            <label className="text-sm font-medium">
+              Service contract starts
+              <input name="contractStart" type="date" className={field} />
+            </label>
+            <label className="text-sm font-medium">
+              Service contract ends
+              <input name="contractEnd" type="date" className={field} />
+              <span className="mt-1 block text-xs font-normal text-muted">When this date is filled in, it sets the service status by itself: ended, ending within 60 days, or active.</span>
+            </label>
+            <label className="text-sm font-medium">
+              Contact at the customer
+              <input name="contactName" maxLength={200} placeholder="Name" className={field} />
+            </label>
+            <label className="text-sm font-medium">
+              Contact phone
+              <input name="contactPhone" maxLength={60} inputMode="tel" placeholder="Optional" className={field} />
+            </label>
+            <label className="text-sm font-medium md:col-span-2">
+              Contact email
+              <input name="contactEmail" type="email" maxLength={255} placeholder="Optional" className={field} />
+            </label>
           </div>
           <SubmitterField />
           {state.error ? (

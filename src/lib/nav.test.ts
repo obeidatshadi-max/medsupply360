@@ -56,6 +56,11 @@ describe("navItems", () => {
     for (const role of ["tender", "finance"] as const) expect(navItems({ guest: false, role }).explore).toEqual([]);
   });
 
+  it("gives the maintenance department the machine screens and its upload, nothing else", () => {
+    expect(labels({ guest: false, role: "maintenance" })).toEqual(["Installed base", "Service & support", "Upload equipment"]);
+    expect(navItems({ guest: false, role: "maintenance", level: "basic" }).main.map((i) => i.href)).toEqual(["/installed-base", "/service", "/imports/equipment"]);
+  });
+
   it("shows Settings to the owner only and Tenders to owner and administrator", () => {
     expect(labels(OWNER)).toEqual(expect.arrayContaining(["Tenders", "Settings"]));
     expect(labels({ guest: false, role: "admin" })).toContain("Tenders");

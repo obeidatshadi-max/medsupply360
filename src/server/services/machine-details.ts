@@ -27,6 +27,11 @@ export async function saveMachineDetails(db: Db, input: { companyId: string; uni
     warrantyEnd: details.warrantyEnd,
     service: details.service,
     expectedMonthlyConsumables: details.expectedMonthly === null ? null : String(details.expectedMonthly),
+    contractStart: details.contractStart ?? null,
+    contractEnd: details.contractEnd ?? null,
+    contactName: details.contactName ?? null,
+    contactPhone: details.contactPhone ?? null,
+    contactEmail: details.contactEmail ?? null,
   };
   if (existing) {
     const set = Object.fromEntries(Object.entries(given).filter(([, v]) => v !== null));
@@ -42,6 +47,11 @@ export async function saveMachineDetails(db: Db, input: { companyId: string; uni
       warrantyEnd: given.warrantyEnd,
       service: given.service,
       expectedMonthlyConsumables: given.expectedMonthlyConsumables,
+      contractStart: given.contractStart,
+      contractEnd: given.contractEnd,
+      contactName: given.contactName,
+      contactPhone: given.contactPhone,
+      contactEmail: given.contactEmail,
     });
   }
   return { ok: true };

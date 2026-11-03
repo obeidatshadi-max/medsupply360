@@ -40,6 +40,11 @@ const EXAMPLE: Partial<Record<ImportKind, Record<string, string>>> = {
     warrantyEnd: "2027-01-14",
     service: "Active",
     expectedMonthlyConsumables: "400",
+    contractStart: "2025-01-15",
+    contractEnd: "2027-01-14",
+    contactName: "Example Contact",
+    contactPhone: "+962 7 0000 0000",
+    contactEmail: "contact@example.com",
   },
 };
 

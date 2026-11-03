@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TENDER_UPLOAD_KINDS, canImportKind, canUploadTenders, ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canManageSupport, canEditProfile, canManageActions, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
+import { MAINTENANCE_UPLOAD_KINDS, TENDER_UPLOAD_KINDS, canImportKind, canUploadEquipment, canUploadTenders, ASSIGNABLE_ROLES, ROLES, canAccess, canManageSalesForce, canManageSupport, canEditProfile, canManageActions, canSeeHistory, canSeeSalesForce, canEditGuarantees, canEditPayments, canEditTender, canMoveTender, homePath, isAssignableRole } from "./permissions";
 
 describe("permissions", () => {
   it("lets the owner open everything", () => {
@@ -104,5 +104,30 @@ describe("who may upload which file", () => {
     }
     expect(canUploadTenders("owner")).toBe(true);
     expect(canUploadTenders("tender")).toBe(true);
+  });
+});
+
+describe("the maintenance department", () => {
+  it("opens the machine screens only, never business or tender screens, and lands on the installed base", () => {
+    expect(canAccess("maintenance", "service")).toBe(true);
+    for (const area of ["business", "tender", "settings"] as const) expect(canAccess("maintenance", area)).toBe(false);
+    expect(homePath("maintenance")).toBe("/installed-base");
+    expect(homePath("tender")).toBe("/tenders");
+    expect(homePath("viewer")).toBe("/dashboard");
+  });
+
+  it("uploads the equipment file only", () => {
+    expect([...MAINTENANCE_UPLOAD_KINDS]).toEqual(["installed_units"]);
+    expect(canImportKind("maintenance", "installed_units")).toBe(true);
+    for (const kind of ["sales", "open_invoices", "tenders", "tender_results", "sales_people", "products"] as const) expect(canImportKind("maintenance", kind), kind).toBe(false);
+    expect(canUploadEquipment("maintenance")).toBe(true);
+    expect(canUploadEquipment("owner")).toBe(true);
+    for (const role of ["admin", "viewer", "tender", "finance"] as const) expect(canUploadEquipment(role)).toBe(false);
+    expect(canImportKind("tender", "installed_units")).toBe(false);
+  });
+
+  it("keeps the business roles able to open the machine screens", () => {
+    for (const role of ["owner", "admin", "viewer"] as const) expect(canAccess(role, "service")).toBe(true);
+    for (const role of ["tender", "finance"] as const) expect(canAccess(role, "service")).toBe(false);
   });
 });

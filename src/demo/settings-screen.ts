@@ -3,7 +3,7 @@
  * access table is computed from the app's own permission rules (src/core/permissions.ts), so it cannot drift from what
  * the live app enforces.
  */
-import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL, canAccess, canEditGuarantees, canEditPayments, canEditTender, canUploadTenders, type Role } from "@/core/permissions";
+import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL, canAccess, canEditGuarantees, canEditPayments, canEditTender, canUploadEquipment, canUploadTenders, type Role } from "@/core/permissions";
 import { dayText } from "@/lib/format";
 
 export interface DemoPerson {
@@ -18,6 +18,7 @@ export const DEMO_PEOPLE: DemoPerson[] = [
   { name: "Owner (CEO)", email: "owner@demo-company.example", role: "owner", active: true, lastSignIn: "2026-10-08" },
   { name: "Tender manager", email: "tenders@demo-company.example", role: "tender", active: true, lastSignIn: "2026-10-07" },
   { name: "Finance officer", email: "finance@demo-company.example", role: "finance", active: true, lastSignIn: "2026-10-08" },
+  { name: "Maintenance manager", email: "service@demo-company.example", role: "maintenance", active: true, lastSignIn: "2026-10-06" },
   { name: "Sales analyst", email: "sales@demo-company.example", role: "viewer", active: true, lastSignIn: "2026-10-01" },
   { name: "Former tender assistant", email: "assistant@demo-company.example", role: "tender", active: false, lastSignIn: "2026-07-14" },
 ];
@@ -66,7 +67,7 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
     ]),
   );
   const access = table(
-    ["Access level", "Business screens", "Tenders", "Change tenders", "Guarantees", "Invoices and payments", "Upload tender files", "Settings"],
+    ["Access level", "Business screens", "Tenders", "Change tenders", "Guarantees", "Invoices and payments", "Upload tender files", "Upload equipment", "Settings"],
     ROLES.map((r) => [
       `<b>${esc(ROLE_LABEL[r].name)}</b><span class="cellsub">${esc(ROLE_LABEL[r].note)}</span>`,
       mark(canAccess(r, "business")),
@@ -75,6 +76,7 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
       mark(canEditGuarantees(r)),
       mark(canEditPayments(r)),
       mark(canUploadTenders(r)),
+      mark(canUploadEquipment(r)),
       mark(canAccess(r, "settings")),
     ]),
   );
@@ -83,6 +85,6 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
     addPersonHtml() +
     `<div style="margin-top:20px">` + panel("People with access", `${people.length} of ${DEMO_PEOPLE.length} people · the owner's own access cannot be changed here`, peopleTable) +
     `<div style="margin-top:20px">${panel("What each access level can do", "Computed from the same rules the live app enforces", access)}</div>` +
-    `<div class="info">Tender and finance staff see only the Tenders section, so they never see company profit or sales figures. The tender department also uploads its own tender list and tender results; the owner sees every upload.</div>`
+    `<div class="info">Tender and finance staff see only the Tenders section, so they never see company profit or sales figures. The tender department also uploads its own tender list and tender results, and the maintenance department uploads the equipment list with contracts and contacts; the owner sees every upload.</div>`
   );
 }

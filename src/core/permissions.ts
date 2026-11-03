@@ -7,30 +7,32 @@
  *   viewer   reads the business screens only.
  *   tender   the tender department: the tender section only.
  *   finance  the finance staff who fill guarantees and payments on tenders: the tender section only.
+ *   maintenance  the service department: the installed machines and service screens, and the equipment file; no sales, profit or tenders.
  */
 import type { TenderStatus } from "@/core/tender-flow";
 import type { ImportKind } from "@/core/import/specs";
 
-export const ROLES = ["owner", "admin", "viewer", "tender", "finance"] as const;
+export const ROLES = ["owner", "admin", "viewer", "tender", "finance", "maintenance"] as const;
 export type Role = (typeof ROLES)[number];
 
-export type Area = "business" | "tender" | "settings";
+export type Area = "business" | "tender" | "settings" | "service";
 
 const ACCESS: Record<Role, readonly Area[]> = {
-  owner: ["business", "tender", "settings"],
-  admin: ["business", "tender"],
-  viewer: ["business"],
+  owner: ["business", "tender", "settings", "service"],
+  admin: ["business", "tender", "service"],
+  viewer: ["business", "service"],
   tender: ["tender"],
   finance: ["tender"],
+  maintenance: ["service"],
 };
 
 export const canAccess = (role: Role, area: Area): boolean => ACCESS[role].includes(area);
 
 /** Where a signed-in user lands: the first area they may open. */
-export const homePath = (role: Role): string => (canAccess(role, "business") ? "/dashboard" : "/tenders");
+export const homePath = (role: Role): string => (canAccess(role, "business") ? "/dashboard" : canAccess(role, "tender") ? "/tenders" : "/installed-base");
 
 /** Roles the owner may give to other people in Settings. The owner role is never handed out there. */
-export const ASSIGNABLE_ROLES = ["admin", "viewer", "tender", "finance"] as const satisfies readonly Role[];
+export const ASSIGNABLE_ROLES = ["admin", "viewer", "tender", "finance", "maintenance"] as const satisfies readonly Role[];
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
 
 export const isAssignableRole = (value: string): value is AssignableRole => (ASSIGNABLE_ROLES as readonly string[]).includes(value);
@@ -41,6 +43,7 @@ export const ROLE_LABEL: Record<Role, { name: string; note: string }> = {
   viewer: { name: "Viewer", note: "Reads the business screens only" },
   tender: { name: "Tender department", note: "Tender section only; updates tender stages and uploads the tender list and tender results" },
   finance: { name: "Finance", note: "Tender section only; updates guarantees and payments" },
+  maintenance: { name: "Maintenance", note: "Installed base and Service screens only (they show each customer's consumables spending); uploads the equipment file and adds machine details, contracts and contacts. No sales, profit or tenders" },
 };
 
 /**
@@ -67,8 +70,15 @@ export const TENDER_UPLOAD_KINDS = ["tenders", "tender_results"] as const satisf
  */
 export function canImportKind(role: Role, kind: ImportKind): boolean {
   if (role === "owner") return true;
+  if (role === "maintenance") return (MAINTENANCE_UPLOAD_KINDS as readonly string[]).includes(kind);
   return role === "tender" && (TENDER_UPLOAD_KINDS as readonly string[]).includes(kind);
 }
+
+/** The only file type the maintenance department may upload: the installed equipment list with its contracts and contacts. */
+export const MAINTENANCE_UPLOAD_KINDS = ["installed_units"] as const satisfies readonly ImportKind[];
+
+/** Whether the person may open the equipment upload page, and add machine details by hand. */
+export const canUploadEquipment = (role: Role): boolean => role === "owner" || role === "maintenance";
 
 /** Whether the person may open the tender upload page at all. */
 export const canUploadTenders = (role: Role): boolean => role === "owner" || role === "tender";

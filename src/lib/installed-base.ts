@@ -16,7 +16,8 @@ async function describedUnits(companyId: string): Promise<UnitInput[]> {
   const rows = await getDb().execute(sql`
     select u.code, u.name, p.line::text as line, p.code as product_code, c.code as customer_code, c.name as customer_name,
       u.installed_on::text as installed_on, u.warranty_end::text as warranty_end, u.service::text as service,
-      u.expected_monthly_consumables::text as expected
+      u.expected_monthly_consumables::text as expected, u.contract_start::text as contract_start, u.contract_end::text as contract_end,
+      u.contact_name, u.contact_phone, u.contact_email
     from installed_units u join customers c on c.company_id = u.company_id and c.id = u.customer_id
       left join products p on p.company_id = u.company_id and p.id = u.product_id
     where u.company_id = ${companyId}`);
@@ -32,6 +33,11 @@ async function describedUnits(companyId: string): Promise<UnitInput[]> {
     warrantyEnd: r.warranty_end,
     service: r.service as ServiceStatus | null,
     expectedMonthly: r.expected === null ? null : Number(r.expected),
+    contractStart: r.contract_start,
+    contractEnd: r.contract_end,
+    contactName: r.contact_name,
+    contactPhone: r.contact_phone,
+    contactEmail: r.contact_email,
   }));
 }
 

@@ -9,6 +9,7 @@ import { PeriodTag } from "@/components/period-tag";
 import { levelAllows } from "@/core/level";
 import { ageYears } from "@/core/opportunity-radar";
 import { GROUP_LABEL, serviceGroup } from "@/core/service-support";
+import { canAccess } from "@/core/permissions";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
 import { dayText, jod, pct } from "@/lib/format";
@@ -28,7 +29,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 export default async function UnitPage({ params }: { params: Promise<{ code: string }> }) {
-  const user = await requireUser();
+  const user = await requireUser("service");
   if (!levelAllows(await currentLevel(), user.role, "/installed-base")) return <AdvancedGate title="Installed base" />;
   if (user.guest) return <PageHeading eyebrow="Installed base" title="Installed machine" sub="Please sign in with a company account to see this page." />;
   const { code } = await params;
@@ -67,7 +68,7 @@ export default async function UnitPage({ params }: { params: Promise<{ code: str
 
       <section aria-label="Machine facts" className="rounded-lg border border-line bg-white px-4 py-2">
         <Fact label="Customer">
-          <CustomerLink code={account.customerCode} name={account.customerName} />
+          <CustomerLink code={account.customerCode} name={account.customerName} plain={!canAccess(user.role, "business")} />
         </Fact>
         <Fact label="Product on the list">{d.product ? `${d.product.name} (${d.product.code})` : <span className="text-muted">Not linked to a product</span>}</Fact>
         <Fact label="Business line of the machine">{d.product?.line ?? <span className="text-muted">Unknown without a product</span>}</Fact>
@@ -75,6 +76,16 @@ export default async function UnitPage({ params }: { params: Promise<{ code: str
         <Fact label={unit.source === "erp" ? "Time since first sold" : "Age"}>{age === null ? <span className="text-muted">Install date not recorded</span> : `${age} year${age === 1 ? "" : "s"}`}</Fact>
         <Fact label="Warranty ends">{unit.warrantyEnd ? dayText(unit.warrantyEnd) : <span className="text-muted">Not recorded</span>}</Fact>
         <Fact label="Service position">{GROUP_LABEL[group]}</Fact>
+        <Fact label="Service contract">
+          {unit.contractEnd ? `${unit.contractStart ? `${dayText(unit.contractStart)} to ` : "Ends "}${dayText(unit.contractEnd)}` : <span className="text-muted">Dates not recorded</span>}
+        </Fact>
+        <Fact label="Contact at the customer">
+          {unit.contactName || unit.contactPhone || unit.contactEmail ? (
+            [unit.contactName, unit.contactPhone, unit.contactEmail].filter(Boolean).join(" · ")
+          ) : (
+            <span className="text-muted">Not recorded</span>
+          )}
+        </Fact>
         <Fact label="Estimate for this machine alone">{unit.expectedMonthly === null ? <span className="text-muted">None</span> : `${jod(unit.expectedMonthly)} a month`}</Fact>
       </section>
 
