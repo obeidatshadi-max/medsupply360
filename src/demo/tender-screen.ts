@@ -7,6 +7,7 @@
  * so one customer's buyers are never presented as another's.
  */
 import { ROLE_LABEL } from "@/core/permissions";
+import { tipHtml } from "@/core/glossary-html";
 import { AUTHORITIES, LINE_LABEL, STAGE, STATUS_LABEL, STATUSES, closeReasonLabel, type AuthorityCode } from "@/core/tender-flow";
 import { GUARANTEE_LABEL } from "@/core/tender-money";
 import { tenderValue } from "@/core/tender-overview";
@@ -191,9 +192,9 @@ export function tenderScreenHtml({ generic, query }: TenderScreenOptions): strin
     `<p class="mini"><button class="linkbtn" data-route="tenderprices">Price history: what the authorities paid in past tenders →</button></p>` +
     `<div class="ob-row">Where the tenders stand</div>` +
     phaseCards +
-    `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. Win rate: ${winRate}.</p>` +
+    `<p class="mini">Value is the contract if there is one, otherwise the award, our bid, or the estimate. Tenders without any value are counted but not added. Lost or cancelled: ${closed.count}. ${tipHtml("Win rate")}: ${winRate}.</p>` +
     `<p class="mini">Time from handing in the bid to the decision: ${timeToDecision}</p>` +
-    `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines + awards)}${panel("Cash tied up in guarantees", "Bid and performance guarantees held by the bank", guarantees)}</div>` +
+    `<div class="twocol" style="margin-top:20px">${panel("Submission deadlines", "Tenders not yet submitted, by deadline", deadlines + awards)}${panel(tipHtml("Bank guarantee", "Cash tied up in guarantees"), "Bid and performance guarantees held by the bank", guarantees)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("Still unpaid by the authorities", "Tender invoices not yet collected", unpaid)}${panel("Why bids were lost", "The reason recorded when a tender is marked lost", lost)}</div>` +
     `<div style="margin-top:20px">${panel("Contracted, still to deliver", "Part deliveries recorded against each contract value", toDeliver)}</div>` +
     `<div class="twocol" style="margin-top:20px">${panel("By authority", "Active = not lost, cancelled or collected", byAuthority)}${panel("Longest in their current stage", "A plain count of days, not a deadline: some stages are slow by nature.", longest)}</div>` +

@@ -5,7 +5,9 @@
 export { PERIOD_DAYS, VIEWS, privateInsights, segmentComparison, summarizeAccountRows, tenderBoard, viewRows, viewSummary } from "./accounts";
 export { demoLedger, demoPortfolio } from "./ledger";
 export { nextStep } from "@/core/portfolio";
-export { GLOSSARY, PAGE_TERMS } from "@/core/glossary";
+export { GLOSSARY, GLOSSARY_ENTRIES, PAGE_TERMS, glossaryEntry, hasMore } from "@/core/glossary";
+export { tipHtml, tipPanelHtml } from "@/core/glossary-html";
+export { DEMO_ALERT_TOPIC, INSIGHT_HELP } from "@/core/insight-help";
 export { LEVEL_LABEL } from "@/core/opportunities";
 export { SADAF_PROFILE, customerProfileStore, demoActionKey, normalizeCustomerProfile, profileDraftFromText } from "./customer-profiles";
 export { demoProductReorders, demoReadiness, checkDemoImport, SNAPSHOT_SAMPLE, SNAPSHOT_BAD_SAMPLE } from "./prediction-demo";

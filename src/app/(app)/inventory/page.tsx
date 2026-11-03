@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Glossary } from "@/components/glossary";
+import { InfoTerm } from "@/components/info-term";
+import type { Term } from "@/core/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { LineFilter } from "@/components/line-filter";
 import { currentLine } from "@/lib/line";
@@ -35,11 +37,11 @@ export default async function InventoryPage() {
   }
 
   const shortHistory = !r.reliable;
-  const stats = [
-    { label: "Stock value (owned)", value: jod(r.stockValue), note: `${n(r.rows)} stock rows as of ${r.asOf}` },
-    { label: "Slow or unused stock", value: jod(r.slowValue), note: `Not used in ${r.windowDays} days, or more than ${SLOW_COVER_DAYS} days of stock left at the current speed of sales` },
+  const stats: { label: string; term?: Term; value: string; note: string }[] = [
+    { label: "Stock value (owned)", term: "Owned stock", value: jod(r.stockValue), note: `${n(r.rows)} stock rows as of ${r.asOf}` },
+    { label: "Slow or unused stock", term: "Slow stock", value: jod(r.slowValue), note: `Not used in ${r.windowDays} days, or more than ${SLOW_COVER_DAYS} days of stock left at the current speed of sales` },
     { label: "Expired stock", value: jod(r.expiredValue), note: "Past the expiry date, still in stock (at cost)" },
-    { label: "Possible loss from expiry (estimate)", value: jod(r.expiryLossEstimate), note: `Stock we may not sell before it expires, in the next ${EXPIRY_WINDOW_DAYS} days` },
+    { label: "Possible loss from expiry (estimate)", term: "Expiry loss", value: jod(r.expiryLossEstimate), note: `Stock we may not sell before it expires, in the next ${EXPIRY_WINDOW_DAYS} days` },
   ];
 
   return (
@@ -63,7 +65,7 @@ export default async function InventoryPage() {
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
-            <p className="text-[11px] text-muted md:text-xs">{s.label}</p>
+            <p className="text-[11px] text-muted md:text-xs">{s.term ? <InfoTerm term={s.term}>{s.label}</InfoTerm> : s.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{s.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{s.note}</p>
           </div>
