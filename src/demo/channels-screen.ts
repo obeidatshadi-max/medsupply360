@@ -72,7 +72,7 @@ export function channelsHtml({ erpName = "Alpha ERP" }: { erpName?: string } = {
     );
   }).join("");
   return (
-    `<div class="info">Data reaches the app by three channels, each with its own source. Open a channel to load files. Whatever is uploaded is read, recognised and previewed first, and nothing is saved until the owner confirms. This demo saves nothing.</div>` +
+    `<div class="info">Data comes in three ways, each from its own source. Open one to upload files. The owner sees a preview first. Nothing is saved until the owner confirms. This demo saves nothing.</div>` +
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:14px">${cards}</div>`
   );
 }
@@ -131,10 +131,10 @@ export function samplePreviewHtml(channel: SampleChannel): string {
         r.skipped !== null
           ? `<span class="mini">${esc(r.skipped)}</span>`
           : r.kind
-            ? `<b>${esc(SPECS[r.kind].title)}</b><span class="cellsub">Recognised from the headings · ${plural(r.rows, "row")}${r.headerRow > 1 ? ` · headings found on row ${r.headerRow}` : ""}</span>`
+            ? `<b>${esc(SPECS[r.kind].title)}</b><span class="cellsub">Type found from the column headings · ${plural(r.rows, "row")}${r.headerRow > 1 ? ` · headings found on row ${r.headerRow}` : ""}</span>`
             : r.candidates[0]
               ? `<span class="mini">Looks like ${esc(SPECS[r.candidates[0]].title)}, which belongs in ${esc(CHANNEL_INFO[channelOfKind(r.candidates[0])].title)}. Upload it there.</span>`
-              : `<span class="mini">Type not recognised: choose it, or leave it out</span>`;
+              : `<span class="mini">The app does not know the type: choose it, or leave it out</span>`;
       return `<tr><td data-label="Tab">${esc(r.sheet)}</td><td data-label="Understood as">${what}</td><td data-label="Used">${r.kind && r.skipped === null ? "Yes" : "No"}</td></tr>`;
     })
     .join("");
@@ -175,7 +175,7 @@ export function machineDetailsHtml(machines: readonly DemoMachine[]): string {
 /** The Manual channel screen. */
 export function manualChannelHtml(machines: readonly DemoMachine[]): string {
   return (
-    `<div class="info">Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV, check what the tool understood, then confirm. A starter file is available for each type.</div>` +
+    `<div class="info">Data that Alpha does not hold: details of the machines (their sales are already in the ERP files), the sales force with their targets and suppliers, and support-function indicators. Upload a workbook or CSV. Check what the app understood, then confirm. A starter file is available for each type.</div>` +
     sampleBox("manual", "A made-up workbook with a guide tab, an equipment list that starts under a title, the sales team, and a tab that is not data.") +
     `<div style="margin-top:20px">${machineDetailsHtml(machines)}</div>` +
     `<p class="mini"><button class="linkbtn" data-route="salesforce">Sales force and targets</button></p>`

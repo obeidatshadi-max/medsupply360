@@ -27,7 +27,7 @@ export default async function TenderChannelPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Data channels`}
         title="Tender department"
-        sub="The tender team records each tender, its stages, guarantees and payments in the Tenders section. To load or catch up a whole list at once, upload it here as Excel or CSV. A tender already recorded is updated, but its stage is only ever moved in the Tenders section."
+        sub="The tender team records each tender in the Tenders section: its stages, guarantees and payments. To load a whole list at once, upload it here as Excel or CSV. A tender that is already recorded is updated. Its stage can only be changed in the Tenders section."
       />
       <DataTabs current="imports" owner history />
       <p className="text-sm">

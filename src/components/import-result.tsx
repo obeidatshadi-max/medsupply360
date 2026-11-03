@@ -9,12 +9,12 @@ export function ImportResult({ fileName, outcome }: { fileName: string; outcome:
     );
   }
   const headline = outcome.dryRun
-    ? `Preview, nothing saved yet. ${outcome.rowsAccepted} of ${outcome.rowsTotal} rows are ready to import.`
+    ? `Preview only. Nothing is saved yet. ${outcome.rowsAccepted} of ${outcome.rowsTotal} rows are ready to load.`
     : outcome.status === "rejected"
-      ? `Nothing was imported: all ${outcome.rowsTotal} rows were rejected.`
+      ? `Nothing was loaded. All ${outcome.rowsTotal} rows have a problem.`
       : outcome.status === "partial"
-        ? `Imported ${outcome.rowsAccepted} of ${outcome.rowsTotal} rows. ${outcome.rowsRejected} ${outcome.rowsRejected === 1 ? "row was" : "rows were"} rejected: fix ${outcome.rowsRejected === 1 ? "it" : "them"} in the file and import it again.`
-        : `Imported all ${outcome.rowsTotal} ${outcome.rowsTotal === 1 ? "row" : "rows"}.`;
+        ? `Loaded ${outcome.rowsAccepted} of ${outcome.rowsTotal} rows. ${outcome.rowsRejected} ${outcome.rowsRejected === 1 ? "row was" : "rows were"} not loaded. Fix ${outcome.rowsRejected === 1 ? "it" : "them"} in the file and upload the file again.`
+        : `Loaded all ${outcome.rowsTotal} ${outcome.rowsTotal === 1 ? "row" : "rows"}.`;
 
   return (
     <section aria-label="Import result" className="space-y-4 rounded-lg border border-line bg-surface p-5">
@@ -47,10 +47,10 @@ export function ImportResult({ fileName, outcome }: { fileName: string; outcome:
       {outcome.ignoredColumns.length > 0 ? <p className="text-xs text-muted">Columns not used: {outcome.ignoredColumns.join(", ")}</p> : null}
 
       {outcome.rejections.length > 0 ? (
-        <IssueList title={`Rejected rows (${outcome.rowsRejected})`} tone="bad" issues={outcome.rejections} hidden={outcome.rejectionsHidden} />
+        <IssueList title={`Rows not loaded (${outcome.rowsRejected})`} tone="bad" issues={outcome.rejections} hidden={outcome.rejectionsHidden} />
       ) : null}
       {outcome.warnings.length > 0 ? (
-        <IssueList title={`Loaded with a gap (${outcome.warnings.length + outcome.warningsHidden})`} tone="gold" issues={outcome.warnings} hidden={outcome.warningsHidden} />
+        <IssueList title={`Loaded, but please check (${outcome.warnings.length + outcome.warningsHidden})`} tone="gold" issues={outcome.warnings} hidden={outcome.warningsHidden} />
       ) : null}
     </section>
   );
