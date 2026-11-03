@@ -12,7 +12,8 @@ describe("demo tender screen", () => {
     expect(html).toContain(jod(o.payments.unpaid));
     expect(html).toContain(jod(o.guarantees.active));
     expect(html).toContain(jod(o.guarantees.expiredNotReturned));
-    expect(html).toContain(`Win rate: ${pct(o.results.winRate!)}`);
+    expect(html).toContain("What does Win rate mean?");
+    expect(html).toContain(`</span>: ${pct(o.results.winRate!)}`);
     for (const p of o.phases.filter((x) => x.key !== "closed")) expect(html).toContain(jod(p.value));
     for (const t of DEMO_TENDERS) expect(html).toContain(t.title);
   });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTerm } from "@/components/info-term";
 import { STATUS_LABEL } from "@/core/tender-flow";
 import type { TenderOverview } from "@/core/tender-overview";
 import { dayText, jod, pct } from "@/lib/format";
@@ -47,7 +48,7 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
           ))}
         </div>
         <p className="mt-2 text-xs text-muted">
-          Lost or cancelled: {closed.count}. Win rate:{" "}
+          Lost or cancelled: {closed.count}. <InfoTerm term="Win rate">Win rate</InfoTerm>:{" "}
           {o.results.winRate === null ? "not known yet (no tender has been decided)" : `${pct(o.results.winRate)} (${o.results.won} won, ${o.results.lost} lost${o.results.wonValue > 0 ? `, ${jod(o.results.wonValue)} awarded` : ""})`}.
         </p>
         <p className="mt-1 text-xs text-muted">
@@ -135,7 +136,9 @@ export function OverviewPanel({ o, base = "/tenders" }: { o: TenderOverview; bas
         </div>
 
         <div className={card}>
-          <h3 className="text-sm font-semibold">Cash tied up in guarantees</h3>
+          <h3 className="text-sm font-semibold">
+            <InfoTerm term="Bank guarantee">Cash tied up in guarantees</InfoTerm>
+          </h3>
           <p className="my-1 text-2xl font-medium tracking-[-0.6px] tabular-nums">{jod(o.guarantees.active)}</p>
           <p className="text-xs text-muted">Held by guarantees that are not returned and not expired.</p>
           {o.guarantees.expiredNotReturned > 0 ? (

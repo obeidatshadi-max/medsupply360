@@ -29,7 +29,10 @@ const data = () =>
 
 const mainText = (mode: "basic" | "advanced", route: string, line = "All lines") => {
   w.eval(`state.mode='${mode}';state.line='${line}';state.query='';state.route='${route}';render()`);
-  return (w.document.querySelector("#main")?.textContent ?? "").replace(/\s+/g, " ");
+  // The (i) term buttons are hidden from screen readers and carry no words of their own, so leave them out of the text.
+  const main = w.document.querySelector("#main")?.cloneNode(true) as HTMLElement | undefined;
+  main?.querySelectorAll(".tipb").forEach((x) => x.remove());
+  return (main?.textContent ?? "").replace(/\s+/g, " ");
 };
 
 beforeAll(() => {

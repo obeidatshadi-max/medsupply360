@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { CustomerLink } from "@/components/customer-link";
 import { Glossary } from "@/components/glossary";
+import { InfoTerm } from "@/components/info-term";
+import type { Term } from "@/core/glossary";
 import { PageHeading } from "@/components/page-heading";
 import { LineFilter } from "@/components/line-filter";
 import { salesForLine } from "@/core/line-filter";
@@ -82,15 +84,17 @@ export default async function FinancePage() {
         <AssignActionLink role={user.role} title="Recover overdue balances" evidence={`Review the unpaid invoices as of ${r.asOf}: confirm acceptance documents and an agreed payment plan.`} responsible="Finance manager" label="Assign collection follow-up →" />
       </p>
       {salesSection}
-      <h2 className="mb-3 mt-8 text-sm font-semibold">Receivables (money customers owe you)</h2>
+      <h2 className="mb-3 mt-8 text-sm font-semibold">
+        <InfoTerm term="Receivables">Receivables (money customers owe you)</InfoTerm>
+      </h2>
       <div className="grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-3">
-        {[
+        {([
           { label: "Total unpaid", value: jod(r.total), note: `On ${r.asOf}` },
-          { label: "Overdue", value: jod(r.overdue), note: "Not paid after the due date" },
+          { label: "Overdue", term: "Overdue", value: jod(r.overdue), note: "Not paid after the due date" },
           { label: "Due date missing", value: jod(r.dueDateMissing.amount), note: `${r.dueDateMissing.invoices} invoice${r.dueDateMissing.invoices === 1 ? "" : "s"}, age not known` },
-        ].map((s) => (
+        ] as { label: string; term?: Term; value: string; note: string }[]).map((s) => (
           <div key={s.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
-            <p className="text-[11px] text-muted md:text-xs">{s.label}</p>
+            <p className="text-[11px] text-muted md:text-xs">{s.term ? <InfoTerm term={s.term}>{s.label}</InfoTerm> : s.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{s.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{s.note}</p>
           </div>
@@ -98,7 +102,9 @@ export default async function FinancePage() {
       </div>
 
       <section aria-label="Aging buckets" className="mt-5 rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
-        <h2 className="text-sm font-semibold">Unpaid invoices by age (days after the due date)</h2>
+        <h2 className="text-sm font-semibold">
+          <InfoTerm term="Aging">Unpaid invoices by age (days after the due date)</InfoTerm>
+        </h2>
         <ul className="mt-3 space-y-2.5">
           {bars.map((b) => (
             <li key={b.label} className="grid grid-cols-[110px_1fr_auto] items-center gap-3 text-xs md:grid-cols-[140px_1fr_auto]">
@@ -211,13 +217,13 @@ function CashCollected({ cash }: { cash: Cash }) {
       <PeriodTag from={cash.from} to={cash.to} against={{ from: cash.priorFrom, to: cash.priorTo }} />
       <p className="mt-1 text-xs text-muted">From the customer receipts file. Each payment line is counted one time.</p>
       <div className="mt-2 grid grid-cols-2 gap-[10px] md:gap-[14px] min-[1000px]:grid-cols-4">
-        {[
+        {([
           { label: `Collected ${dateRange(cash.from, cash.to)}`, value: jod(cash.ytd), note: `${signedPct(cash.growth)} vs ${jod(cash.priorYtd)} in ${dateRange(cash.priorFrom, cash.priorTo)}` },
           { label: "Last 30 days of data", value: jod(cash.last30), note: `${dateRange(addDays(cash.to, -29), cash.to)}` },
-          { label: "Not linked to an invoice", value: jod(cash.unlinkedYtd), note: "Money received but not matched to an invoice. It is already in the total above" },
-        ].map((x) => (
+          { label: "Not linked to an invoice", term: "Unlinked cash", value: jod(cash.unlinkedYtd), note: "Money received but not matched to an invoice. It is already in the total above" },
+        ] as { label: string; term?: Term; value: string; note: string }[]).map((x) => (
           <div key={x.label} data-figure className="rounded-[9px] border border-line bg-white p-[15px] md:p-[21px]">
-            <p className="text-[11px] text-muted md:text-xs">{x.label}</p>
+            <p className="text-[11px] text-muted md:text-xs">{x.term ? <InfoTerm term={x.term}>{x.label}</InfoTerm> : x.label}</p>
             <p className="my-2 text-2xl tracking-[-0.9px] md:text-[29px]">{x.value}</p>
             <p className="text-[10px] text-muted md:text-[11px]">{x.note}</p>
           </div>

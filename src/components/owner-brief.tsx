@@ -1,5 +1,6 @@
 import type { Alert, Status } from "@/lib/owner-brief";
 import { GLOSSARY, type Term } from "@/core/glossary";
+import { INSIGHT_HELP } from "@/core/insight-help";
 import { signedPct, pct } from "@/lib/format";
 
 /** Status look: colour is never the only cue, every status also has a word and a symbol. */
@@ -157,6 +158,23 @@ function Banner({ alerts, anyData, anyGap }: { alerts: Alert[]; anyData: boolean
               <span aria-hidden className={`mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${a.level === "act" ? "bg-bad" : "bg-warn"}`} />
               <span>{a.text}</span>
             </a>
+            <details className="ml-[18px] text-xs">
+              <summary className="flex min-h-11 cursor-pointer items-center font-semibold md:min-h-0 md:py-1">What this may mean and what to do</summary>
+              <dl className="space-y-1.5 pb-2">
+                <div>
+                  <dt className="inline font-semibold">What it may mean: </dt>
+                  <dd className="inline">{INSIGHT_HELP[a.topic].means}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-semibold">Why it matters: </dt>
+                  <dd className="inline">{INSIGHT_HELP[a.topic].why}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-semibold">What to do next: </dt>
+                  <dd className="inline">{INSIGHT_HELP[a.topic].next}</dd>
+                </div>
+              </dl>
+            </details>
           </li>
         ))}
       </ul>
