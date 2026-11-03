@@ -3,7 +3,7 @@
  * access table is computed from the app's own permission rules (src/core/permissions.ts), so it cannot drift from what
  * the live app enforces.
  */
-import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL, canAccess, canEditGuarantees, canEditPayments, canEditTender, type Role } from "@/core/permissions";
+import { ASSIGNABLE_ROLES, ROLES, ROLE_LABEL, canAccess, canEditGuarantees, canEditPayments, canEditTender, canUploadTenders, type Role } from "@/core/permissions";
 import { dayText } from "@/lib/format";
 
 export interface DemoPerson {
@@ -66,7 +66,7 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
     ]),
   );
   const access = table(
-    ["Access level", "Business screens", "Tenders", "Change tenders", "Guarantees", "Invoices and payments", "Settings"],
+    ["Access level", "Business screens", "Tenders", "Change tenders", "Guarantees", "Invoices and payments", "Upload tender files", "Settings"],
     ROLES.map((r) => [
       `<b>${esc(ROLE_LABEL[r].name)}</b><span class="cellsub">${esc(ROLE_LABEL[r].note)}</span>`,
       mark(canAccess(r, "business")),
@@ -74,6 +74,7 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
       mark(canEditTender(r)),
       mark(canEditGuarantees(r)),
       mark(canEditPayments(r)),
+      mark(canUploadTenders(r)),
       mark(canAccess(r, "settings")),
     ]),
   );
@@ -82,6 +83,6 @@ export function settingsHtml({ query }: { query?: string } = {}): string {
     addPersonHtml() +
     `<div style="margin-top:20px">` + panel("People with access", `${people.length} of ${DEMO_PEOPLE.length} people · the owner's own access cannot be changed here`, peopleTable) +
     `<div style="margin-top:20px">${panel("What each access level can do", "Computed from the same rules the live app enforces", access)}</div>` +
-    `<div class="info">Tender and finance staff see only the Tenders section, so they never see company profit or sales figures.</div>`
+    `<div class="info">Tender and finance staff see only the Tenders section, so they never see company profit or sales figures. The tender department also uploads its own tender list and tender results; the owner sees every upload.</div>`
   );
 }

@@ -50,11 +50,10 @@ describe("navItems", () => {
     for (const o of [{ guest: false, role: "viewer" }, { guest: true, role: "owner" }, { guest: false, role: "tender" }, { guest: false, role: "finance" }] as O[]) expect(labels(o)).not.toContain("Sales force");
   });
 
-  it("shows department users the tender section only", () => {
-    for (const role of ["tender", "finance"] as const) {
-      expect(labels({ guest: false, role })).toEqual(["Tenders"]);
-      expect(navItems({ guest: false, role }).explore).toEqual([]);
-    }
+  it("shows department users the tender section only, and the tender team also its upload page", () => {
+    expect(labels({ guest: false, role: "finance" })).toEqual(["Tenders"]);
+    expect(labels({ guest: false, role: "tender" })).toEqual(["Tenders", "Upload tenders"]);
+    for (const role of ["tender", "finance"] as const) expect(navItems({ guest: false, role }).explore).toEqual([]);
   });
 
   it("shows Settings to the owner only and Tenders to owner and administrator", () => {
@@ -81,7 +80,8 @@ describe("Basic and Advanced", () => {
   });
 
   it("never takes the tender section away from a department", () => {
-    for (const role of ["tender", "finance"] as const) expect(hrefs({ guest: false, role, level: "basic" })).toEqual(["/tenders"]);
+    expect(hrefs({ guest: false, role: "finance", level: "basic" })).toEqual(["/tenders"]);
+    expect(hrefs({ guest: false, role: "tender", level: "basic" })).toEqual(["/tenders", "/imports/tenders"]);
   });
 });
 
