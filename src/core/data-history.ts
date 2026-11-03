@@ -84,7 +84,7 @@ export function describeAction(action: DataAction, details: Record<string, unkno
     case "mgmt_action.removed":
       return `Removed a management action${text(d.title)}`;
     case "machine.details_saved":
-      return `Added details to a machine${text(d.name)}`;
+      return d.added === true ? `Added a new machine${text(d.name)}` : `Added details to a machine${text(d.name)}`;
     case "profile.updated":
       return "Changed the company profile";
     case "import.run": {

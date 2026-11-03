@@ -38,7 +38,8 @@ export interface MachineDetails {
 
 export type MachineDetailsResult = { ok: true; value: MachineDetails } | { ok: false; error: string };
 
-export function cleanMachineDetails(form: MachineDetailsForm, today: string): MachineDetailsResult {
+/** `allowEmpty`: a machine being added needs no details; an existing one needs at least one, or there is nothing to save. */
+export function cleanMachineDetails(form: MachineDetailsForm, today: string, opts: { allowEmpty?: boolean } = {}): MachineDetailsResult {
   const code = form.code.trim();
   if (code === "" || code.length > 80) return { ok: false, error: "Choose the machine from the list." };
 
@@ -75,7 +76,7 @@ export function cleanMachineDetails(form: MachineDetailsForm, today: string): Ma
   if (contactEmail !== "" && (contactEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))) return { ok: false, error: "The contact email does not look like an email address." };
 
   const nothing = installedOn === null && warrantyEnd === null && service === "" && expectedMonthly === null && contractStart === null && contractEnd === null && contactName === "" && contactPhone === "" && contactEmail === "";
-  if (nothing) return { ok: false, error: "Fill in at least one detail: warranty end, service contract, contract dates, contact, install date or expected consumables." };
+  if (nothing && !opts.allowEmpty) return { ok: false, error: "Fill in at least one detail: warranty end, service contract, contract dates, contact, install date or expected consumables." };
   return {
     ok: true,
     value: {
@@ -91,4 +92,35 @@ export function cleanMachineDetails(form: MachineDetailsForm, today: string): Ma
       contactEmail: contactEmail || null,
     },
   };
+}
+
+export interface NewMachineForm extends Omit<MachineDetailsForm, "code"> {
+  code: string;
+  name: string;
+  customerCode: string;
+}
+
+export interface NewMachine {
+  code: string;
+  name: string;
+  customerCode: string;
+  details: MachineDetails;
+}
+
+export type NewMachineResult = { ok: true; value: NewMachine } | { ok: false; error: string };
+
+/** A machine the sales file does not show (bought elsewhere, a loan unit): its own code, a name and a customer; every detail is optional. */
+export function cleanNewMachine(form: NewMachineForm, today: string): NewMachineResult {
+  const code = form.code.trim();
+  if (code === "") return { ok: false, error: "Type a code for the machine, for example its serial number." };
+  if (code.length > 80) return { ok: false, error: "The machine code is too long (80 characters at most)." };
+  if (/^ERP-/i.test(code)) return { ok: false, error: "Codes starting with ERP- are used for machines taken from the sales. Choose another code." };
+  const name = form.name.trim();
+  if (name === "") return { ok: false, error: "Type the name of the machine." };
+  if (name.length > 300) return { ok: false, error: "The machine name is too long (300 characters at most)." };
+  const customerCode = form.customerCode.trim();
+  if (customerCode === "") return { ok: false, error: "Choose the customer from the list." };
+  const d = cleanMachineDetails({ ...form, code }, today, { allowEmpty: true });
+  if (!d.ok) return d;
+  return { ok: true, value: { code, name, customerCode, details: d.value } };
 }

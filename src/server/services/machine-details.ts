@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db/import-writer";
 import { customers, installedUnits, products } from "@/db/schema";
 import type { UnitInput } from "@/core/installed-base";
-import type { MachineDetails } from "@/core/machine-details";
+import type { MachineDetails, NewMachine } from "@/core/machine-details";
 
 export type SaveDetailsResult = { ok: true } | { ok: false; error: string };
 
@@ -54,5 +54,40 @@ export async function saveMachineDetails(db: Db, input: { companyId: string; uni
       contactEmail: given.contactEmail,
     });
   }
+  return { ok: true };
+}
+
+/** Customers the owner or maintenance may pick for a new machine: code and name, by name. */
+export async function listCustomerOptions(db: Db, companyId: string): Promise<{ code: string; name: string }[]> {
+  return db.select({ code: customers.code, name: customers.name }).from(customers).where(eq(customers.companyId, companyId)).orderBy(customers.name).limit(5000);
+}
+
+/**
+ * Adds a machine that the sales do not show. The customer must be on the customer list (it is looked up by code, never typed
+ * again) and the code must be new: an existing machine is changed with its details form instead, so nothing is overwritten by mistake.
+ */
+export async function addMachine(db: Db, input: { companyId: string; machine: NewMachine }): Promise<SaveDetailsResult> {
+  const { companyId, machine } = input;
+  const [customer] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.companyId, companyId), eq(customers.code, machine.customerCode))).limit(1);
+  if (!customer) return { ok: false, error: "That customer is not on the customer list. Load the customer list first, or choose another customer." };
+  const [existing] = await db.select({ id: installedUnits.id }).from(installedUnits).where(and(eq(installedUnits.companyId, companyId), eq(installedUnits.code, machine.code))).limit(1);
+  if (existing) return { ok: false, error: "A machine with this code already exists. Choose it in Machine details above to change it." };
+  const d = machine.details;
+  await db.insert(installedUnits).values({
+    companyId,
+    code: machine.code,
+    customerId: customer.id,
+    productId: null,
+    name: machine.name,
+    installedOn: d.installedOn,
+    warrantyEnd: d.warrantyEnd,
+    service: d.service,
+    expectedMonthlyConsumables: d.expectedMonthly === null ? null : String(d.expectedMonthly),
+    contractStart: d.contractStart ?? null,
+    contractEnd: d.contractEnd ?? null,
+    contactName: d.contactName ?? null,
+    contactPhone: d.contactPhone ?? null,
+    contactEmail: d.contactEmail ?? null,
+  });
   return { ok: true };
 }
