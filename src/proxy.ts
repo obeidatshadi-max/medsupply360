@@ -16,8 +16,9 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   if (pathname === "/" || pathname === "/ar") {
-    // The front page is for visitors without a session. Anyone signed in (or with open access on) goes to the dashboard.
-    if (request.cookies.has(SESSION_COOKIE) || openAccess()) {
+    // The front page is for visitors without a session. Anyone signed in (or with open access on) goes to the dashboard,
+    // unless they came back on purpose with the Home button (?home=1).
+    if ((request.cookies.has(SESSION_COOKIE) || openAccess()) && request.nextUrl.searchParams.get("home") !== "1") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);

@@ -33,10 +33,12 @@ const JOURNEY_ICONS = [
 const arrow = "M5 12h14M13 6l6 6-6 6";
 
 /** The public front page. Static: it reads nothing from the database and shows no company figures. */
-export function LandingPage({ locale }: { locale: LandingLocale }) {
+export function LandingPage({ locale, home = false }: { locale: LandingLocale; home?: boolean }) {
   const c = landingFor(locale);
   const rtl = locale === "ar";
-  const enter = "/login";
+  // Someone who came back to the front page from inside the workspace (the Home button) goes straight back; everyone else signs in.
+  const enter = home ? "/dashboard" : "/login";
+  const enterLabel = home ? c.nav.workspace : c.hero.primary;
   const p = c.preview;
   return (
     <div className="landing min-h-dvh" lang={locale} dir={rtl ? "rtl" : "ltr"}>
@@ -59,10 +61,11 @@ export function LandingPage({ locale }: { locale: LandingLocale }) {
           <nav aria-label={c.nav.label} className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <a href="#how" className="hidden text-white/85 hover:text-white md:inline">{c.nav.how}</a>
             <a href="#pillars" className="hidden text-white/85 hover:text-white md:inline">{c.nav.pillars}</a>
+            <a href="#intel" className="hidden text-white/85 hover:text-white md:inline">{c.nav.intel}</a>
             <a href="#preview" className="hidden text-white/85 hover:text-white md:inline">{c.nav.preview}</a>
-            <Link href={c.nav.languageHref} lang={rtl ? "en" : "ar"} className="text-white/85 hover:text-white">{c.nav.language}</Link>
+            <Link href={home ? `${c.nav.languageHref}?home=1` : c.nav.languageHref} lang={rtl ? "en" : "ar"} className="text-white/85 hover:text-white">{c.nav.language}</Link>
             <a href={DEMO_URL} className="hidden text-white/85 hover:text-white sm:inline">{c.nav.demo}</a>
-            <Link href={enter} className="inline-flex min-h-10 items-center rounded-lg border border-white/40 px-4 font-medium hover:bg-white/10">{c.nav.signIn}</Link>
+            <Link href={enter} className="inline-flex min-h-10 items-center rounded-lg border border-white/40 px-4 font-medium hover:bg-white/10">{home ? c.nav.workspace : c.nav.signIn}</Link>
           </nav>
         </header>
 
@@ -73,7 +76,7 @@ export function LandingPage({ locale }: { locale: LandingLocale }) {
             <p className="mt-4 max-w-xl text-base leading-relaxed text-white/85">{c.hero.body}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={enter} className={`${btn} ${gold}`}>
-                {c.hero.primary}
+                {enterLabel}
                 <Icon d={arrow} className="size-4 rtl:rotate-180" />
               </Link>
               <a href="#how" className={`${btn} border border-white/45 text-white hover:bg-white/10`}>{c.hero.secondary}</a>
@@ -147,6 +150,44 @@ export function LandingPage({ locale }: { locale: LandingLocale }) {
           </ul>
         </section>
 
+        <section id="intel" className="mx-auto max-w-6xl scroll-mt-4 px-4 pb-16 sm:px-6 sm:pb-20">
+          <div className="grid gap-8 rounded-3xl border border-line bg-white p-5 shadow-sm sm:p-8 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#10332c] sm:text-3xl">{c.intel.title}</h2>
+              <p className="mt-2 text-base text-[#566663]">{c.intel.subtitle}</p>
+              <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+                {c.intel.items.map((it) => (
+                  <li key={it.title}>
+                    <h3 className="flex items-start gap-2 text-sm font-semibold text-[#10332c]">
+                      <Icon d="M5 12l4 4 10-10" className="mt-0.5 size-4 shrink-0 text-gold" />
+                      {it.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-[#566663]">{it.body}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div role="group" aria-label={`${c.intel.chartTitle}. ${c.intel.chartSample}`} className="self-start rounded-2xl border border-line bg-canvas p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-[#10332c]">{c.intel.chartTitle}</h3>
+                <p className="rounded-full bg-[#f1e6cc] px-2.5 py-0.5 text-[11px] font-semibold text-[#6b5314]">{c.intel.chartSample}</p>
+              </div>
+              <ul className="mt-4 space-y-3">
+                {c.intel.buckets.map((b, i) => {
+                  const max = Math.max(...c.intel.buckets.map((x) => x.count));
+                  return (
+                    <li key={b.label} className="text-xs">
+                      <div className="flex justify-between gap-3"><span>{b.label}</span><b dir="ltr">{b.count}</b></div>
+                      <div dir="ltr" className="mt-1 h-2.5 overflow-hidden rounded-full bg-brand-soft"><div className={`h-full rounded-full ${i === 0 ? "bg-brand" : "bg-gold"}`} style={{ width: `${max ? (b.count / max) * 100 : 0}%` }} /></div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-4 text-xs leading-relaxed text-[#566663]">{c.intel.chartNote}</p>
+            </div>
+          </div>
+        </section>
+
         <section className="bg-brand-soft/70 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 className="text-2xl font-semibold tracking-tight text-[#10332c] sm:text-3xl">{c.journey.title}</h2>
@@ -187,7 +228,7 @@ export function LandingPage({ locale }: { locale: LandingLocale }) {
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href={enter} className={`${btn} ${gold}`}>
-                {c.close.cta}
+                {home ? c.nav.workspace : c.close.cta}
                 <Icon d={arrow} className="size-4 rtl:rotate-180" />
               </Link>
               <a href={DEMO_URL} className={`${btn} border border-white/45 text-white hover:bg-white/10`}>{c.nav.demo}</a>

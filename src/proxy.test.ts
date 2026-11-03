@@ -23,6 +23,17 @@ describe("proxy: front page", () => {
     for (const path of ["/", "/ar"]) expect(location(call(path, "sadaf_session=abc"))).toBe("https://example.test/dashboard");
   });
 
+  it("lets a signed-in visitor see the front page when they ask for it with the Home button", () => {
+    for (const path of ["/?home=1", "/ar?home=1"]) {
+      const r = call(path, "sadaf_session=abc");
+      expect(r.status).toBe(200);
+      expect(location(r)).toBeNull();
+    }
+    process.env.OPEN_ACCESS = "true";
+    expect(location(call("/?home=1"))).toBeNull();
+    expect(new URL(location(call("/?home=0"))!).pathname).toBe("/dashboard");
+  });
+
   it("keeps sending everyone to the dashboard while open access is on", () => {
     process.env.OPEN_ACCESS = "true";
     expect(location(call("/"))).toBe("https://example.test/dashboard");

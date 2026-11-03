@@ -59,11 +59,18 @@ export function landingHtml(locale: LandingLocale): string {
   const items = c.how.items
     .map((f) => `<li class="lp-mini">${icon(ICON_PATHS.check, "gold")}<h3>${esc(f.title)}</h3><p>${esc(f.body)}</p></li>`)
     .join("");
+  const iMax = Math.max(...c.intel.buckets.map((b) => b.count), 1);
+  const intelItems = c.intel.items
+    .map((it) => `<li><h3>${icon(ICON_PATHS.check, "gold")}<span>${esc(it.title)}</span></h3><p>${esc(it.body)}</p></li>`)
+    .join("");
+  const intelBars = c.intel.buckets
+    .map((b, i) => `<li><div class="lp-row"><span>${esc(b.label)}</span><b dir="ltr">${b.count}</b></div><div class="lp-bar ${i === 0 ? "" : "gold"}" dir="ltr"><span style="width:${(b.count / iMax) * 100}%"></span></div></li>`)
+    .join("");
   const points = c.hero.points.map((pt) => `<li>${icon(ICON_PATHS.check, "soft")}${esc(pt)}</li>`).join("");
   return `<div class="lp" lang="${locale}" dir="${rtl ? "rtl" : "ltr"}">
 <section class="lp-hero">
 <header class="lp-top"><p class="lp-logo"><span class="lp-mark" aria-hidden="true">360</span><span><b dir="ltr">${esc(c.brand)}</b><small>${esc(c.strap)}</small></span></p>
-<nav aria-label="${esc(c.nav.label)}"><a href="#lp-how" class="lp-hide">${esc(c.nav.how)}</a><a href="#lp-pillars" class="lp-hide">${esc(c.nav.pillars)}</a><button type="button" class="lp-link" data-landing-lang="${other}" lang="${other}">${esc(c.nav.language)}</button><button type="button" class="lp-ghost" data-landing-enter>${esc(d.enter)}</button></nav></header>
+<nav aria-label="${esc(c.nav.label)}"><a href="#lp-how" class="lp-hide">${esc(c.nav.how)}</a><a href="#lp-pillars" class="lp-hide">${esc(c.nav.pillars)}</a><a href="#lp-intel" class="lp-hide">${esc(c.nav.intel)}</a><button type="button" class="lp-link" data-landing-lang="${other}" lang="${other}">${esc(c.nav.language)}</button><button type="button" class="lp-ghost" data-landing-enter>${esc(d.enter)}</button></nav></header>
 <div class="lp-herogrid"><div>
 <p class="lp-pill">${esc(d.notice)}</p>
 <h1>${esc(c.hero.title)}</h1><p class="lp-sub">${esc(c.hero.subtitle)}</p><p class="lp-body">${esc(c.hero.body)}</p>
@@ -74,6 +81,7 @@ export function landingHtml(locale: LandingLocale): string {
 <div class="lp-pair"><section class="lp-tile"><h3 class="lp-cap">${esc(p.priorityTitle)}</h3><ul class="lp-prio">${priorities}</ul></section><section class="lp-tile"><h3 class="lp-cap">${esc(p.linesTitle)}</h3><ul class="lp-lines">${lines}</ul></section></div></div>
 </div></section>
 <section id="lp-pillars" class="lp-sec"><h2>${esc(c.pillars.title)}</h2><ul class="lp-cards">${pillars}</ul></section>
+<section id="lp-intel" class="lp-sec lp-intelsec"><div class="lp-intel"><div><h2>${esc(c.intel.title)}</h2><p class="lp-lead">${esc(c.intel.subtitle)}</p><ul class="lp-intelitems">${intelItems}</ul></div><div role="group" aria-label="${esc(c.intel.chartTitle)}. ${esc(c.intel.chartSample)}" class="lp-chart"><div class="lp-prevhead"><b>${esc(c.intel.chartTitle)}</b><span>${esc(c.intel.chartSample)}</span></div><ul class="lp-lines">${intelBars}</ul><p class="lp-note lp-chartnote">${esc(c.intel.chartNote)}</p></div></div></section>
 <section class="lp-tint"><div class="lp-sec"><h2>${esc(c.journey.title)}</h2><p class="lp-lead">${esc(c.journey.subtitle)}</p><ol class="lp-steps">${steps}</ol></div></section>
 <section id="lp-how" class="lp-sec"><h2>${esc(c.how.title)}</h2><p class="lp-lead">${esc(c.how.subtitle)}</p><ul class="lp-minis">${items}</ul></section>
 <section class="lp-close"><div class="lp-closein"><div><h2>${esc(c.close.title)}</h2><p>${esc(d.footerNote)}</p></div><button type="button" class="lp-gold" data-landing-enter>${esc(d.enter)}${icon(ICON_PATHS.arrow, "flip")}</button></div></section>
@@ -138,6 +146,11 @@ body.landing-on{padding-bottom:0!important}
 .lp-close{background:var(--gd);color:#fff;padding-block:56px}.lp-closein{display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between}
 .lp-close h2{color:#fff}.lp-close p{margin-top:8px!important;color:#ffffffcc;max-width:560px}
 .lp-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;padding-block:24px;font-size:12px;color:var(--mu)}
+.lp-intelsec{padding-block:0 64px}.lp-intel{display:grid;gap:32px;grid-template-columns:1fr;background:#fff;border:1px solid var(--ln);border-radius:24px;padding:32px;box-shadow:0 1px 2px #0000000d}
+.lp-intelitems{margin-top:24px;display:grid;gap:16px;grid-template-columns:1fr 1fr}.lp-intelitems h3{display:flex;gap:8px;align-items:flex-start;font-size:14px;font-weight:600;color:#10332c}.lp-intelitems h3 .lp-ico{margin-top:2px}.lp-intelitems p{margin-top:4px!important;font-size:14px;color:var(--mu)}
+.lp-chart{align-self:start;background:#f3f5f2;border:1px solid var(--ln);border-radius:16px;padding:16px}.lp-chart .lp-lines{margin-top:16px;gap:12px}.lp-bar.gold span{background:var(--au)}.lp-chartnote{margin-top:16px!important;font-size:12px}
+@media(min-width:1024px){.lp-intel{grid-template-columns:1.1fr 1fr;gap:40px}}
+@media(max-width:640px){.lp-intel{padding:20px}.lp-intelitems{grid-template-columns:1fr}}
 @media(min-width:1024px){.lp-herogrid{grid-template-columns:1.02fr 1fr;align-items:center;gap:48px}.lp h1{font-size:52px}.lp-sub{font-size:24px}}
 @media(max-width:1023px){.lp-cards{grid-template-columns:1fr 1fr}.lp-card,.lp-card.wide{grid-column:auto}.lp-steps{grid-template-columns:1fr 1fr}.lp-step::after{display:none}.lp-minis{grid-template-columns:1fr 1fr}.lp nav .lp-hide{display:none}}
 @media(max-width:640px){.lp-top,.lp-herogrid,.lp-sec,.lp-closein,.lp-foot{padding-inline:16px}.lp-cards,.lp-steps,.lp-minis{grid-template-columns:1fr}.lp-pair{grid-template-columns:1fr}.lp h1{font-size:34px}.lp-sec{padding-block:48px}.lp-herogrid{padding-bottom:56px}}

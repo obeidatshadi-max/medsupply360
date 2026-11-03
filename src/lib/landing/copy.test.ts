@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { landingAr, landingEn, type LandingCopy } from "./copy";
 import { landingHtml } from "@/demo/landing-html";
+import { gapDistribution } from "@/core/tender-prices";
+import { demoBidRows } from "@/demo/tender-prices-demo";
 
 /** Same keys and same list lengths in both languages, so one can never silently lose a section. */
 function shape(v: unknown): unknown {
@@ -32,6 +34,21 @@ describe("landing copy", () => {
   it("shows only figures that the demo overview also shows", () => {
     const demo = `${landingEn.preview.stats.map((s) => s.value).join(" ")}`;
     for (const v of ["JOD 4.54M", "JOD 1.51M", "JOD 3.86M", "JOD 117.1K"]) expect(demo).toContain(v);
+  });
+});
+
+describe("tender intelligence example", () => {
+  it("shows the same counts as the demo's price history screen, in both languages", () => {
+    const real = gapDistribution(demoBidRows()).buckets.map((b) => b.count);
+    expect(landingEn.intel.buckets.map((b) => b.count)).toEqual(real);
+    expect(landingAr.intel.buckets.map((b) => b.count)).toEqual(real);
+  });
+
+  it("states a close-loss count that the buckets support", () => {
+    const [, within5, within10, within20, over20] = landingEn.intel.buckets.map((b) => b.count);
+    const lost = within5 + within10 + within20 + over20;
+    expect(landingEn.intel.chartNote).toContain(`${within5 + within10} of the ${lost}`);
+    expect(landingAr.intel.chartNote).toContain(`${within5 + within10} من ${lost}`);
   });
 });
 
