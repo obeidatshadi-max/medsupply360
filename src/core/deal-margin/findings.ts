@@ -98,14 +98,14 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       impactFils: impact,
       impactJod: fromFils(impact),
       confidence: "medium",
-      evidence: [{ entryIds: [], rebateIds: [], note: impact > 0 ? `Quote line ${jod(impact)}, ledger entries: none` : "Warranty promised, ledger entries: none" }],
+      evidence: [{ entryIds: [], rebateIds: [], note: impact > 0 ? `Quote line ${jod(impact)}, cost records: none` : "Warranty promised, cost records: none" }],
       action,
       owner: who,
-      verifyMethod: `A ${COST_LABEL[c].toLowerCase()} entry (actual or estimate) exists and the forecast margin is recalculated.`,
+      verifyMethod: `A cost (real or estimated) is recorded for ${COST_LABEL[c].toLowerCase()} and the forecast is worked out again.`,
     });
   };
   missingCost("installation", "missing_installation", deal.hasInstallation, "Service manager", "Ask the service team for the installation and commissioning cost (engineer time, travel, parts) and book it against this deal.");
-  missingCost("warranty", "missing_warranty", deal.warrantyMonths > 0, "Service manager", `Set a warranty provision for the ${deal.warrantyMonths} months promised, using the company's warranty rate for this product.`);
+  missingCost("warranty", "missing_warranty", deal.warrantyMonths > 0, "Service manager", `Set money aside for the ${deal.warrantyMonths} months of warranty promised, using the company's usual warranty rate for this product.`);
 
   // 3. Freight/customs and installation above the quote. Booked costs prove it (confirmed); an estimate that already
   // exceeds the quote is only a warning (suspected).
@@ -132,8 +132,8 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       verifyMethod,
     });
   };
-  overrun("freight_customs", "freight_overrun", "Freight and customs above the quote", "Operations manager", "Check the forwarder and customs invoices against the quote. If the extra cost is real, reprice future bids for this route; if it is an error, ask the forwarder for a credit note.", "Freight actual is back within the quote, or the quote basis for new bids has been updated and the overrun is accepted in writing.");
-  overrun("installation", "installation_overrun", "Installation cost above the quote", "Service manager", "Review the work orders (engineer hours, travel, parts). Agree a standard installation cost per product, and decide whether the customer or the supplier should bear the extra cost.", "Installation cost is back within the quote, or the extra cost is approved and the standard cost for new bids is updated.");
+  overrun("freight_customs", "freight_overrun", "Freight and customs above the quote", "Operations manager", "Check the forwarder and customs invoices against the quote. If the extra cost is real, reprice future bids for this route; if it is an error, ask the forwarder for a credit note.", "Freight cost is back within the quote, or the extra cost is accepted in writing and new bids use the higher figure.");
+  overrun("installation", "installation_overrun", "Installation cost above the quote", "Service manager", "Review the work orders (engineer hours, travel, parts). Agree a standard installation cost per product, and decide whether the customer or the supplier should bear the extra cost.", "Installation cost is back within the quote, or the extra cost is approved and new bids use the higher standard cost.");
 
   // 4. Acquisition cost differs from the quote.
   const aq = forecast.lines.acquisition;
@@ -152,7 +152,7 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
         evidence: [{ entryIds: aq.ids, rebateIds: [], note: `Actual ${jod(aq.actual)} vs quote ${jod(aq.quoted)}` }],
         action: "Compare the supplier invoice with the price list used for the quote. Ask the supplier to explain the difference, and update the price list used by the tender team.",
         owner: "Procurement manager",
-        verifyMethod: "Supplier cost matches the confirmed price list, or a credit note brings it back to the quote.",
+        verifyMethod: "The supplier cost matches the confirmed price list, or a credit note brings it back to the quote.",
       });
     }
   }
@@ -188,14 +188,14 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       rule: "rebate_not_earned",
       kind: "suspected",
       title: "Quoted margin counts a rebate that is not earned",
-      what: `The quote counted on ${jod(rebateCounted)} of supplier rebate. Only ${jod(rb.verified)} is earned, accrued or received.${rb.potential > 0 ? ` ${jod(rb.potential)} is only contractual: it depends on targets not yet met.` : ""}`,
+      what: `The quote counted on ${jod(rebateCounted)} of supplier rebate. Only ${jod(rb.verified)} has been earned, booked or received.${rb.potential > 0 ? ` ${jod(rb.potential)} is only promised: it depends on targets we have not met yet.` : ""}`,
       impactFils: gap,
       impactJod: fromFils(gap),
       confidence: rb.potential > 0 ? "medium" : "high",
-      evidence: [{ entryIds: [], rebateIds: rb.ids, note: `Assumed ${jod(rebateCounted)}, verified ${jod(rb.verified)}, contractual ${jod(rb.potential)}` }],
+      evidence: [{ entryIds: [], rebateIds: rb.ids, note: `Counted on ${jod(rebateCounted)}, earned ${jod(rb.verified)}, only promised ${jod(rb.potential)}` }],
       action: "Ask procurement for the supplier's rebate statement showing whether the target was met. Until it is, do not count this rebate in the margin.",
       owner: "Procurement manager",
-      verifyMethod: "The supplier's statement shows the rebate earned, and the rebate status moves to earned, accrued or received.",
+      verifyMethod: "The supplier's statement shows the rebate is earned, and its status moves to earned, booked or received.",
     });
   }
 
@@ -206,15 +206,15 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
     add({
       rule: "supplier_credit_unreconciled",
       kind: "suspected",
-      title: "Supplier credit not reconciled",
+      title: "Supplier credit not matched to a credit note",
       what: `${jod(amt)} of supplier rebate or credit is recorded without a matching credit note or receipt.`,
       impactFils: amt,
       impactJod: fromFils(amt),
       confidence: "medium",
       evidence: [{ entryIds: unreconciledCredits.map((n) => n.entry.id), rebateIds: rb.ids, note: "Credit with no document reference" }],
-      action: "Match the credit to the supplier's credit note in the ERP. If there is no credit note, treat the amount as not received.",
+      action: "Find the supplier's credit note in the ERP and link it. If there is none, treat the money as not received.",
       owner: "Finance manager",
-      verifyMethod: "A supplier credit note number is recorded against the rebate.",
+      verifyMethod: "The supplier credit note number is recorded against the rebate.",
     });
   }
 
@@ -232,7 +232,7 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
         impactFils: extra,
         impactJod: fromFils(extra),
         confidence: "medium",
-        evidence: [{ entryIds: forecast.lines.financing.ids, rebateIds: [], note: `Outstanding × ${policy.financingRateAnnualPct}% × ${deal.collectionDaysLate}/365` }],
+        evidence: [{ entryIds: forecast.lines.financing.ids, rebateIds: [], note: `Unpaid amount × ${policy.financingRateAnnualPct}% a year × ${deal.collectionDaysLate} days ÷ 365` }],
         action: "Escalate the overdue invoice with the customer's finance office and agree a payment date. Book the financing cost against this deal.",
         owner: "Finance manager",
         verifyMethod: "The invoice is paid or a dated payment plan exists, and the financing cost is booked.",
@@ -248,14 +248,14 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       rule: "duplicate_allocation",
       kind: "confirmed",
       title: "The same cost was allocated more than once",
-      what: `${dupes.length} entr${dupes.length === 1 ? "y" : "ies"} worth ${jod(dupeFils)} repeat a cost that is already counted, or sit inside the product landed cost. They were removed from this analysis. If the ERP still shows them, reported profit is understated.`,
+      what: `${dupes.length} entr${dupes.length === 1 ? "y" : "ies"} worth ${jod(dupeFils)} repeat a cost that is already counted, or are already included in the product cost. They were left out of this analysis. If the ERP still shows them twice, the reported profit looks lower than it really is.`,
       impactFils: dupeFils,
       impactJod: fromFils(dupeFils),
       confidence: "high",
-      evidence: [{ entryIds: dupes.map((h) => h.entry.id), rebateIds: [], note: "Same ERP transaction key or document line; or freight/customs already in landed cost" }],
+      evidence: [{ entryIds: dupes.map((h) => h.entry.id), rebateIds: [], note: "Same ERP transaction or document line; or freight/customs already included in the product cost" }],
       action: "Ask finance to remove the repeated allocation in the ERP so deal and company reports agree.",
       owner: "Finance manager",
-      verifyMethod: "The repeated entries no longer appear in the next ERP import.",
+      verifyMethod: "The repeated costs no longer appear in the next ERP import.",
     });
   }
 
@@ -272,10 +272,10 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       impactFils: wrongFils,
       impactJod: fromFils(wrongFils),
       confidence: "low",
-      evidence: [{ entryIds: wrong.map((h) => h.entry.id), rebateIds: [], note: "Customer or contract reference differs, or the match is medium/low confidence" }],
-      action: "Review each entry: confirm it belongs to this deal, move it to the right deal, or reject it.",
+      evidence: [{ entryIds: wrong.map((h) => h.entry.id), rebateIds: [], note: "The customer or contract reference is different, or we are not sure the cost belongs here" }],
+      action: "Look at each cost: confirm it belongs to this deal, move it to the right deal, or reject it.",
       owner: "Finance manager",
-      verifyMethod: "Every entry has a confirmed or rejected decision.",
+      verifyMethod: "Every cost has been confirmed or rejected by a person.",
     });
   }
 
@@ -292,7 +292,7 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       evidence: [{ entryIds: Object.values(forecast.lines).flatMap((l) => (l.disputed !== 0 ? l.ids : [])), rebateIds: [], note: "Entries with status disputed" }],
       action: "Settle the dispute with the supplier or customer and record the agreed amount.",
       owner: "Finance manager",
-      verifyMethod: "The disputed entries are replaced by actual settled amounts.",
+      verifyMethod: "The disputed costs are replaced by the final agreed amounts.",
     });
   }
 
@@ -305,14 +305,14 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       rule: "margin_deterioration",
       kind: "confirmed",
       title: qm >= (policy.minContributionMarginPct ?? Infinity) && belowMin(forecast.contributionAfterRebates) ? "Profitable at award, now below the approved margin" : "Margin has fallen since the quote",
-      what: `Quoted contribution margin was ${qm}%. The forecast is ${fm}%, a fall of ${(qm - fm).toFixed(1)} points.`,
+      what: `The quote promised a profit margin of ${qm}%. The forecast is ${fm}%, a fall of ${(qm - fm).toFixed(1)} points.`,
       impactFils: dropFils,
       impactJod: fromFils(dropFils),
       confidence: forecast.completeness === "complete" ? "high" : "medium",
       evidence: [{ entryIds: [], rebateIds: [], note: `Quoted ${qm}% → forecast ${fm}%` }],
-      action: "Review the cost lines that moved most (see the variance table) and decide whether to renegotiate, reprice the remaining deliveries, or recover costs from suppliers.",
+      action: "Review the cost lines that moved most (see ‘Why the margin moved’) and decide whether to renegotiate, reprice the remaining deliveries, or recover costs from suppliers.",
       owner: deal.kind === "tender" ? "Tender manager" : "Sales manager",
-      verifyMethod: "Forecast margin is recalculated after the action and is no longer below the quoted margin by more than the allowed fall.",
+      verifyMethod: "The forecast margin is worked out again after the action and is no longer below the quoted margin by more than the allowed fall.",
     });
   }
   if (policy.minContributionMarginPct !== null && fm !== null && fm < policy.minContributionMarginPct) {
@@ -321,14 +321,14 @@ export function findFindings({ deal, views, policy }: FindingsInput): Finding[] 
       rule: "below_minimum_margin",
       kind: "confirmed",
       title: "Below the approved minimum margin",
-      what: `The forecast contribution margin is ${fm}%; the approved minimum is ${policy.minContributionMarginPct}%.`,
+      what: `The forecast profit margin is ${fm}%; the approved minimum is ${policy.minContributionMarginPct}%.`,
       impactFils: shortFils,
       impactJod: fromFils(shortFils),
       confidence: forecast.completeness === "complete" ? "high" : "medium",
       evidence: [{ entryIds: [], rebateIds: [], note: `Forecast ${fm}% vs minimum ${policy.minContributionMarginPct}%` }],
       action: "Ask the CEO to approve or stop further deliveries at this margin, and review the cost lines that moved.",
       owner: "Sales manager",
-      verifyMethod: "Forecast margin reaches the approved minimum, or a written approval of the exception is recorded.",
+      verifyMethod: "The forecast margin reaches the approved minimum, or a written approval for the exception is recorded.",
       belowMinimum: true,
     });
   }

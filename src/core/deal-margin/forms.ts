@@ -60,7 +60,7 @@ export function cleanPolicyForm(f: PolicyForm): Ok<PolicyValues> | Err {
     ["maxDiscountPct", "The maximum discount"],
     ["costOverrunTolerancePct", "The cost overrun tolerance"],
     ["deteriorationPp", "The allowed margin fall"],
-    ["financingRateAnnualPct", "The yearly financing rate"],
+    ["financingRateAnnualPct", "The yearly rate for the cost of waiting for payment"],
   ] as const;
   const out: Record<string, number | null> = {};
   for (const [k, label] of keys) {
@@ -126,7 +126,7 @@ export function cleanEntryForm(f: EntryForm): Ok<EntryValues> | Err {
   const status = (tidy(f.status) || "actual") as EntryStatus;
   if (!["actual", "estimated", "disputed"].includes(status)) return { ok: false, error: "Choose whether the amount is actual, estimated or disputed." };
   const provision = tidy(f.provision) === "on" || tidy(f.provision) === "true";
-  if (provision && line !== "warranty") return { ok: false, error: "Only a warranty amount can be a provision." };
+  if (provision && line !== "warranty") return { ok: false, error: "Only a warranty amount can be a set-aside." };
   const coveredByRaw = tidy(f.coveredBy);
   const coveredBy = coveredByRaw === "" ? null : (coveredByRaw as CostCategory);
   if (coveredBy !== null && !COST_CATEGORIES.includes(coveredBy)) return { ok: false, error: "“Already included in” must be one of the cost lines." };
@@ -270,7 +270,7 @@ export function cleanDealForm(f: DealForm): Ok<DealValues> | Err {
     ["quoteAcquisition", "The quoted product cost"],
     ["quoteFreightCustoms", "The quoted freight and customs"],
     ["quoteInstallation", "The quoted installation cost"],
-    ["quoteWarranty", "The quoted warranty provision"],
+    ["quoteWarranty", "The quoted warranty set-aside"],
     ["quoteCommission", "The quoted commission"],
     ["quoteFinancing", "The quoted financing cost"],
     ["quoteOther", "The quoted other costs"],

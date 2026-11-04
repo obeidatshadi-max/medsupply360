@@ -14,13 +14,13 @@ export const COST_CATEGORIES = ["acquisition", "freight_customs", "installation"
 export type CostCategory = (typeof COST_CATEGORIES)[number];
 
 export const COST_LABEL: Record<CostCategory, string> = {
-  acquisition: "Product acquisition cost",
+  acquisition: "Product cost",
   freight_customs: "Freight and customs",
-  installation: "Installation and commissioning",
-  warranty: "Warranty provision",
-  commission: "Sales commissions",
-  financing: "Financing and collection costs",
-  other: "Other fulfilment costs",
+  installation: "Installation and setup",
+  warranty: "Warranty set-aside",
+  commission: "Sales commission",
+  financing: "Cost of waiting for payment",
+  other: "Other delivery costs",
 };
 
 /** Where an entry lands in the waterfall: the customer discount line, or one of the cost lines. */
@@ -73,10 +73,10 @@ export interface LedgerEntry {
 export type RebateStatus = "contractual" | "earned" | "accrued" | "received";
 export const REBATE_STAGE: Record<RebateStatus, number> = { contractual: 0, earned: 1, accrued: 2, received: 3 };
 export const REBATE_LABEL: Record<RebateStatus, string> = {
-  contractual: "Contractual (promised if targets are met)",
-  earned: "Earned (conditions met, not yet booked)",
-  accrued: "Accrued (booked, cash not yet received)",
-  received: "Received (cash or credit note)",
+  contractual: "Promised (only if targets are met)",
+  earned: "Earned (targets met, not yet booked)",
+  accrued: "Booked (money not yet received)",
+  received: "Received (money or credit note arrived)",
 };
 
 export interface RebateEntry {

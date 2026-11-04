@@ -84,11 +84,11 @@ export function AddDealForm() {
         <Money name="quoteAcquisition" label="Product cost" required />
         <Money name="quoteFreightCustoms" label="Freight and customs" />
         <Money name="quoteInstallation" label="Installation" />
-        <Money name="quoteWarranty" label="Warranty provision" />
+        <Money name="quoteWarranty" label="Warranty set-aside" />
         <Money name="quoteCommission" label="Commission" />
-        <Money name="quoteFinancing" label="Financing" />
+        <Money name="quoteFinancing" label="Cost of waiting for payment" />
         <Money name="quoteOther" label="Other costs" />
-        <Money name="quoteRebate" label="Rebate the quote counted on" hint="Shown, never added to verified profit" />
+        <Money name="quoteRebate" label="Rebate the quote counted on" hint="Shown, but never added to proven profit" />
       </fieldset>
       <fieldset className="grid gap-3 md:grid-cols-4">
         <legend className="text-sm font-semibold">What is still open</legend>
@@ -217,7 +217,7 @@ export function AddEntryForm({ dealId }: { dealId: string }) {
           <input name="vatRate" defaultValue="16" className={field} />
         </label>
         <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" name="provision" /> Warranty provision
+          <input type="checkbox" name="provision" /> Warranty set-aside
         </label>
         <label className="text-sm font-medium md:col-span-4">
           Note
@@ -227,7 +227,7 @@ export function AddEntryForm({ dealId }: { dealId: string }) {
       <SubmitterField />
       <Status state={state} />
       <button type="submit" disabled={pending} className={submit}>
-        {pending ? "Saving…" : "Add to the ledger"}
+        {pending ? "Saving…" : "Add to the cost record"}
       </button>
     </form>
   );
@@ -344,18 +344,18 @@ export function CheckOutcomesForm({ dealId }: { dealId: string }) {
 const POLICY_FIELDS = [
   ["minContributionMarginPct", "Minimum contribution margin (%)", "Deals below this are flagged"],
   ["maxDiscountPct", "Maximum customer discount (%)", "Discounts above this are flagged"],
-  ["costOverrunTolerancePct", "Cost overrun tolerance (%)", "A cost may exceed its quote by this much. Empty = any excess"],
-  ["deteriorationPp", "Allowed margin fall (points)", "Quoted minus forecast margin"],
-  ["financingRateAnnualPct", "Financing rate (% a year)", "Prices late collection"],
-  ["roundingToleranceFils", "Rounding tolerance (fils)", "1 fils = 0.001 JOD"],
+  ["costOverrunTolerancePct", "Allowed cost overrun (%)", "A cost may go above its quote by this much. Empty = any excess counts"],
+  ["deteriorationPp", "Allowed fall in margin (points)", "Quoted margin minus forecast margin"],
+  ["financingRateAnnualPct", "Cost of waiting for payment (% a year)", "Used to price late payments"],
+  ["roundingToleranceFils", "Rounding difference allowed (fils)", "1 fils = 0.001 JOD"],
 ] as const;
 
 export function PolicyForm({ values }: { values: Record<(typeof POLICY_FIELDS)[number][0], string> }) {
   const [state, action, pending] = useActionState<DealFormState, FormData>(savePolicyAction, {});
   return (
     <form action={action} className="space-y-3 rounded-lg border border-line bg-surface p-5">
-      <h3 className="text-sm font-semibold">Approved thresholds</h3>
-      <p className="text-xs text-muted">These are the company&rsquo;s own limits. The app never invents them: a rule that needs a limit stays silent until you enter it. Leave a field empty if the company has no such limit.</p>
+      <h3 className="text-sm font-semibold">Company limits</h3>
+      <p className="text-xs text-muted">These are the company&rsquo;s own limits. The app never makes them up: a check that needs a limit stays silent until you enter it. Leave a field empty if the company has no such limit.</p>
       <div className="grid gap-3 md:grid-cols-3">
         {POLICY_FIELDS.map(([n, l, h]) => (
           <label key={n} className="text-sm font-medium">
@@ -368,7 +368,7 @@ export function PolicyForm({ values }: { values: Record<(typeof POLICY_FIELDS)[n
       <SubmitterField />
       <Status state={state} />
       <button type="submit" disabled={pending} className={submit}>
-        {pending ? "Saving…" : "Save thresholds"}
+        {pending ? "Saving…" : "Save limits"}
       </button>
     </form>
   );
@@ -393,8 +393,7 @@ export function ImportCostsForm() {
     <form onSubmit={onSubmit} className="space-y-3 rounded-lg border border-line bg-surface p-5">
       <h3 className="text-sm font-semibold">Import costs from the ERP</h3>
       <p className="text-xs text-muted">
-        Columns: {COST_FILE_COLUMNS.join(", ")}. Only “cost line” and “amount” are required, plus a transaction id or a document number so a second import of the same file changes nothing. Each row is matched to a deal by contract, tender,
-        project, invoice, serial or purchase-order number. Anything less certain waits for your review; anything that fits no deal is listed and not saved. The column names are assumptions until a real Alpha export is checked.
+        Columns: {COST_FILE_COLUMNS.join(", ")}. Only “cost line” and “amount” are required, plus a transaction id or a document number, so that sending the same file twice changes nothing. Each row is linked to a deal by its contract, tender, project, invoice, serial or purchase-order number. If we are not sure, the row waits for your review. A row that fits no deal is listed but not saved. The column names are guesses until a real Alpha file is checked.
       </p>
       <input type="file" name="file" accept=".csv,.xlsx,.xls" required className="block text-sm" />
       <SubmitterField />
