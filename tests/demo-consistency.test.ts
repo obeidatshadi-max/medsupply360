@@ -42,7 +42,8 @@ beforeAll(() => {
 });
 
 describe("demo renders", () => {
-  it("every view, both versions, every line filter, without a script error", () => {
+  // Renders every route 8 times in jsdom; with the other test files running in parallel it passes the default 30 s only on a quiet machine.
+  it("every view, both versions, every line filter, without a script error", { timeout: 120_000 }, () => {
     const routes = w.eval("routes.map(r=>r[0])") as string[];
     const basic = w.eval("basicRoutes") as string[];
     const failures: string[] = [];

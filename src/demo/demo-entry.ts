@@ -22,5 +22,6 @@ export { historyCsvRows, historyHtml } from "./history-screen";
 export { channelsHtml, machineDetailsHtml, manualChannelHtml, samplePreviewHtml, serviceDataStripHtml, tenderChannelHtml, tenderDataStripHtml } from "./channels-screen";
 export { supportCsvRows, supportHtml } from "./support-screen";
 export { LANDING_CSS, landingHtml } from "./landing-html";
+export { dealMarginCsvRows, dealMarginHtml, mountDealMargin } from "./deal-margin-screen";
 
 export { expiryAlertsHtml, demoExpiryItems } from "./expiry-screen";

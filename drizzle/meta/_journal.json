@@ -155,6 +155,13 @@
       "when": 1793697017933,
       "tag": "0021_maintenance_role_and_contracts",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793803688738,
+      "tag": "0022_deal_margin",
+      "breakpoints": true
     }
   ]
 }

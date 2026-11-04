@@ -1,5 +1,5 @@
 import { DEFAULT_LEVEL, levelAllows, type Level } from "@/core/level";
-import { canAccess, canSeeHistory, canSeeSalesForce, canUploadTenders, type Role } from "@/core/permissions";
+import { canAccess, canSeeDealMargin, canSeeHistory, canSeeSalesForce, canUploadTenders, type Role } from "@/core/permissions";
 
 /**
  * Sidebar navigation, in the demo's order and wording, except that the weekly update lives under "Data" and the
@@ -48,6 +48,7 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
     ...(canSeeSalesForce(role) && !guest ? [{ label: "Sales force", icon: "☺", href: "/sales-force", match: ["/sales-force"] } satisfies NavItem] : []),
     { label: "Inventory & supply", icon: "▦", href: "/inventory", match: ["/inventory"] },
     { label: "Finance & profitability", icon: "◉", href: "/finance", match: ["/finance"] },
+    ...(canSeeDealMargin(role) && !guest ? [{ label: "Deal margins", icon: "◈", href: "/deals", match: ["/deals"] } satisfies NavItem] : []),
     { label: "Management actions", icon: "✓", href: "/opportunities", match: ["/opportunities"] },
   ];
   // One data group, for the people who feed or audit the data: the owner loads files, the owner and administrators read the update history.

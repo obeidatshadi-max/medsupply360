@@ -803,3 +803,166 @@ export const tenderBids = pgTable(
     foreignKey({ columns: [t.companyId, t.lineId], foreignColumns: [tenderArchiveLines.companyId, tenderArchiveLines.id] }),
   ],
 );
+
+// ─── Deal profitability & margin integrity ──────────────────────────────────
+// A deal is one tender contract or one private-sector sale that is analysed as a unit. Its cost ledger holds every cost
+// and discount that belongs to it (from the ERP import or typed by hand), each with a status (actual / estimated /
+// disputed), a match confidence and a person's review. The calculations live in src/core/deal-margin and are pure: these
+// tables only keep what they read. Money is VAT-exclusive; foreign-currency entries keep their own rate.
+
+export const dealKind = pgEnum("deal_kind", ["tender", "private"]);
+export const dealCostLine = pgEnum("deal_cost_line", ["discount", "acquisition", "freight_customs", "installation", "warranty", "commission", "financing", "other"]);
+export const dealEntryStatus = pgEnum("deal_entry_status", ["actual", "estimated", "disputed"]);
+export const dealMatchConfidence = pgEnum("deal_match_confidence", ["exact", "high", "medium", "low"]);
+export const dealReviewStatus = pgEnum("deal_review_status", ["confirmed", "pending", "rejected"]);
+export const dealRebateStatus = pgEnum("deal_rebate_status", ["contractual", "earned", "accrued", "received"]);
+
+export const deals = pgTable(
+  "deals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    kind: dealKind("kind").notNull(),
+    /** Our reference for the deal (tender number, contract number or sales order). */
+    ref: varchar("ref", { length: 80 }).notNull(),
+    title: varchar("title", { length: 300 }).notNull(),
+    customerName: varchar("customer_name", { length: 200 }).notNull(),
+    /** The customer or contract reference printed on cost documents; used to catch costs booked to the wrong deal. */
+    customerRef: varchar("customer_ref", { length: 80 }),
+    /** A tender deal can point at its tender. */
+    tenderId: uuid("tender_id"),
+    contractPrice: numeric("contract_price", { precision: 14, scale: 3 }).notNull(),
+    /** What the quotation said: { price, discount, costs: {category: n}, assumedRebate }. All VAT-exclusive JOD. */
+    quote: jsonb("quote").notNull().$type<{ price: number; discount: number; costs: Record<string, number>; assumedRebate: number }>(),
+    /** What is still open on the deal; see core/deal-margin Obligations. */
+    obligations: jsonb("obligations").notNull().$type<{ deliveredPct: number | null; installedPct: number | null; receivableOutstanding: number; warrantyOpen: boolean; serviceOpen: boolean }>(),
+    warrantyMonths: integer("warranty_months").notNull().default(0),
+    hasInstallation: boolean("has_installation").notNull().default(false),
+    collectionDaysLate: integer("collection_days_late").notNull().default(0),
+    /** Identifiers the ERP matcher uses (contract no., project refs, invoice nos., serials, PO nos.). */
+    identifiers: jsonb("identifiers").notNull().$type<{ contractNo: string | null; tenderNo: string | null; projectRefs: string[]; invoiceNos: string[]; serials: string[]; poNos: string[] }>(),
+    windowStart: date("window_start"),
+    windowEnd: date("window_end"),
+    createdBy: varchar("created_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("deals_company_id_uniq").on(t.companyId, t.id),
+    uniqueIndex("deals_company_ref_uniq").on(t.companyId, t.ref),
+    foreignKey({ columns: [t.companyId, t.tenderId], foreignColumns: [tenders.companyId, tenders.id] }),
+  ],
+);
+
+export const dealCostEntries = pgTable(
+  "deal_cost_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    dealId: uuid("deal_id").notNull(),
+    line: dealCostLine("line").notNull(),
+    /** In `currency`; negative = a credit note or reversed discount. */
+    amount: numeric("amount", { precision: 16, scale: 3 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("JOD"),
+    /** JOD per 1 unit of currency; null for JOD. A non-JOD entry without a rate is held out of the analysis. */
+    fxRate: numeric("fx_rate", { precision: 14, scale: 6 }),
+    vatIncluded: boolean("vat_included").notNull().default(false),
+    vatRate: numeric("vat_rate", { precision: 5, scale: 4 }).notNull().default("0.16"),
+    status: dealEntryStatus("status").notNull().default("actual"),
+    provision: boolean("provision").notNull().default(false),
+    sourceSystem: varchar("source_system", { length: 40 }),
+    sourceDocType: varchar("source_doc_type", { length: 40 }),
+    sourceDocNo: varchar("source_doc_no", { length: 80 }),
+    sourceLineNo: varchar("source_line_no", { length: 40 }),
+    /** Stable key of the ERP transaction. One transaction, one deal: unique per company. */
+    sourceKey: varchar("source_key", { length: 160 }),
+    confidence: dealMatchConfidence("confidence").notNull().default("exact"),
+    review: dealReviewStatus("review").notNull().default("confirmed"),
+    reviewedBy: varchar("reviewed_by", { length: 80 }),
+    coveredBy: dealCostLine("covered_by"),
+    customerRef: varchar("customer_ref", { length: 80 }),
+    incurredOn: date("incurred_on"),
+    note: text("note"),
+    importBatchId: uuid("import_batch_id"),
+    createdBy: varchar("created_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("deal_cost_entries_source_uniq").on(t.companyId, t.sourceKey),
+    index("deal_cost_entries_deal_idx").on(t.companyId, t.dealId),
+    foreignKey({ columns: [t.companyId, t.dealId], foreignColumns: [deals.companyId, deals.id] }),
+    foreignKey({ columns: [t.companyId, t.importBatchId], foreignColumns: [importBatches.companyId, importBatches.id] }),
+  ],
+);
+
+export const dealRebates = pgTable(
+  "deal_rebates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    dealId: uuid("deal_id").notNull(),
+    supplier: varchar("supplier", { length: 200 }).notNull(),
+    amount: numeric("amount", { precision: 16, scale: 3 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("JOD"),
+    fxRate: numeric("fx_rate", { precision: 14, scale: 6 }),
+    status: dealRebateStatus("status").notNull(),
+    evidenceRef: varchar("evidence_ref", { length: 120 }),
+    creditNoteRef: varchar("credit_note_ref", { length: 120 }),
+    review: dealReviewStatus("review").notNull().default("confirmed"),
+    createdBy: varchar("created_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("deal_rebates_deal_idx").on(t.companyId, t.dealId), foreignKey({ columns: [t.companyId, t.dealId], foreignColumns: [deals.companyId, deals.id] })],
+);
+
+/** The company's approved thresholds. One row per company; every threshold is NULL until the owner enters it. */
+export const marginPolicies = pgTable("margin_policies", {
+  companyId: uuid("company_id")
+    .primaryKey()
+    .references(() => companies.id),
+  minContributionMarginPct: numeric("min_contribution_margin_pct", { precision: 5, scale: 2 }),
+  maxDiscountPct: numeric("max_discount_pct", { precision: 5, scale: 2 }),
+  costOverrunTolerancePct: numeric("cost_overrun_tolerance_pct", { precision: 5, scale: 2 }),
+  deteriorationPp: numeric("deterioration_pp", { precision: 5, scale: 2 }),
+  financingRateAnnualPct: numeric("financing_rate_annual_pct", { precision: 5, scale: 2 }),
+  roundingToleranceFils: integer("rounding_tolerance_fils").notNull().default(1),
+  updatedBy: varchar("updated_by", { length: 80 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const dealOutcomeVerdict = pgEnum("deal_outcome_verdict", ["pending", "resolved", "improved", "no_change", "worsened"]);
+
+/** An action started from a finding, with the numbers at that moment, so a later recalculation can say whether it worked. */
+export const dealActionOutcomes = pgTable(
+  "deal_action_outcomes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    dealId: uuid("deal_id").notNull(),
+    findingKey: varchar("finding_key", { length: 200 }).notNull(),
+    actionId: uuid("action_id"),
+    takenOn: date("taken_on").notNull(),
+    baselineMarginPct: numeric("baseline_margin_pct", { precision: 6, scale: 1 }),
+    baselineImpactJod: numeric("baseline_impact_jod", { precision: 14, scale: 3 }).notNull(),
+    baselineContributionJod: numeric("baseline_contribution_jod", { precision: 14, scale: 3 }).notNull(),
+    verdict: dealOutcomeVerdict("verdict").notNull().default("pending"),
+    checkedOn: date("checked_on"),
+    profitRecoveredJod: numeric("profit_recovered_jod", { precision: 14, scale: 3 }),
+    explanation: text("explanation"),
+    createdBy: varchar("created_by", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("deal_action_outcomes_key_uniq").on(t.companyId, t.dealId, t.findingKey),
+    foreignKey({ columns: [t.companyId, t.dealId], foreignColumns: [deals.companyId, deals.id] }),
+    foreignKey({ columns: [t.companyId, t.actionId], foreignColumns: [managementActions.companyId, managementActions.id] }),
+  ],
+);

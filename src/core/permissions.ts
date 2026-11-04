@@ -104,5 +104,14 @@ export const canSeeHistory = (role: Role): boolean => role === "owner" || role =
 /** Guarantees are prepared with the bid (tender department) and issued and returned by finance. */
 export const canEditGuarantees = (role: Role): boolean => role === "owner" || role === "tender" || role === "finance";
 
+/**
+ * Deal margins show what each deal really earns, cost by cost. Only the owner and administrators read them (they are the
+ * company's most sensitive figures); only the owner enters costs, reviews uncertain matches, sets the approved thresholds
+ * and starts actions. The pre-bid simulator is open to the same two roles and never writes anything.
+ */
+export const canSeeDealMargin = (role: Role): boolean => role === "owner" || role === "admin";
+export const canEditDealMargin = (role: Role): boolean => role === "owner";
+export const canSimulateDeal = (role: Role): boolean => role === "owner" || role === "admin";
+
 /** Invoices and the money collected on them belong to finance. */
 export const canEditPayments = (role: Role): boolean => role === "owner" || role === "finance";
