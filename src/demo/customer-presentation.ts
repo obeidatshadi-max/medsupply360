@@ -1,4 +1,5 @@
 import { customerProfileStore, demoActionKey, normalizeCustomerProfile, profileDraftFromText, type CustomerProfile } from "./customer-profiles";
+import { decodeBytes } from "@/core/import/encoding";
 import { checkDemoImport, currentAppTemplate, demoProductReorders, demoReadiness, SNAPSHOT_BAD_SAMPLE, SNAPSHOT_SAMPLE } from "./prediction-demo";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { detectKind, IMPORT_ORDER } from "@/core/import/detect";
@@ -228,7 +229,7 @@ export function createCustomerPresentation(hooks: Hooks) {
       const files = Array.from(csv.files ?? []); if (files.length === 0) return;
       if (files.some((f) => f.size > 4_500_000)) { hooks.toast("CSV limit is 4.5 MB per file. Export a smaller period."); return; }
       const requestRevision = ++revision;
-      try { const read = await Promise.all(files.map(async (f) => ({ name: f.name, raw: await f.text() }))); if (revision === requestRevision) showChecks(read); }
+      try { const read = await Promise.all(files.map(async (f) => ({ name: f.name, raw: decodeBytes(new Uint8Array(await f.arrayBuffer())).text }))); if (revision === requestRevision) showChecks(read); }
       catch { if (revision === requestRevision) hooks.toast("A CSV could not be read."); }
     };
     const good = document.querySelector<HTMLButtonElement>("#snapshot-good"); if (good) good.onclick = () => showCheck(SNAPSHOT_SAMPLE.replace(",10,5", ",20,5"), "stock_snapshot", true);
