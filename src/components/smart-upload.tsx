@@ -5,6 +5,7 @@ import { importAction, type ImportActionState } from "@/server/actions/imports";
 import { CHANNEL_INFO, channelOfKind } from "@/core/channels";
 import { applyMapping, columnReport, fieldLabel, headerOf, remember, rememberedMapping, suggestColumn, type ColumnReport, type Mapping, type Remembered } from "@/core/import/column-map";
 import { detectKind, IMPORT_ORDER } from "@/core/import/detect";
+import { decodeBytes } from "@/core/import/encoding";
 import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { readWorkbook, type SheetGrid } from "@/core/import/workbook";
@@ -113,12 +114,19 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
     const made: Item[] = [];
     try {
       for (const file of Array.from(files ?? [])) {
-        if (/\.xlsx$/i.test(file.name)) {
-          const { default: readXlsxFile } = await import("read-excel-file/browser");
-          const sheets = (await readXlsxFile(file)) as SheetGrid[];
+        if (/\.(xlsx|xls)$/i.test(file.name)) {
+          let sheets: SheetGrid[];
+          if (/\.xlsx$/i.test(file.name)) {
+            const { default: readXlsxFile } = await import("read-excel-file/browser");
+            sheets = (await readXlsxFile(file)) as SheetGrid[];
+          } else {
+            // Old .xls, including the HTML or XML tables ERP systems save under that name.
+            const { readLegacyWorkbook } = await import("@/core/import/legacy-workbook");
+            sheets = readLegacyWorkbook(await file.arrayBuffer());
+          }
           for (const s of readWorkbook(sheets, allowed)) {
             const hint = s.kind === null && s.candidates[0] ? s.candidates[0] : null;
-            const csvFile = new File([s.csv], `${file.name.replace(/\.xlsx$/i, "")} - ${s.sheet}.csv`, { type: "text/csv" });
+            const csvFile = new File([s.csv], `${file.name.replace(/\.xlsx?$/i, "")} - ${s.sheet}.csv`, { type: "text/csv" });
             made.push({
               id: nextId++,
               source: file.name,
@@ -137,7 +145,10 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
             });
           }
         } else {
-          const found = detectKind(await file.slice(0, HEADER_BYTES).text());
+          // Arabic Windows exports are often Windows-1256: convert to UTF-8 here so names are not garbled.
+          const { text } = decodeBytes(new Uint8Array(await file.arrayBuffer()));
+          const utf8 = new File([text], file.name, { type: "text/csv" });
+          const found = detectKind(text.slice(0, HEADER_BYTES));
           const kind = found.kind !== null && allowed.includes(found.kind) ? found.kind : null;
           made.push({
             id: nextId++,
@@ -150,15 +161,15 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
             headerRow: 1,
             snapshotDate: "",
             skipped: null,
-            file,
-            original: file,
+            file: utf8,
+            original: utf8,
             mapping: {},
             raw: null,
           });
         }
       }
     } catch {
-      setError("A file could not be read. Use a .xlsx workbook or a UTF-8 .csv file, and make sure it is not password protected.");
+      setError("A file could not be read. Use a .xlsx or .xls workbook or a .csv file, and make sure it is not password protected.");
       return;
     }
     const prepared = await Promise.all(made.map((i) => prepare(i, remembered(), null)));
@@ -260,7 +271,7 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
           <label htmlFor={inputId} className="text-sm font-medium">
             Excel workbook or CSV files
           </label>
-          <input id={inputId} name="files" type="file" multiple accept=".xlsx,.csv,text/csv" onChange={(e) => void pick(e.target.files)} className={field} />
+          <input id={inputId} name="files" type="file" multiple accept=".xlsx,.xls,.csv,text/csv" onChange={(e) => void pick(e.target.files)} className={field} />
           <p className="mt-1 text-xs text-muted">
             Choose {noun}. Each tab of a workbook is read as its own file. The app finds the type of each file from its column headings, even when they start a few rows down. You see the result below before anything is saved.
           </p>
