@@ -39,7 +39,9 @@ export function navItems({ guest, role, level = DEFAULT_LEVEL }: { guest: boolea
   if (!canAccess(role, "business")) {
     // The tender department also uploads its tender list and results; finance only works inside Tenders.
     const upload: NavItem = { label: "Upload tenders", icon: "⇄", href: "/imports/tenders", match: ["/imports/tenders"] };
-    return { main: canUploadTenders(role) ? [tender, upload] : [tender], explore: [] };
+    // Finance also keeps the deal costs, so it gets Deal margins; the other department roles do not.
+    const deals: NavItem[] = canSeeDealMargin(role) && !guest ? [{ label: "Deal margins", icon: "◈", href: "/deals", match: ["/deals"] }] : [];
+    return { main: canUploadTenders(role) ? [tender, ...deals, upload] : [tender, ...deals], explore: [] };
   }
   const main: NavItem[] = [
     { label: "Owner overview", icon: "◫", href: "/dashboard", match: ["/dashboard"] },

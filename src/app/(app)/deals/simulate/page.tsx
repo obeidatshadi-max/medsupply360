@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Pre-bid simulator" };
 
 /** Starting values are neutral zeros plus the company's own financing rate. Nothing here is a company policy we made up. */
 export default async function SimulatePage() {
-  const user = await requireUser("business");
+  const user = await requireUser("deals");
   if (user.guest) return <PageHeading eyebrow="Pre-bid simulator" title="Pre-bid simulator" sub="Please sign in with a company account to use the simulator." />;
   if (!canSimulateDeal(user.role)) redirect(homePath(user.role));
   const policy = await loadPolicy(getDb(), user.companyId);
