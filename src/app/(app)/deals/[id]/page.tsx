@@ -7,7 +7,7 @@ import { DealReport } from "@/components/deal-report";
 import { PageHeading } from "@/components/page-heading";
 import { analyseDeal, dealNarrative } from "@/core/deal-margin";
 import { DEAL_TERMS_HTML, dealCardsHtml, dealTabsHtml, esc, findingHtml, heldOutHtml, rebatesHtml, varianceHtml } from "@/core/deal-margin/html";
-import { canEditDealMargin, canSeeDealMargin, homePath } from "@/core/permissions";
+import { canDecideDealActions, canEditDealMargin, canSeeDealMargin, homePath } from "@/core/permissions";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Deal margin" };
 const VERDICT = { pending: "Not checked yet", resolved: "Fixed: the checks no longer flag this", improved: "Better", no_change: "Nothing has changed yet", worsened: "Worse" } as const;
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser("business");
+  const user = await requireUser("deals");
   if (user.guest) redirect("/login");
   if (!canSeeDealMargin(user.role)) redirect(homePath(user.role));
   const { id } = await params;
@@ -30,6 +30,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const [policy, outcomes, all] = await Promise.all([loadPolicy(db, user.companyId), loadOutcomes(db, user.companyId, id), loadDealInputs(db, user.companyId)]);
   const a = analyseDeal(input, policy, today);
   const edit = canEditDealMargin(user.role);
+  const decide = canDecideDealActions(user.role);
   const others = all.filter((d) => d.deal.id !== id).map((d) => ({ id: d.deal.id, ref: d.deal.ref }));
   const pending = a.views.classified.heldOut.filter((h) => h.reason === "pending_review" || h.reason === "wrong_deal");
   const tracked = new Map(outcomes.map((o) => [o.findingKey, o]));
@@ -71,14 +72,14 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   {o.checkedOn ? ` (checked ${dayText(o.checkedOn)})` : ""}. {o.explanation ?? "Press “Recalculate” to see whether the numbers got better. Marking an action done does not prove it worked."}
                   {o.profitRecoveredJod !== null ? ` Forecast profit moved by JOD ${o.profitRecoveredJod.toFixed(3)}.` : ""}
                 </p>
-              ) : edit ? (
+              ) : decide ? (
                 <StartActionForm dealId={a.deal.id} findingKey={f.key} title={f.title} today={today} />
               ) : null}
             </div>
           );
         })
       )}
-      {edit && outcomes.length > 0 ? <CheckOutcomesForm dealId={a.deal.id} /> : null}
+      {decide && outcomes.length > 0 ? <CheckOutcomesForm dealId={a.deal.id} /> : null}
 
       <h2 className="mt-6 text-sm font-semibold">Supplier rebates</h2>
       <DealHtml html={rebatesHtml(a)} />

@@ -15,14 +15,14 @@ import type { ImportKind } from "@/core/import/specs";
 export const ROLES = ["owner", "admin", "viewer", "tender", "finance", "maintenance"] as const;
 export type Role = (typeof ROLES)[number];
 
-export type Area = "business" | "tender" | "settings" | "service";
+export type Area = "business" | "tender" | "settings" | "service" | "deals";
 
 const ACCESS: Record<Role, readonly Area[]> = {
-  owner: ["business", "tender", "settings", "service"],
-  admin: ["business", "tender", "service"],
+  owner: ["business", "tender", "settings", "service", "deals"],
+  admin: ["business", "tender", "service", "deals"],
   viewer: ["business", "service"],
   tender: ["tender"],
-  finance: ["tender"],
+  finance: ["tender", "deals"],
   maintenance: ["service"],
 };
 
@@ -42,7 +42,7 @@ export const ROLE_LABEL: Record<Role, { name: string; note: string }> = {
   admin: { name: "Administrator", note: "All business screens and tenders; cannot import or change users" },
   viewer: { name: "Viewer", note: "Reads the business screens only" },
   tender: { name: "Tender department", note: "Tender section only; updates tender stages and uploads the tender list and tender results" },
-  finance: { name: "Finance", note: "Tender section only; updates guarantees and payments" },
+  finance: { name: "Finance", note: "Tender section and Deal margins only; updates guarantees and payments, and enters deal costs, rebates and cost reviews. Cannot set company limits or start actions" },
   maintenance: { name: "Maintenance", note: "Installed base and Service screens only (they show each customer's consumables spending); uploads the equipment file and adds machine details, contracts and contacts. No sales, profit or tenders" },
 };
 
@@ -105,13 +105,17 @@ export const canSeeHistory = (role: Role): boolean => role === "owner" || role =
 export const canEditGuarantees = (role: Role): boolean => role === "owner" || role === "tender" || role === "finance";
 
 /**
- * Deal margins show what each deal really earns, cost by cost. Only the owner and administrators read them (they are the
- * company's most sensitive figures); only the owner enters costs, reviews uncertain matches, sets the approved thresholds
- * and starts actions. The pre-bid simulator is open to the same two roles and never writes anything.
+ * Deal margins show what each deal really earns, cost by cost. The owner, administrators and finance read them (they are
+ * the company's most sensitive figures). The owner and finance keep the data: they add deals, enter costs and rebates, import
+ * the cost file and confirm or reject uncertain matches. Only the owner sets the approved limits and starts or checks
+ * management actions, because those are company decisions. The pre-bid simulator is open to everyone who can read deal
+ * margins and never writes anything.
  */
-export const canSeeDealMargin = (role: Role): boolean => role === "owner" || role === "admin";
-export const canEditDealMargin = (role: Role): boolean => role === "owner";
-export const canSimulateDeal = (role: Role): boolean => role === "owner" || role === "admin";
+export const canSeeDealMargin = (role: Role): boolean => canAccess(role, "deals");
+export const canEditDealMargin = (role: Role): boolean => role === "owner" || role === "finance";
+export const canSetDealLimits = (role: Role): boolean => role === "owner";
+export const canDecideDealActions = (role: Role): boolean => role === "owner";
+export const canSimulateDeal = (role: Role): boolean => canSeeDealMargin(role);
 
 /** Invoices and the money collected on them belong to finance. */
 export const canEditPayments = (role: Role): boolean => role === "owner" || role === "finance";

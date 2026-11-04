@@ -49,4 +49,4 @@ A ledger entry is held out (and listed with the reason) when: wrong deal or cust
 - Warranty provision rates, installation standard costs and commission rules are not derived: the owner or the ERP supplies them.
 - Foreign-currency rates are typed per entry; no rate table.
 - Outcome checks run when the owner presses "Recalculate"; there is no scheduler.
-- Role model: owner edits; owner and administrator read and simulate.
+- Role model: the owner and finance keep the data (deals, costs, rebates, cost file, confirm or reject matches); only the owner sets the company limits and starts or checks actions; the owner, administrators and finance read and simulate. Finance sees no other business screen.

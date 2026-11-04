@@ -6,7 +6,7 @@ import { DealHtml, DealStyle } from "@/components/deal-html";
 import { PageHeading } from "@/components/page-heading";
 import { analysePortfolio, displayMargin } from "@/core/deal-margin";
 import { DEAL_TERMS_HTML, portfolioHtml } from "@/core/deal-margin/html";
-import { canEditDealMargin, canSeeDealMargin, homePath } from "@/core/permissions";
+import { canEditDealMargin, canSeeDealMargin, canSetDealLimits, homePath } from "@/core/permissions";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/current-user";
 import { businessToday } from "@/lib/business-date";
@@ -16,7 +16,7 @@ import { loadDealInputs, loadPolicy } from "@/server/services/deal-margin";
 export const metadata: Metadata = { title: "Deal margins" };
 
 export default async function DealsPage() {
-  const user = await requireUser("business");
+  const user = await requireUser("deals");
   if (user.guest) return <PageHeading eyebrow="Deal margins" title="Deal margins" sub="Please sign in with a company account to see this page." />;
   if (!canSeeDealMargin(user.role)) redirect(homePath(user.role));
   const db = getDb();
@@ -24,6 +24,7 @@ export default async function DealsPage() {
   const [inputs, policy] = await Promise.all([loadDealInputs(db, user.companyId), loadPolicy(db, user.companyId)]);
   const { analyses, portfolio } = analysePortfolio(inputs, policy, today);
   const edit = canEditDealMargin(user.role);
+  const limits = canSetDealLimits(user.role);
   const policyValues = {
     minContributionMarginPct: String(policy.minContributionMarginPct ?? ""),
     maxDiscountPct: String(policy.maxDiscountPct ?? ""),
@@ -122,7 +123,7 @@ export default async function DealsPage() {
       <DealHtml html={DEAL_TERMS_HTML} />
       {edit ? (
         <div className="mt-6 space-y-6">
-          <PolicyForm values={policyValues} />
+          {limits ? <PolicyForm values={policyValues} /> : <p className="rounded-lg border border-line bg-white p-3 text-xs text-muted">The company limits (minimum margin, maximum discount and so on) are set by the owner.</p>}
           <AddDealForm />
           <ImportCostsForm />
         </div>

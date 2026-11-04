@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { getDb } from "@/db/client";
 import { analyseDeal } from "@/core/deal-margin";
 import { matchCosts, parseCostFile } from "@/core/deal-margin/import";
-import { canEditDealMargin } from "@/core/permissions";
+import { canDecideDealActions, canEditDealMargin, canSetDealLimits } from "@/core/permissions";
 import { readSubmitter } from "@/core/submitter";
 import { isIsoDate } from "@/core/calc";
 import { writeAudit } from "@/lib/audit";
@@ -14,12 +14,20 @@ import { addEntry, addRebate, checkOutcomes, createDeal, importEntries, loadDeal
 
 export type DealFormState = { error?: string; saved?: boolean; id?: string; message?: string };
 
-const REFUSED = "Only the owner can change deal costs and thresholds.";
+const REFUSED = "Only the owner and finance can change deal costs.";
+const REFUSED_OWNER = "Only the owner can set company limits and start actions.";
 const val = (fd: FormData, key: string) => String(fd.get(key) ?? "");
 
+/** The people who keep the deal data: the owner and finance. */
 async function owner() {
   const user = await getCurrentUser();
   return user && !user.guest && canEditDealMargin(user.role) ? user : null;
+}
+
+/** Company decisions (limits, actions) stay with the owner. */
+async function chief(check: (role: Parameters<typeof canSetDealLimits>[0]) => boolean) {
+  const user = await getCurrentUser();
+  return user && !user.guest && check(user.role) ? user : null;
 }
 
 const FIELD_KEYS = {
@@ -84,8 +92,8 @@ export async function reviewEntryAction(_prev: DealFormState, fd: FormData): Pro
 }
 
 export async function savePolicyAction(_prev: DealFormState, fd: FormData): Promise<DealFormState> {
-  const user = await owner();
-  if (!user) return { error: REFUSED };
+  const user = await chief(canSetDealLimits);
+  if (!user) return { error: REFUSED_OWNER };
   const who = readSubmitter(fd);
   if (!who.ok) return { error: who.error };
   const r = await savePolicy(getDb(), { companyId: user.companyId, by: who.name, form: pick(fd, FIELD_KEYS.policy) });
@@ -97,8 +105,8 @@ export async function savePolicyAction(_prev: DealFormState, fd: FormData): Prom
 
 /** Starts a management action from a finding the engine raised NOW. The finding key is looked up again, never trusted from the form. */
 export async function startActionAction(_prev: DealFormState, fd: FormData): Promise<DealFormState> {
-  const user = await owner();
-  if (!user) return { error: REFUSED };
+  const user = await chief(canDecideDealActions);
+  if (!user) return { error: REFUSED_OWNER };
   const who = readSubmitter(fd);
   if (!who.ok) return { error: who.error };
   const dealId = val(fd, "dealId");
@@ -119,8 +127,8 @@ export async function startActionAction(_prev: DealFormState, fd: FormData): Pro
 }
 
 export async function checkOutcomesAction(_prev: DealFormState, fd: FormData): Promise<DealFormState> {
-  const user = await owner();
-  if (!user) return { error: REFUSED };
+  const user = await chief(canDecideDealActions);
+  if (!user) return { error: REFUSED_OWNER };
   const n = await checkOutcomes(getDb(), { companyId: user.companyId, dealId: val(fd, "dealId"), today: businessToday() });
   refresh();
   return { saved: true, message: n === 0 ? "No tracked action to check yet." : `Checked ${n} action${n === 1 ? "" : "s"} against the current numbers.` };

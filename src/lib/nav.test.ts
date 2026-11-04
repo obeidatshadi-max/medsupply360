@@ -51,7 +51,7 @@ describe("navItems", () => {
   });
 
   it("shows department users the tender section only, and the tender team also its upload page", () => {
-    expect(labels({ guest: false, role: "finance" })).toEqual(["Tenders"]);
+    expect(labels({ guest: false, role: "finance" })).toEqual(["Tenders", "Deal margins"]);
     expect(labels({ guest: false, role: "tender" })).toEqual(["Tenders", "Upload tenders"]);
     for (const role of ["tender", "finance"] as const) expect(navItems({ guest: false, role }).explore).toEqual([]);
   });
@@ -85,7 +85,7 @@ describe("Basic and Advanced", () => {
   });
 
   it("never takes the tender section away from a department", () => {
-    expect(hrefs({ guest: false, role: "finance", level: "basic" })).toEqual(["/tenders"]);
+    expect(hrefs({ guest: false, role: "finance", level: "basic" })).toEqual(["/tenders", "/deals"]);
     expect(hrefs({ guest: false, role: "tender", level: "basic" })).toEqual(["/tenders", "/imports/tenders"]);
   });
 });

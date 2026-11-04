@@ -12,7 +12,7 @@ import type { Db } from "@/db/import-writer";
 import { analyseDeal, analysePortfolio, fromFils, type LedgerEntry } from "@/core/deal-margin";
 import { SYNTHETIC_POLICY, entry } from "@/core/deal-margin/fixtures";
 import type { DealForm, EntryForm, RebateForm } from "@/core/deal-margin/forms";
-import { canEditDealMargin, canSeeDealMargin, canSimulateDeal, ROLES } from "@/core/permissions";
+import { canAccess, canDecideDealActions, canEditDealMargin, canSeeDealMargin, canSetDealLimits, canSimulateDeal, ROLES } from "@/core/permissions";
 import { addEntry, addRebate, checkOutcomes, createDeal, importEntries, loadDealInput, loadDealInputs, loadOutcomes, loadPolicy, reviewEntry, savePolicy, startAction } from "@/server/services/deal-margin";
 
 let client: PGlite;
@@ -49,10 +49,16 @@ beforeAll(async () => {
 afterAll(async () => client.close());
 
 describe("access by role", () => {
-  it("only owner and administrator read or simulate; only the owner edits", () => {
-    expect(ROLES.filter(canSeeDealMargin)).toEqual(["owner", "admin"]);
-    expect(ROLES.filter(canSimulateDeal)).toEqual(["owner", "admin"]);
-    expect(ROLES.filter(canEditDealMargin)).toEqual(["owner"]);
+  it("owner, administrator and finance read or simulate; the owner and finance keep the data; only the owner decides", () => {
+    expect(ROLES.filter(canSeeDealMargin)).toEqual(["owner", "admin", "finance"]);
+    expect(ROLES.filter(canSimulateDeal)).toEqual(["owner", "admin", "finance"]);
+    expect(ROLES.filter(canEditDealMargin)).toEqual(["owner", "finance"]);
+    expect(ROLES.filter(canSetDealLimits)).toEqual(["owner"]);
+    expect(ROLES.filter(canDecideDealActions)).toEqual(["owner"]);
+    // Finance sees deal margins but still has no other business screen.
+    expect(canAccess("finance", "business")).toBe(false);
+    expect(canAccess("finance", "deals")).toBe(true);
+    for (const role of ["tender", "viewer", "maintenance"] as const) expect(canSeeDealMargin(role)).toBe(false);
   });
 });
 
