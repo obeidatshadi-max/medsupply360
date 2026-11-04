@@ -4,15 +4,13 @@ import { useId, useRef, useState } from "react";
 import { importAction, type ImportActionState } from "@/server/actions/imports";
 import { CHANNEL_INFO, channelOfKind } from "@/core/channels";
 import { applyMapping, columnReport, fieldLabel, headerOf, remember, rememberedMapping, suggestColumn, type ColumnReport, type Mapping, type Remembered } from "@/core/import/column-map";
-import { detectKind, IMPORT_ORDER } from "@/core/import/detect";
-import { decodeBytes } from "@/core/import/encoding";
+import { IMPORT_ORDER, nearestKind } from "@/core/import/detect";
+import { readUploadedFile } from "@/core/import/read-file";
 import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
-import { readWorkbook, type SheetGrid } from "@/core/import/workbook";
 import { ImportResult } from "@/components/import-result";
 import { SubmitterField } from "@/components/submitter-field";
 
-const HEADER_BYTES = 8192;
 const field = "mt-1 block w-full rounded-md border border-line bg-white px-3 py-2 text-sm";
 
 /** One thing to upload: a CSV file, or one tab of a workbook turned into CSV. */
@@ -23,8 +21,8 @@ type Item = {
   /** The tab, for a workbook. */
   sheet: string | null;
   kind: ImportKind | "";
-  /** "recognised" = read from the headings; "chosen" = picked by the person. */
-  how: "recognised" | "chosen" | "unknown";
+  /** "recognised" = read from the headings; "guessed" = the closest type, to confirm; "chosen" = picked by the person. */
+  how: "recognised" | "guessed" | "chosen" | "unknown";
   /** A type that was recognised but belongs in another channel. */
   elsewhere: ImportKind | null;
   rows: number | null;
@@ -114,55 +112,26 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
     const made: Item[] = [];
     try {
       for (const file of Array.from(files ?? [])) {
-        if (/\.(xlsx|xls)$/i.test(file.name)) {
-          let sheets: SheetGrid[];
-          if (/\.xlsx$/i.test(file.name)) {
-            const { default: readXlsxFile } = await import("read-excel-file/browser");
-            sheets = (await readXlsxFile(file)) as SheetGrid[];
-          } else {
-            // Old .xls, including the HTML or XML tables ERP systems save under that name.
-            const { readLegacyWorkbook } = await import("@/core/import/legacy-workbook");
-            sheets = readLegacyWorkbook(await file.arrayBuffer());
-          }
-          for (const s of readWorkbook(sheets, allowed)) {
-            const hint = s.kind === null && s.candidates[0] ? s.candidates[0] : null;
-            const csvFile = new File([s.csv], `${file.name.replace(/\.xlsx?$/i, "")} - ${s.sheet}.csv`, { type: "text/csv" });
-            made.push({
-              id: nextId++,
-              source: file.name,
-              sheet: s.sheet,
-              kind: s.kind ?? "",
-              how: s.kind ? "recognised" : "unknown",
-              elsewhere: hint && !allowed.includes(hint) ? hint : null,
-              rows: s.rows,
-              headerRow: s.headerRow,
-              snapshotDate: "",
-              skipped: s.skipped,
-              file: csvFile,
-              original: csvFile,
-              mapping: {},
-              raw: null,
-            });
-          }
-        } else {
-          // Arabic Windows exports are often Windows-1256: convert to UTF-8 here so names are not garbled.
-          const { text } = decodeBytes(new Uint8Array(await file.arrayBuffer()));
-          const utf8 = new File([text], file.name, { type: "text/csv" });
-          const found = detectKind(text.slice(0, HEADER_BYTES));
-          const kind = found.kind !== null && allowed.includes(found.kind) ? found.kind : null;
+        const isWorkbook = /\.xlsx?$/i.test(file.name);
+        for (const s of await readUploadedFile(file.name, file, allowed)) {
+          const hint = s.kind === null && s.candidates[0] ? s.candidates[0] : null;
+          // No type fits fully: offer the closest one for the person to confirm. The missing column is then chosen by hand.
+          const near = s.kind === null && hint === null ? nearestKind(s.csv, allowed) : null;
+          const kind = s.kind ?? near;
+          const csvFile = new File([s.csv], isWorkbook ? `${file.name.replace(/\.xlsx?$/i, "")} - ${s.sheet}.csv` : file.name, { type: "text/csv" });
           made.push({
             id: nextId++,
             source: file.name,
-            sheet: null,
+            sheet: isWorkbook ? s.sheet : null,
             kind: kind ?? "",
-            how: kind ? "recognised" : "unknown",
-            elsewhere: found.kind !== null && kind === null ? found.kind : null,
-            rows: null,
-            headerRow: 1,
+            how: s.kind ? "recognised" : near ? "guessed" : "unknown",
+            elsewhere: hint && !allowed.includes(hint) ? hint : null,
+            rows: s.rows,
+            headerRow: s.headerRow,
             snapshotDate: "",
-            skipped: null,
-            file: utf8,
-            original: utf8,
+            skipped: s.skipped,
+            file: csvFile,
+            original: csvFile,
             mapping: {},
             raw: null,
           });
@@ -362,7 +331,8 @@ function note(i: Item): string {
       ? `Looks like ${SPECS[i.elsewhere].title}, which belongs in ${CHANNEL_INFO[channelOfKind(i.elsewhere)].title}. Upload it there.`
       : `The app does not know the type${rows}: choose it`;
   }
-  return `${i.how === "recognised" ? "Type found from the column headings" : "Type chosen by you"}${rows}${head}`;
+  const how = i.how === "recognised" ? "Type found from the column headings" : i.how === "guessed" ? "Closest type from the column headings: check it, and choose the missing column below" : "Type chosen by you";
+  return `${how}${rows}${head}`;
 }
 
 /**

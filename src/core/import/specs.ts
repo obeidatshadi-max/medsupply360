@@ -251,7 +251,7 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     notFuture: ["invoiceDate"],
     fields: [
       f("invoiceNo", ["invoice no", "invoice number", "invoice id", "invoice", "inv no", "document no", "doc no", "رقم الفاتورة"], true, code(80)),
-      f("lineNo", ["line no", "line id", "line number", "line", "row id"], true, code(40)),
+      f("lineNo", ["line no", "line id", "line number", "line", "row id", "رقم السطر", "السطر"], true, code(40)),
       f("invoiceDate", ["invoice date", "date", "doc date", "document date", "تاريخ الفاتورة"], true, date),
       // Optional, but it is what lets a customer's payment lateness be measured for invoices that are paid before
       // the first unpaid-invoice snapshot (E05 carries the due date only while an invoice is unpaid).
@@ -284,12 +284,12 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     notFuture: ["receiptDate"],
     fields: [
       f("receiptNo", ["receipt no", "receipt id", "receipt number", "receipt", "voucher no", "رقم السند"], true, code(80)),
-      f("allocationRowId", ["allocation row id", "allocation id", "allocation row", "allocation no", "alloc id", "row id"], true, code(80)),
+      f("allocationRowId", ["allocation row id", "allocation id", "allocation row", "allocation no", "alloc id", "row id", "رقم التخصيص", "رقم الحركة"], true, code(80)),
       f("receiptDate", ["receipt date", "date", "voucher date", "تاريخ السند"], true, date),
       customerCode,
       f("invoiceNo", ["invoice no", "invoice id", "invoice number", "invoice", "allocated invoice"], false, code(80)),
-      f("allocatedAmount", ["allocated amount", "allocated", "allocated jod", "amount", "amount jod"], true, money),
-      f("receiptTotal", ["receipt total", "total received", "receipt amount", "total"], false, money),
+      f("allocatedAmount", ["allocated amount", "allocated", "allocated jod", "amount", "amount jod", "المبلغ", "المبلغ المخصص"], true, money),
+      f("receiptTotal", ["receipt total", "total received", "receipt amount", "total", "إجمالي السند", "مبلغ السند"], false, money),
     ],
     // Allocation rows must add up to the receipt total, otherwise cash is counted twice or lost.
     checkGroups: (rows) => {
@@ -323,7 +323,7 @@ export const SPECS: Record<ImportKind, FileSpec> = {
       customerCode,
       f("invoiceDate", ["invoice date", "date", "تاريخ الفاتورة"], true, date),
       f("dueDate", ["due date", "contractual due date", "due", "maturity date", "تاريخ الاستحقاق"], false, date),
-      f("remainingAmount", ["remaining amount", "remaining", "outstanding", "outstanding amount", "balance", "remaining jod"], true, money),
+      f("remainingAmount", ["remaining amount", "remaining", "outstanding", "outstanding amount", "balance", "remaining jod", "المتبقي", "الرصيد", "الرصيد المتبقي"], true, money),
       accountOwner,
     ],
     check: (v) => (v.dueDate != null && String(v.dueDate) < String(v.invoiceDate) ? "due date is before the invoice date" : null),
