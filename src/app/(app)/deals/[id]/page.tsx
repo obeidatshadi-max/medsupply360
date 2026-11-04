@@ -16,7 +16,7 @@ import { loadDealInput, loadDealInputs, loadOutcomes, loadPolicy } from "@/serve
 
 export const metadata: Metadata = { title: "Deal margin" };
 
-const VERDICT = { pending: "Not checked yet", resolved: "Resolved: the rules no longer raise this", improved: "Improved", no_change: "No change yet", worsened: "Worse" } as const;
+const VERDICT = { pending: "Not checked yet", resolved: "Fixed: the checks no longer flag this", improved: "Better", no_change: "Nothing has changed yet", worsened: "Worse" } as const;
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser("business");
@@ -38,7 +38,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   return (
     <div>
       <DealStyle />
-      <PageHeading eyebrow={`${user.companyName} · Deal margins · ${a.deal.kind === "tender" ? "Tender" : "Private sale"}`} title={`${a.deal.ref}: ${a.deal.title}`} sub={`${a.deal.customerName}. Contribution profit is sales minus the costs of this deal; it is not net profit.`} />
+      <PageHeading eyebrow={`${user.companyName} · Deal margins · ${a.deal.kind === "tender" ? "Tender" : "Private sale"}`} title={`${a.deal.ref}: ${a.deal.title}`} sub={`${a.deal.customerName}. Profit here means sales minus the costs of this deal. It is not the company's net profit.`} />
       <p className="mb-3 text-xs">
         <Link href="/deals" className="underline">
           ← All deals
@@ -49,16 +49,16 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       <DealHtml html={`<ul class="dm-note">${story.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`} />
 
       <h2 className="mt-6 text-sm font-semibold">Margin waterfall</h2>
-      <p className="text-xs text-muted">From the contract price down to contribution after earned rebates. Open any step to see the source records behind it. A dashed or dotted bar is not backed by a confirmed transaction.</p>
+      <p className="text-xs text-muted">From the contract price down to the profit after earned rebates. Open any step to see the records behind it. A dashed or dotted bar is not backed by a confirmed transaction.</p>
       <DealReport html={dealTabsHtml(a, input.entries)} />
 
       <h2 className="mt-6 text-sm font-semibold">Why the margin moved</h2>
       <DealHtml html={varianceHtml(a)} />
 
-      <h2 className="mt-6 text-sm font-semibold">Findings and what to do</h2>
-      <p className="text-xs text-muted">Rules are fixed and repeatable: the same ledger always gives the same findings. Anything touching price, supplier terms or approvals is a suggestion for a person to decide.</p>
+      <h2 className="mt-6 text-sm font-semibold">Problems found and what to do</h2>
+      <p className="text-xs text-muted">The checks are fixed: the same costs always give the same results. Anything about price, supplier terms or approvals is only a suggestion; a person decides.</p>
       {a.findings.length === 0 ? (
-        <DealHtml html={`<p class="dm-info">No margin integrity issue was found by the rules that apply. Rules that need a company threshold stay silent until the owner sets it.</p>`} />
+        <DealHtml html={`<p class="dm-info">The checks found no problem with this deal. Checks that need a company limit stay silent until the owner sets it.</p>`} />
       ) : (
         a.findings.map((f) => {
           const o = tracked.get(f.key);
@@ -68,7 +68,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               {o ? (
                 <p className="-mt-1 mb-2 rounded-lg border border-line bg-white p-3 text-xs">
                   <b>Action started {dayText(o.takenOn)}.</b> Outcome: {VERDICT[o.verdict]}
-                  {o.checkedOn ? ` (checked ${dayText(o.checkedOn)})` : ""}. {o.explanation ?? "Recalculate to see whether the numbers improved. Marking an action done does not prove it worked."}
+                  {o.checkedOn ? ` (checked ${dayText(o.checkedOn)})` : ""}. {o.explanation ?? "Press “Recalculate” to see whether the numbers got better. Marking an action done does not prove it worked."}
                   {o.profitRecoveredJod !== null ? ` Forecast profit moved by JOD ${o.profitRecoveredJod.toFixed(3)}.` : ""}
                 </p>
               ) : edit ? (

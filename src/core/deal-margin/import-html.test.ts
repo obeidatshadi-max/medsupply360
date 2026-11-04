@@ -104,7 +104,7 @@ describe("presentation is safe and honest", () => {
     expect(html).toMatch(/data-dm-pane="quoted" hidden/);
     expect(html).not.toMatch(/data-dm-pane="forecast"[^>]* hidden/);
     expect(html).toContain("Actual + estimate");
-    expect(html).toContain("Reconciled");
+    expect(html).toContain("Checked: the waterfall adds up");
   });
   it("lists the source records behind a step", () => {
     expect(dealTabsHtml(B(), ENTRIES_B)).toContain("source records: open to see each");
@@ -115,9 +115,9 @@ describe("presentation is safe and honest", () => {
     expect(html).toContain("Never added to profit");
     expect(html).toContain("no supplier credit note or receipt number");
   });
-  it("the portfolio shows 'threshold not set' instead of an invented zero", () => {
+  it("the portfolio shows 'no limit set' instead of an invented zero", () => {
     const { portfolio } = analysePortfolio([{ deal: DEAL_A, entries: ENTRIES_A, rebates: REBATES_A }], { ...SYNTHETIC_POLICY, minContributionMarginPct: null }, TODAY);
-    expect(portfolioHtml(portfolio, { ...SYNTHETIC_POLICY, minContributionMarginPct: null })).toContain("threshold not set");
+    expect(portfolioHtml(portfolio, { ...SYNTHETIC_POLICY, minContributionMarginPct: null })).toContain("no limit set");
   });
   it("simulation output is the same text for the same inputs (reproducible)", () => {
     const i = { price: 100000, discountPct: 2, supplierCost: 70000, freightCustoms: 2500, installation: 3000, warrantyProvision: 1500, commissionPct: 2, paymentDays: 90, financingRateAnnualPct: 9, rebate: 0, rebateEligibleAndEarned: false };

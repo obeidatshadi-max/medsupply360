@@ -37,10 +37,10 @@ export function verifyOutcome(base: ActionBaseline, now: CurrentState): Outcome 
   const profitRecoveredJod = r3(now.contributionJod - base.contributionJod);
   const marginChangePp = base.marginPct === null || now.marginPct === null ? null : Math.round((now.marginPct - base.marginPct) * 10) / 10;
   if (now.impactJod === null) {
-    return { verdict: "resolved", profitRecoveredJod, marginChangePp, explanation: `The rules no longer raise this finding. Forecast profit moved by JOD ${profitRecoveredJod.toFixed(3)} since the action.` };
+    return { verdict: "resolved", profitRecoveredJod, marginChangePp, explanation: `The checks no longer flag this issue. Forecast profit moved by JOD ${profitRecoveredJod.toFixed(3)} since the action.` };
   }
   const drop = r3(base.impactJod - now.impactJod);
-  if (drop > 0.0005) return { verdict: "improved", profitRecoveredJod, marginChangePp, explanation: `The finding is still raised but its impact fell by JOD ${drop.toFixed(3)}.` };
-  if (drop < -0.0005) return { verdict: "worsened", profitRecoveredJod, marginChangePp, explanation: `The impact grew by JOD ${(-drop).toFixed(3)} since the action.` };
-  return { verdict: "no_change", profitRecoveredJod, marginChangePp, explanation: "The impact is unchanged: the action has not yet had an effect." };
+  if (drop > 0.0005) return { verdict: "improved", profitRecoveredJod, marginChangePp, explanation: `The issue is still flagged, but its effect on profit fell by JOD ${drop.toFixed(3)}.` };
+  if (drop < -0.0005) return { verdict: "worsened", profitRecoveredJod, marginChangePp, explanation: `The effect on profit grew by JOD ${(-drop).toFixed(3)} since the action.` };
+  return { verdict: "no_change", profitRecoveredJod, marginChangePp, explanation: "Nothing has changed yet: the action has not had an effect so far." };
 }

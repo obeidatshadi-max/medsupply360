@@ -70,9 +70,9 @@ export function simulate(inputs: SimInputs): SimResult {
   const totalCost = toFils(clamp0(inputs.supplierCost)) + toFils(clamp0(inputs.freightCustoms)) + toFils(clamp0(inputs.installation)) + toFils(clamp0(inputs.warrantyProvision)) + commission + financing - rebateUsed;
   const contribution = R - totalCost;
   const caveats: string[] = [];
-  if (rate === null) caveats.push("No financing rate was given, so the cost of waiting for payment is not included.");
+  if (rate === null) caveats.push("No yearly rate was given for the cost of waiting for payment, so that cost is not included.");
   if (inputs.installation === 0) caveats.push("Installation cost is zero: confirm that this deal needs no installation.");
-  if (inputs.warrantyProvision === 0) caveats.push("Warranty provision is zero: confirm that no warranty cost applies.");
+  if (inputs.warrantyProvision === 0) caveats.push("Warranty set-aside is zero: confirm that no warranty cost applies.");
   if (inputs.rebate > 0 && !inputs.rebateEligibleAndEarned) caveats.push("The rebate is not counted: it is not marked eligible and earned.");
   return { netRevenue: R, commission, financing, rebateUsed, totalCost, contribution, marginPct: R > 0 ? Math.round((contribution / R) * 1000) / 10 : null, caveats };
 }
@@ -83,7 +83,7 @@ const STEPS: { key: keyof SimInputs; label: string; pct: boolean }[] = [
   { key: "supplierCost", label: "Supplier cost", pct: false },
   { key: "freightCustoms", label: "Freight and customs", pct: false },
   { key: "installation", label: "Installation", pct: false },
-  { key: "warrantyProvision", label: "Warranty provision", pct: false },
+  { key: "warrantyProvision", label: "Warranty set-aside", pct: false },
   { key: "commissionPct", label: "Commission", pct: true },
   { key: "paymentDays", label: "Payment terms (days)", pct: false },
   { key: "rebate", label: "Eligible rebate", pct: false },
@@ -116,18 +116,18 @@ export function sensitivities(inputs: SimInputs): SimSensitivity[] {
  * Returned only when every cost the formula needs was given (not zero) and the target is reachable.
  */
 export function minimumPrice(inputs: SimInputs, targetMarginPct: number | null): { price: number | null; reason: string | null } {
-  if (targetMarginPct === null) return { price: null, reason: "The company has not set a minimum margin, so there is no target to price against." };
+  if (targetMarginPct === null) return { price: null, reason: "The company has not set a minimum margin yet, so there is no target to price against." };
   const missing: string[] = [];
   if (!(inputs.supplierCost > 0)) missing.push("supplier cost");
   if (inputs.installation === 0) missing.push("installation cost (confirm or enter)");
-  if (inputs.warrantyProvision === 0) missing.push("warranty provision (confirm or enter)");
-  if (inputs.financingRateAnnualPct === null) missing.push("financing rate");
-  if (missing.length > 0) return { price: null, reason: `The cost assumptions are not complete enough to give a safe minimum price. Missing: ${missing.join(", ")}.` };
+  if (inputs.warrantyProvision === 0) missing.push("warranty set-aside (confirm or enter)");
+  if (inputs.financingRateAnnualPct === null) missing.push("yearly rate for the cost of waiting for payment");
+  if (missing.length > 0) return { price: null, reason: `The costs entered are not complete enough to give a safe minimum price. Missing: ${missing.join(", ")}.` };
   const c = clamp0(inputs.commissionPct) / 100;
   const f = (clamp0(inputs.financingRateAnnualPct ?? 0) / 100) * (clamp0(inputs.paymentDays) / 365);
   const T = targetMarginPct / 100;
   const denom = 1 - c - f - T;
-  if (denom <= 0) return { price: null, reason: "The target margin cannot be reached: commission and financing already use up the revenue." };
+  if (denom <= 0) return { price: null, reason: "The target margin cannot be reached: commission and the cost of waiting for payment already use up the sales." };
   const K = clamp0(inputs.supplierCost) + clamp0(inputs.freightCustoms) + clamp0(inputs.installation) + clamp0(inputs.warrantyProvision) - (inputs.rebateEligibleAndEarned ? clamp0(inputs.rebate) : 0);
   const R = K / denom;
   const d = clamp0(inputs.discountPct) / 100;

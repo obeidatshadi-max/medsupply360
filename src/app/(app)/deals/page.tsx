@@ -39,10 +39,10 @@ export default async function DealsPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Deal margins`}
         title="Deal margins"
-        sub="What each tender and private sale really earns after every cost of delivering it. Quoted, forecast and realized margins are shown side by side. The numbers come only from the deals and costs entered or imported here."
+        sub="What each tender and private sale really earns after every cost of delivering it. The quoted, forecast and realized margins sit side by side. The numbers come only from the deals and costs entered or imported here."
       />
       <p className="mb-3 rounded-lg border border-line bg-white p-3 text-xs text-muted">
-        Contribution profit is sales minus the costs of the deal. It is not net profit: company overhead and income tax are not taken off. The ERP link works by file import only; no live Alpha connection has been verified.
+        Profit here means sales minus the costs of delivering the deal. It is not the company's net profit: overheads and income tax are not taken off. Costs come in by file upload only; a live link to Alpha has not been tested.
       </p>
       {analyses.length === 0 ? (
         <p className="rounded-lg border border-line bg-white p-4 text-sm text-muted">
@@ -66,8 +66,8 @@ export default async function DealsPage() {
                     <th className="px-3 py-2 text-right font-medium">Quoted</th>
                     <th className="px-3 py-2 text-right font-medium">Forecast</th>
                     <th className="px-3 py-2 text-right font-medium">Realized</th>
-                    <th className="px-3 py-2 text-right font-medium">Contribution (forecast)</th>
-                    <th className="px-3 py-2 font-medium">Issues</th>
+                    <th className="px-3 py-2 text-right font-medium">Expected profit</th>
+                    <th className="px-3 py-2 font-medium">Problems found</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -96,9 +96,9 @@ export default async function DealsPage() {
             </div>
           </section>
           <section className="mt-6" aria-label="Biggest issues">
-            <h2 className="text-sm font-semibold">Biggest issues across all deals</h2>
+            <h2 className="text-sm font-semibold">Biggest problems across all deals</h2>
             {portfolio.topFindings.length === 0 ? (
-              <p className="mt-1 text-sm text-muted">No issue found by the rules that apply.</p>
+              <p className="mt-1 text-sm text-muted">The checks found no problem.</p>
             ) : (
               <ul className="mt-1 space-y-1 text-sm">
                 {portfolio.topFindings.map((f) => (
@@ -106,7 +106,7 @@ export default async function DealsPage() {
                     <Link href={`/deals/${f.dealId}`} className="underline">
                       {analyses.find((a) => a.deal.id === f.dealId)?.deal.ref}
                     </Link>
-                    : {f.title} <span className="text-xs text-muted">· about JOD {f.impactJod.toFixed(3)} · {f.severity} · {f.kind === "incomplete_data" ? "incomplete data" : f.kind}</span>
+                    : {f.title} <span className="text-xs text-muted">· about JOD {f.impactJod.toFixed(3)} · {f.severity} · {f.kind === "incomplete_data" ? "data missing" : f.kind}</span>
                   </li>
                 ))}
               </ul>
@@ -116,7 +116,7 @@ export default async function DealsPage() {
       )}
       <p className="mt-6 text-sm">
         <Link href="/deals/simulate" className="font-semibold underline">
-          Open the pre-bid simulator →
+          Test a price before you bid →
         </Link>
       </p>
       <DealHtml html={DEAL_TERMS_HTML} />

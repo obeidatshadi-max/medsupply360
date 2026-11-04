@@ -29,15 +29,15 @@ export function waterfallOf(v: ViewResult): WaterfallStep[] {
     running = kind === "subtotal" || kind === "total" ? running : running + value;
     steps.push({ key, label, kind, value: kind === "subtotal" || kind === "total" ? running : value, running, basis, entryIds });
   };
-  push("price", "Contract selling price (excl. VAT)", "start", v.price, v.view === "quoted" ? "quote" : "actual");
-  push("discount", "Customer discounts", "delta", -v.discounts, v.discountLine.basis, v.discountLine.ids);
-  push("net_revenue", "Net recognised revenue", "subtotal", 0, "calculated");
+  push("price", "Contract price (without VAT)", "start", v.price, v.view === "quoted" ? "quote" : "actual");
+  push("discount", "Discounts given to the customer", "delta", -v.discounts, v.discountLine.basis, v.discountLine.ids);
+  push("net_revenue", "Sales after discounts", "subtotal", 0, "calculated");
   for (const c of COST_CATEGORIES) {
     push(c, COST_LABEL[c], "delta", -v.lines[c].fils, v.lines[c].basis, v.lines[c].ids);
-    if (c === "other") push("contribution_before", "Contribution profit before rebates", "subtotal", 0, "calculated");
+    if (c === "other") push("contribution_before", "Profit from this deal, before supplier rebates", "subtotal", 0, "calculated");
   }
-  push("rebates", "Earned supplier rebates (verified only)", "rebate", v.rebates.verified, v.rebates.verified === 0 ? "none" : "actual", v.rebates.ids);
-  push("contribution_after", "Contribution after earned rebates", "total", 0, "calculated");
+  push("rebates", "Supplier rebates we have earned", "rebate", v.rebates.verified, v.rebates.verified === 0 ? "none" : "actual", v.rebates.ids);
+  push("contribution_after", "Profit from this deal, after earned rebates", "total", 0, "calculated");
   return steps;
 }
 
@@ -58,15 +58,15 @@ export function reconcile(v: ViewResult, views: DealViews | null, policy: Pick<M
   const at = (k: string) => steps.find((s) => s.key === k)!;
   const checks: Reconciliation["checks"] = [];
   const add = (name: string, expected: number, found: number) => checks.push({ name, expected, found, diff: found - expected, ok: Math.abs(found - expected) <= tol });
-  add("Net revenue subtotal", v.netRevenue, at("net_revenue").value);
-  add("Contribution before rebates subtotal", v.contributionBeforeRebates, at("contribution_before").value);
-  add("Final step", v.contributionAfterRebates, at("contribution_after").value);
+  add("Sales after discounts", v.netRevenue, at("net_revenue").value);
+  add("Profit before rebates", v.contributionBeforeRebates, at("contribution_before").value);
+  add("Final profit", v.contributionAfterRebates, at("contribution_after").value);
   if (views && v.view !== "quoted") {
     const sums = sumByLine(views.classified.counted);
     const ledgerCost = COST_CATEGORIES.reduce((s, c) => s + (v.view === "forecast" ? sums[c].actual + sums[c].estimated + sums[c].provision + sums[c].disputed : sums[c].actual + sums[c].provision), 0);
     // Forecast also carries quote figures for lines with no entries; those are not in the ledger, so only compare ledger-backed lines.
     const backed = COST_CATEGORIES.filter((c) => v.lines[c].basis !== "from_quote" && v.lines[c].basis !== "missing" && v.lines[c].basis !== "none").reduce((s, c) => s + v.lines[c].fils, 0);
-    add("Cost lines tie to the counted ledger entries", ledgerCost, backed);
+    add("Cost lines match the counted cost records", ledgerCost, backed);
   }
   return { ok: checks.every((c) => c.ok), checks };
 }
