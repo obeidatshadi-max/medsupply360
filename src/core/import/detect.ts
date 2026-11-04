@@ -17,6 +17,29 @@ export type Detection =
 /** The first line only: a header never spans lines, and a cut-off sample must not trip the quote check. */
 const firstLine = (text: string) => text.replace(/^﻿/, "").split(/\r?\n/, 1)[0] ?? "";
 
+/**
+ * When no type fits fully: the one type that lacks exactly one required column and clearly beats the rest. Only a
+ * suggestion for the person to confirm (the missing column is then chosen by hand); nothing loads on this alone.
+ */
+export function nearestKind(text: string, allowed?: readonly ImportKind[]): ImportKind | null {
+  const line = firstLine(text);
+  let header: string[];
+  try {
+    header = parseCsv(line, detectDelimiter(line)).records[0] ?? [];
+  } catch {
+    return null;
+  }
+  const near = IMPORT_ORDER.flatMap((kind) => {
+    if (allowed && !allowed.includes(kind)) return [];
+    const { columnOf, ambiguous } = mapColumns(SPECS[kind], header);
+    const missing = SPECS[kind].fields.filter((f) => f.required && !columnOf.has(f.key));
+    return ambiguous.length === 0 && missing.length === 1 && columnOf.size >= 3 ? [{ kind, matched: columnOf.size }] : [];
+  });
+  const best = Math.max(0, ...near.map((n) => n.matched));
+  const top = near.filter((n) => n.matched === best);
+  return top.length === 1 ? top[0]!.kind : null;
+}
+
 export function detectKind(text: string): Detection {
   const line = firstLine(text);
   let header: string[];

@@ -5,6 +5,7 @@
  *
  * Nothing here decides what is saved. The person sees what was understood (sheet, type, rows) and confirms it.
  */
+import { detectDelimiter, parseCsv, type Delimiter } from "./csv";
 import { detectKind } from "./detect";
 import { SPECS, type ImportKind } from "./specs";
 
@@ -81,6 +82,32 @@ export function readSheetGrid({ sheet, data }: SheetGrid, allowed?: readonly Imp
     csv: body.map(line).join("\n"),
     skipped: body.length < 2 ? "Only a heading row, no data rows." : null,
   };
+}
+
+/**
+ * A CSV the same way as a workbook tab: the headings may start below a report title, and the delimiter is not known
+ * from a title line. A file whose first line already holds the headings is passed on untouched, so rejected rows keep
+ * their line numbers.
+ */
+export function readCsvText(text: string, allowed?: readonly ImportKind[]): SheetRead {
+  const quick = detectKind(text.slice(0, 8192));
+  if (quick.kind !== null && (allowed === undefined || allowed.includes(quick.kind))) {
+    const lines = text.split(/\r\n|\n|\r/).filter((l) => l.trim() !== "").length;
+    return { sheet: "", kind: quick.kind, candidates: [], headerRow: 1, rows: Math.max(0, lines - 1), csv: text, skipped: lines < 2 ? "Only a heading row, no data rows." : null };
+  }
+  let fallback: SheetRead | null = null;
+  for (const delimiter of new Set<Delimiter>([detectDelimiter(text), ",", ";", "\t"])) {
+    let records: string[][];
+    try {
+      records = parseCsv(text, delimiter).records;
+    } catch {
+      continue;
+    }
+    const read = readSheetGrid({ sheet: "", data: records }, allowed);
+    if (read.kind !== null) return read.headerRow === 1 ? { ...read, csv: text } : read;
+    fallback ??= read;
+  }
+  return fallback ?? { sheet: "", kind: null, candidates: [], headerRow: 1, rows: 0, csv: text, skipped: null };
 }
 
 export function readWorkbook(sheets: SheetGrid[], allowed?: readonly ImportKind[]): SheetRead[] {

@@ -42,13 +42,40 @@ export const code =
  * Reads YYYY-MM-DD, YYYY/MM/DD, and day-first D/M/YYYY, D-M-YYYY, D.M.YYYY (the Jordan / Iraq convention; a
  * month-first file would be misread, so the sample file must confirm the order). A trailing time is ignored.
  */
+const MONTHS: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4, may: 5, jun: 6, june: 6,
+  jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9, september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
+};
+const fullYear = (y: string) => (y.length === 2 ? `20${y}` : y);
+
+/**
+ * Also reads 5-Mar-2026, 5 March 2026, Mar 5, 2026, D/M/YY (20YY), YYYYMMDD and an Excel day number such as 46086
+ * (a date column saved as plain numbers). A month name or a 4-digit year first leaves no day / month doubt.
+ */
 export const date: Parser = (raw) => {
   const s = normalizeDigits(raw).trim();
   let y: string, m: string, d: string;
-  let match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T].*)?$/.exec(s);
-  if (match) [, y, m, d] = match;
-  else if ((match = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:[ T].*)?$/.exec(s))) [, d, m, y] = match;
-  else return fail(`not a date: "${raw}"`);
+  let match: RegExpExecArray | null;
+  if ((match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T].*)?$/.exec(s))) [, y, m, d] = match;
+  else if ((match = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})(?:[ T].*)?$/.exec(s))) {
+    [, d, m, y] = match;
+    y = fullYear(y);
+  } else if ((match = /^(\d{1,2})[-/. ]+([A-Za-z]{3,9})\.?[-/., ]+(\d{4}|\d{2})(?:[ T].*)?$/.exec(s))) {
+    const month = MONTHS[match[2]!.toLowerCase()];
+    if (!month) return fail(`not a date: "${raw}"`);
+    [, d, , y] = match;
+    m = String(month);
+    y = fullYear(y);
+  } else if ((match = /^([A-Za-z]{3,9})\.? +(\d{1,2}),? +(\d{4})(?:[ T].*)?$/.exec(s))) {
+    const month = MONTHS[match[1]!.toLowerCase()];
+    if (!month) return fail(`not a date: "${raw}"`);
+    [, , d, y] = match;
+    m = String(month);
+  } else if ((match = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) [, y, m, d] = match;
+  else if (/^\d{5}(\.\d+)?$/.test(s) && Number(s) >= 30000 && Number(s) < 80000) {
+    const day = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(s)) * 86_400_000);
+    [y, m, d] = [String(day.getUTCFullYear()), String(day.getUTCMonth() + 1), String(day.getUTCDate())];
+  } else return fail(`not a date: "${raw}"`);
   const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   return isIsoDate(iso) ? ok(iso) : fail(`not a real calendar date: "${raw}"`);
 };

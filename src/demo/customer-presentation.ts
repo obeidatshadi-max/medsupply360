@@ -1,8 +1,8 @@
 import { customerProfileStore, demoActionKey, normalizeCustomerProfile, profileDraftFromText, type CustomerProfile } from "./customer-profiles";
-import { decodeBytes } from "@/core/import/encoding";
+import { readUploadedFile } from "@/core/import/read-file";
 import { checkDemoImport, currentAppTemplate, demoProductReorders, demoReadiness, SNAPSHOT_BAD_SAMPLE, SNAPSHOT_SAMPLE } from "./prediction-demo";
 import { SPECS, type ImportKind } from "@/core/import/specs";
-import { detectKind, IMPORT_ORDER } from "@/core/import/detect";
+import { detectKind, IMPORT_ORDER, nearestKind } from "@/core/import/detect";
 import { DEMO_AS_OF } from "./dataset";
 
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -125,7 +125,7 @@ export function createCustomerPresentation(hooks: Hooks) {
     const qty = snapshots.get(profile().id) ?? 10;
     return box("Current MedSupply360 import checks", "Uses the working app's CSV parser and field mapping. This demo checks files locally; it does not save business records or replace sample dashboard values.",
       `<label for="app-import-kind">Current app file type<select id="app-import-kind">${Object.entries(SPECS).map(([k, s]) => `<option value="${k}" ${k === checkKind ? "selected" : ""}>${esc(s.title)}</option>`).join("")}</select></label>
-      <label for="app-import-file">Check CSV files (one or several at once)<input id="app-import-file" type="file" multiple accept=".csv,text/csv"></label>
+      <label for="app-import-file">Check Excel or CSV files (one or several at once)<input id="app-import-file" type="file" multiple accept=".xlsx,.xls,.csv,text/csv"></label>
       <div class="profile-actions"><button id="app-template">Download current app sample CSV</button><button id="app-template-check">Check selected sample</button></div>
       <p class="mini">Up to 4.5 MB each. The live app finds the type of each file from its column headings. Here, a file of unknown type is checked as the type selected above. Date of the list (snapshot date) in this example: ${DEMO_AS_OF}. These are format checks; cross-file references and accounting totals still require the real app and reconciliation.</p>
       <div class="profile-actions"><button id="snapshot-good">Try complete stock snapshot</button><button id="snapshot-bad">Try rejected replacement</button></div>
@@ -141,7 +141,7 @@ export function createCustomerPresentation(hooks: Hooks) {
   }
   /** Several files at once, each checked as the type its headings show, in the order the live app would load them. */
   function showChecks(files: { name: string; raw: string }[]) {
-    const typed = files.map((f) => { const found = detectKind(f.raw); return { ...f, kind: found.kind ?? checkKind, recognised: found.kind !== null }; })
+    const typed = files.map((f) => { const found = detectKind(f.raw); const near = found.kind === null ? nearestKind(f.raw) : null; return { ...f, kind: found.kind ?? near ?? checkKind, recognised: found.kind !== null }; })
       .sort((a, b) => IMPORT_ORDER.indexOf(a.kind) - IMPORT_ORDER.indexOf(b.kind));
     checkResult = typed.map((f) => checkHtml(f.raw, f.kind, false,
       `<p class="mini">${esc(f.name)} · ${esc(SPECS[f.kind].title)} (${f.recognised ? "type found from the column headings" : "the app does not know the type, so it is checked as the selected type"})</p>`)).join("");
@@ -227,10 +227,10 @@ export function createCustomerPresentation(hooks: Hooks) {
     const csv = document.querySelector<HTMLInputElement>("#app-import-file");
     if (csv) csv.onchange = async () => {
       const files = Array.from(csv.files ?? []); if (files.length === 0) return;
-      if (files.some((f) => f.size > 4_500_000)) { hooks.toast("CSV limit is 4.5 MB per file. Export a smaller period."); return; }
+      if (files.some((f) => f.size > 4_500_000)) { hooks.toast("The limit is 4.5 MB per file. Export a smaller period."); return; }
       const requestRevision = ++revision;
-      try { const read = await Promise.all(files.map(async (f) => ({ name: f.name, raw: decodeBytes(new Uint8Array(await f.arrayBuffer())).text }))); if (revision === requestRevision) showChecks(read); }
-      catch { if (revision === requestRevision) hooks.toast("A CSV could not be read."); }
+      try { const read = (await Promise.all(files.map(async (f) => (await readUploadedFile(f.name, f)).filter((t) => t.skipped === null).map((t) => ({ name: t.sheet ? `${f.name} · ${t.sheet}` : f.name, raw: t.csv }))))).flat(); if (revision === requestRevision) showChecks(read); }
+      catch { if (revision === requestRevision) hooks.toast("A file could not be read. Use .xlsx, .xls or .csv."); }
     };
     const good = document.querySelector<HTMLButtonElement>("#snapshot-good"); if (good) good.onclick = () => showCheck(SNAPSHOT_SAMPLE.replace(",10,5", ",20,5"), "stock_snapshot", true);
     const bad = document.querySelector<HTMLButtonElement>("#snapshot-bad"); if (bad) bad.onclick = () => showCheck(SNAPSHOT_BAD_SAMPLE, "stock_snapshot", true);

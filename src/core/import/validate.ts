@@ -7,6 +7,7 @@
  */
 import { isIsoDate } from "../calc";
 import { CsvError, parseCsv, type Delimiter } from "./csv";
+import { date, normalizeDigits } from "./parsers";
 import { SPECS, type FieldSpec, type FileSpec, type ImportKind, type RowRef, type Values } from "./specs";
 
 export interface Issue {
@@ -49,6 +50,14 @@ export const norm = (s: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9؀-ۿ]+/g, "");
 
+const TOTAL_LABEL = /^(grand\s+|sub[\s-]*)?totals?(?![\p{L}\p{N}_])|^(المجموع|الإجمالي|الاجمالي|مجموع|إجمالي)/iu;
+const NUMBER_ONLY = /^[\s\d.,()+\-٠-٩۰-۹٫٬%]*$/;
+/** A line whose first filled cell says "Total" and whose other filled cells are only numbers. */
+function isTotalRow(cells: string[]): boolean {
+  const filled = cells.map((c) => c.trim()).filter((c) => c !== "");
+  return filled.length > 0 && TOTAL_LABEL.test(filled[0]!) && filled.slice(1).every((c) => NUMBER_ONLY.test(c));
+}
+
 const empty = (kind: ImportKind, fatal: string, delimiter: Delimiter | null = null): ValidationResult => ({
   kind,
   delimiter,
@@ -73,7 +82,8 @@ export function mapColumns(spec: FileSpec, header: string[]) {
   const ignored: string[] = [];
   const ambiguous: string[] = [];
   header.forEach((h, i) => {
-    const field = wanted.get(norm(h));
+    // A unit or note in brackets ("Net Amount (JOD)") is not part of the name.
+    const field = wanted.get(norm(h)) ?? wanted.get(norm(h.replace(/\([^)]*\)|\[[^\]]*\]/g, "")));
     if (field && columnOf.has(field.key)) {
       ambiguous.push(`${field.key}: "${header[columnOf.get(field.key)!]}" (column ${columnOf.get(field.key)! + 1}) and "${h}" (column ${i + 1})`);
     }
@@ -110,11 +120,38 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
     return empty(kind, `Required column${missing.length > 1 ? "s" : ""} not found: ${names.join("; ")}. Found: ${records[0].map((h) => h.trim()).filter(Boolean).join(", ")}.`, delimiter);
   }
 
-  const dataRows = records.slice(1).flatMap((cells, i) => (cells.every((c) => c.trim() === "") ? [] : [{ row: i + 2, cells }]));
+  // A report's closing "Total" line is not data: leave it out with a note, so it cannot sink a whole snapshot.
+  const totalLines: Issue[] = [];
+  const dataRows = records.slice(1).flatMap((cells, i) => {
+    if (cells.every((c) => c.trim() === "")) return [];
+    if (isTotalRow(cells)) {
+      totalLines.push({ row: i + 2, reason: "looks like a totals line of the report, so it was left out" });
+      return [];
+    }
+    return [{ row: i + 2, cells }];
+  });
+
+  // Day-first is assumed. A day above 12 in the second place and none in the first means the whole file is month-first:
+  // reading it day-first would silently swap day and month on every row where both are 12 or less.
+  let dayFirst = false;
+  let monthFirst = false;
+  for (const fld of spec.fields) {
+    const col = fld.parse === date ? columnOf.get(fld.key) : undefined;
+    if (col === undefined) continue;
+    for (const { cells } of dataRows) {
+      const m = /^(\d{1,2})[-/.](\d{1,2})[-/.]\d{2,4}/.exec(normalizeDigits((cells[col] ?? "").trim()));
+      if (!m) continue;
+      if (Number(m[1]) > 12) dayFirst = true;
+      if (Number(m[2]) > 12) monthFirst = true;
+    }
+  }
+  if (monthFirst && !dayFirst) {
+    return empty(kind, "The dates look month-first (for example 05/13/2026). The app reads day first, so it would swap day and month. Export again with dates as DD/MM/YYYY or YYYY-MM-DD.", delimiter);
+  }
   if (dataRows.length > maxRows) return empty(kind, `The file has ${dataRows.length} rows; the limit is ${maxRows}. Split it by month.`, delimiter);
 
   const rejected: Issue[] = [];
-  const warnings: Issue[] = [];
+  const warnings: Issue[] = [...totalLines];
   const reject = (row: number, reason: string) => rejected.push({ row, reason });
 
   // Pass 1: read every cell.
