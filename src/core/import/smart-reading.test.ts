@@ -91,3 +91,20 @@ describe("headings", () => {
     expect(nearestKind("foo,bar,baz")).toBeNull();
   });
 });
+
+describe("report CSV that repeats its headings on every line", () => {
+  // Some report tools write the labels into every record beside the values: the column under a heading then holds
+  // the heading itself. Reading it as data would reject every row with a puzzling message.
+  it("is refused with one clear message instead of one error per row", () => {
+    const head = "Invoice No,Line No,Invoice Date,Customer Code,Item Code,Quantity,Net Sales,x1,x2";
+    const line = (n: number) => `Invoice No,Line No,Invoice Date,Customer Code,Item Code,Quantity,Net Sales,I${n},0${n}/10/2026`;
+    const r = validateImport("sales", [head, line(1), line(2), line(3)].join("\n"), { today });
+    expect(r.fatal).toMatch(/repeats its headings on every line/);
+    expect(r.rejected).toEqual([]);
+  });
+  it("does not fire on a normal file", () => {
+    const r = validateImport("sales", `${SALES_HEAD}\nI1,1,2026-07-01,C1,P1,2,10\nI2,1,2026-07-02,C1,P1,2,10\nI3,1,2026-07-03,C1,P1,2,10\n`, { today });
+    expect(r.fatal).toBeNull();
+    expect(r.accepted).toHaveLength(3);
+  });
+});
