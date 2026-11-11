@@ -17,6 +17,7 @@ import { businessToday } from "@/lib/business-date";
 import { companyReceivables } from "@/lib/receivables";
 import { companyCash } from "@/lib/cash";
 import { companySalesByLine } from "@/lib/sales-by-line";
+import { UNSPLIT } from "@/core/sales-by-line";
 import { addDays, dateRange, daysText, jod, pct, signedPct } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Finance & receivables" };
@@ -159,6 +160,7 @@ type Sales = Awaited<ReturnType<typeof companySalesByLine>>;
 function SalesByLine({ sales }: { sales: Sales }) {
   const rows = [...sales.lines, sales.total];
   const anyGap = rows.some((x) => typeof x.costCoverage === "number" && x.costCoverage < 1);
+  const unsplit = rows.some((x) => x.line === UNSPLIT);
   return (
     <section aria-label="Sales and margin by line" className="mb-2">
       <h2 className="text-sm font-semibold">Sales and margin by line, this year so far</h2>
@@ -195,6 +197,11 @@ function SalesByLine({ sales }: { sales: Sales }) {
           ? "For some sales the product cost is missing. Gross profit and margin use only the sales that have a cost. We do not treat the missing cost as zero."
           : "A dash (—) means we cannot work out the number yet, for example because there were no sales last year."}
       </p>
+      {unsplit ? (
+        <p className="mt-1 text-xs text-muted">
+          “{UNSPLIT}” is sales loaded from an invoice-totals file. The amount is counted in the total, but the file has no products, so it cannot be put under a line and has no cost. Load the line-by-line sales file to split it.
+        </p>
+      ) : null}
     </section>
   );
 }

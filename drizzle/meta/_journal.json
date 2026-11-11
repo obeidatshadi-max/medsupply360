@@ -162,6 +162,13 @@
       "when": 1793803688738,
       "tag": "0022_deal_margin",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794392986778,
+      "tag": "0023_invoice_totals",
+      "breakpoints": true
     }
   ]
 }

@@ -131,6 +131,16 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
     return [{ row: i + 2, cells }];
   });
 
+  // Some report tools write the labels into every record beside the values, so the column under a heading holds
+  // the heading again on every line. One message for the file is clearer than "not a date" on every row.
+  const repeated = [...columnOf.values()].filter((col) => {
+    const heading = records[0][col]!.trim();
+    return heading !== "" && dataRows.every(({ cells }) => (cells[col] ?? "").trim() === heading);
+  });
+  if (dataRows.length >= 2 && repeated.length >= 2) {
+    return empty(kind, "This file repeats its headings on every line (a printed report layout, not a table), so the columns hold labels instead of values. Export the report to Excel (.xls or .xlsx) and upload that instead.", delimiter);
+  }
+
   // Day-first is assumed. A day above 12 in the second place and none in the first means the whole file is month-first:
   // reading it day-first would silently swap day and month on every row where both are 12 or less.
   let dayFirst = false;

@@ -34,7 +34,7 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     summary: "Alpha ERP exports: products, customers, sales, receipts, unpaid invoices and stock.",
     cadence: "Every week",
     feeder: "Accountant",
-    kinds: ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions"],
+    kinds: ["products", "customers", "sales", "invoice_totals", "receipts", "open_invoices", "stock_snapshot", "stock_transactions"],
     staleAfterDays: 7,
   },
   tender: {
@@ -58,6 +58,12 @@ export const CHANNEL_INFO: Record<Channel, ChannelInfo> = {
     staleAfterDays: 60,
   },
 };
+
+/**
+ * The ERP files the reorder and stock predictions read. Invoice totals carry no products, so they are a way to load
+ * sales by customer, not one more file the predictions wait for.
+ */
+export const ERP_PREDICTION_KINDS: ImportKind[] = (CHANNEL_INFO.erp.kinds as readonly ImportKind[]).filter((k) => k !== "invoice_totals");
 
 /** The channel an uploaded file type belongs to; used to point a person to the right place when a file lands in the wrong one. */
 export function channelOfKind(kind: ImportKind): Channel {

@@ -53,10 +53,11 @@ export async function companyAccounts(companyId: string, today: string, view: Co
         coalesce(sum(s.net_sales) filter(where i.invoice_date >= ${from}::date and s.product_cost is not null), 0) as costed_sales,
         coalesce(sum(s.product_cost) filter(where i.invoice_date >= ${from}::date), 0) as cost,
         count(*) filter(where i.invoice_date >= ${from}::date and s.product_cost is null)::int as missing_cost,
-        max(i.invoice_date) filter(where s.doc_type = 'invoice' and s.quantity > 0 and s.net_sales > 0) as last_order
+        max(i.invoice_date) filter(where s.doc_type = 'invoice' and (s.quantity > 0 or s.product_id is null) and s.net_sales > 0) as last_order
       from sales_lines s
       join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
-      join products p on p.company_id = s.company_id and p.id = s.product_id
+      -- left join: an invoice loaded as a total has no product, and still counts for its customer (under All lines only)
+      left join products p on p.company_id = s.company_id and p.id = s.product_id
       where s.company_id = ${companyId} and i.invoice_date <= ${salesTo}::date
         and (${line}::text is null or p.line::text = ${line}::text)
       group by i.customer_id

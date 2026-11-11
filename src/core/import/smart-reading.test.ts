@@ -91,3 +91,47 @@ describe("headings", () => {
     expect(nearestKind("foo,bar,baz")).toBeNull();
   });
 });
+
+describe("report CSV that repeats its headings on every line", () => {
+  // Some report tools write the labels into every record beside the values: the column under a heading then holds
+  // the heading itself. Reading it as data would reject every row with a puzzling message.
+  it("is refused with one clear message instead of one error per row", () => {
+    const head = "Invoice No,Line No,Invoice Date,Customer Code,Item Code,Quantity,Net Sales,x1,x2";
+    const line = (n: number) => `Invoice No,Line No,Invoice Date,Customer Code,Item Code,Quantity,Net Sales,I${n},0${n}/10/2026`;
+    const r = validateImport("sales", [head, line(1), line(2), line(3)].join("\n"), { today });
+    expect(r.fatal).toMatch(/repeats its headings on every line/);
+    expect(r.rejected).toEqual([]);
+  });
+  it("does not fire on a normal file", () => {
+    const r = validateImport("sales", `${SALES_HEAD}\nI1,1,2026-07-01,C1,P1,2,10\nI2,1,2026-07-02,C1,P1,2,10\nI3,1,2026-07-03,C1,P1,2,10\n`, { today });
+    expect(r.fatal).toBeNull();
+    expect(r.accepted).toHaveLength(3);
+  });
+});
+
+describe("invoice totals (one line per invoice, no products)", () => {
+  // The headings of the "sales invoices" report as an Arabic ERP prints them.
+  const AR = "رقم الوثيقة,التاريخ,نوع الوثيقة,اسم العميل,القيمة قبل الضريبة,الضريبة,صافي الفاتورة";
+  it("is recognised from its Arabic headings", () => {
+    expect(detectKind(AR)).toEqual({ kind: "invoice_totals", certain: true });
+    expect(detectKind("Invoice No,Date,Customer Name,Amount before tax,Tax,Invoice total")).toEqual({ kind: "invoice_totals", certain: true });
+  });
+  it("is never picked for a file that has lines, products or quantities", () => {
+    expect(detectKind("Invoice No,Line No,Invoice Date,Customer Code,Item Code,Qnty,Net Sales").kind).toBeNull();
+    expect(detectKind(SALES_HEAD)).toEqual({ kind: "sales", certain: true });
+  });
+  it("reads the amount before tax as sales and turns a return negative", () => {
+    const csv = `${AR}\n1001,05/11/2026,مبيعات,مستشفى الأمل,"3,965.517",634.483,"4,600.000"\n1002,06/11/2026,مردودات,مستشفى الأمل,100.000,16.000,116.000\n`;
+    const r = validateImport("invoice_totals", csv, { today: "2026-11-11" });
+    expect(r.rejected).toEqual([]);
+    expect(r.accepted.map((a) => [a.values.invoiceDate, a.values.docType, a.values.netSales, a.values.invoiceTotal])).toEqual([
+      ["2026-11-05", "invoice", "3965.517", "4600.000"],
+      ["2026-11-06", "return", "-100.000", "-116.000"],
+    ]);
+  });
+  it("rejects a row with no customer and a second line for the same invoice", () => {
+    const r = validateImport("invoice_totals", `${AR}\n1,01/11/2026,,,10,1,11\n2,01/11/2026,,A,10,1,11\n2,01/11/2026,,A,5,1,6\n`, { today: "2026-11-11" });
+    expect(r.accepted).toHaveLength(1);
+    expect(r.rejected.map((x) => x.reason)).toEqual(["the row has no customer code and no customer name", "duplicate of row 3 in this file"]);
+  });
+});

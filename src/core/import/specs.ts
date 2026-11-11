@@ -14,6 +14,7 @@ export type ImportKind =
   | "products"
   | "customers"
   | "sales"
+  | "invoice_totals"
   | "receipts"
   | "open_invoices"
   | "stock_snapshot"
@@ -50,6 +51,8 @@ export interface FileSpec {
   snapshot?: boolean;
   /** Date fields that cannot be after the import day. A future order means a bad file or a day/month mix-up. */
   notFuture?: string[];
+  /** Headings that mean the file is a different, fuller type: when one is present this type is never picked automatically. */
+  notWith?: string[];
   /** Fills a value that can be worked out from the others. Runs before `check`. */
   derive?: (v: Values) => void;
   /** Rule inside one row. Returns the reason to reject it. */
@@ -98,6 +101,16 @@ const docType = oneOf(
   "document type",
   { invoice: ["sale", "sales", "sales invoice", "فاتورة"], return: ["credit", "credit note", "sales return", "returns", "مرتجع"] },
   "reject",
+);
+
+/** Invoice-totals reports name the document in the ERP's own words; a word that is not known is left to the sign of the amount. */
+const totalsDocType = oneOf(
+  "document type",
+  {
+    invoice: ["sale", "sales", "sales invoice", "cash", "credit", "cash sales", "credit sales", "فاتورة", "مبيعات", "فاتورة مبيعات", "نقدي", "ذمم", "آجل"],
+    return: ["returns", "sales return", "credit note", "مرتجع", "مرتجعات", "مردودات", "مردودات مبيعات", "مرتجع مبيعات"],
+  },
+  "null",
 );
 
 const stockTxType = oneOf(
@@ -273,6 +286,41 @@ export const SPECS: Record<ImportKind, FileSpec> = {
       if (v.dueDate != null && String(v.dueDate) < String(v.invoiceDate)) return "due date is before the invoice date";
       if (v.docType === "return" && Number(v.quantity) > 0) return "a return must have a negative quantity";
       if (v.docType === "return" && Number(v.netSales) > 0) return "a return must have negative net sales";
+      return null;
+    },
+  },
+
+  // One line per invoice, with no products on it: the "sales invoices" report most ERPs print. It gives sales by
+  // customer and by month. Product, stock and reorder screens need the line-by-line sales file (E03) instead.
+  invoice_totals: {
+    kind: "invoice_totals",
+    title: "Invoice totals (sales with no product lines)",
+    key: (v) => k(v.invoiceNo),
+    notFuture: ["invoiceDate"],
+    // A file with lines, products or quantities is the line-by-line sales file, even when one of its headings is misspelt.
+    notWith: ["line no", "line id", "line number", "line", "row id", "product code", "item code", "item", "product", "sku", "item no", "quantity", "qty", "رقم السطر", "السطر", "رقم الصنف", "الكمية"],
+    fields: [
+      f("invoiceNo", ["invoice no", "invoice number", "invoice id", "invoice", "inv no", "document no", "doc no", "document number", "رقم الفاتورة", "رقم الوثيقة", "رقم المستند"], true, code(80)),
+      f("invoiceDate", ["invoice date", "date", "doc date", "document date", "تاريخ الفاتورة", "التاريخ", "تاريخ الوثيقة"], true, date),
+      f("customerCode", ["customer code", "customer id", "customer no", "cust code", "رقم العميل", "كود العميل"], false, code(80)),
+      f("customerName", ["customer name", "customer", "client name", "client", "اسم العميل", "العميل", "اسم الزبون"], false, text(300)),
+      f("netSales", ["net before tax", "amount before tax", "value before tax", "net amount", "net sales", "net value", "taxable amount", "القيمة قبل الضريبة", "المبلغ قبل الضريبة", "الصافي قبل الضريبة"], true, money),
+      f("tax", ["tax", "vat", "sales tax", "tax amount", "الضريبة", "ضريبة المبيعات", "قيمة الضريبة"], false, money),
+      f("invoiceTotal", ["invoice total", "total", "total with tax", "gross amount", "net invoice", "صافي الفاتورة", "إجمالي الفاتورة", "الإجمالي", "المجموع"], false, money),
+      f("docType", ["doc type", "document type", "type", "transaction type", "نوع الوثيقة", "نوع المستند", "نوع الفاتورة"], false, totalsDocType),
+      f("dueDate", ["due date", "contractual due date", "due", "maturity date", "تاريخ الاستحقاق"], false, date),
+      accountOwner,
+    ],
+    derive: (v) => {
+      if (v.docType == null) v.docType = Number(v.netSales) < 0 ? "return" : "invoice";
+      // A return is a reduction of sales however the report prints it: many print the amount without a minus sign.
+      if (v.docType === "return") {
+        for (const key of ["netSales", "tax", "invoiceTotal"]) if (v[key] != null && Number(v[key]) > 0) v[key] = `-${String(v[key])}`;
+      }
+    },
+    check: (v) => {
+      if (v.customerCode == null && v.customerName == null) return "the row has no customer code and no customer name";
+      if (v.dueDate != null && String(v.dueDate) < String(v.invoiceDate)) return "due date is before the invoice date";
       return null;
     },
   },
