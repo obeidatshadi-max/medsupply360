@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
-import { SmartUpload } from "@/components/smart-upload";
+import { SmartUploadWithChoices } from "@/components/smart-upload-loader";
 import { RecentImports } from "@/components/recent-imports";
 import { CHANNEL_INFO } from "@/core/channels";
 
@@ -33,7 +33,7 @@ export default async function ErpChannelPage() {
           All channels
         </a>
       </p>
-      <SmartUpload companyId={user.companyId} allowed={kinds} noun="the Alpha exports" />
+      <SmartUploadWithChoices companyId={user.companyId} allowed={kinds} noun="the Alpha exports" />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>
   );

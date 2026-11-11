@@ -51,6 +51,12 @@ export interface FileSpec {
   snapshot?: boolean;
   /** Date fields that cannot be after the import day. A future order means a bad file or a day/month mix-up. */
   notFuture?: string[];
+  /**
+   * Fields a grouped report prints once per document and leaves blank on its other lines (invoice no., date, customer).
+   * When every one of them is blank on a line that has other values, and the file starts with a filled line, they are
+   * copied from the line above. Never an amount or a quantity.
+   */
+  fillDown?: string[];
   /** Headings that mean the file is a different, fuller type: when one is present this type is never picked automatically. */
   notWith?: string[];
   /** Fills a value that can be worked out from the others. Runs before `check`. */
@@ -262,6 +268,7 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     title: "Sales and returns (E03)",
     key: (v) => k(v.invoiceNo, v.lineNo),
     notFuture: ["invoiceDate"],
+    fillDown: ["invoiceNo", "invoiceDate", "dueDate", "docType", "customerCode", "accountOwner"],
     fields: [
       f("invoiceNo", ["invoice no", "invoice number", "invoice id", "invoice", "inv no", "document no", "doc no", "رقم الفاتورة"], true, code(80)),
       f("lineNo", ["line no", "line id", "line number", "line", "row id", "رقم السطر", "السطر"], true, code(40)),
@@ -330,6 +337,7 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     title: "Customer receipts (E04)",
     key: (v) => k(v.receiptNo, v.allocationRowId),
     notFuture: ["receiptDate"],
+    fillDown: ["receiptNo", "receiptDate", "customerCode"],
     fields: [
       f("receiptNo", ["receipt no", "receipt id", "receipt number", "receipt", "voucher no", "رقم السند"], true, code(80)),
       f("allocationRowId", ["allocation row id", "allocation id", "allocation row", "allocation no", "alloc id", "row id", "رقم التخصيص", "رقم الحركة"], true, code(80)),

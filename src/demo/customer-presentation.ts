@@ -136,7 +136,7 @@ export function createCustomerPresentation(hooks: Hooks) {
     const r = checkDemoImport(kind, raw);
     if (simulate && !r.blocked) snapshots.set(profile().id, Number(r.accepted[0]?.values.quantity ?? 10));
     return `<div class="info">${label}<b>${r.blocked ? SPECS[kind].snapshot ? "Replacement blocked: prior sample retained" : "File check blocked: nothing loaded" : `${r.readyRows} rows pass file checks`}</b>
-      ${r.fatal ? `<p>${esc(r.fatal)}</p>` : ""}${r.rejected.map((i) => `<p>Row ${i.row}: ${esc(i.reason)}</p>`).join("")}
+      ${r.fatal ? `<p>${esc(r.fatal)}</p>` : ""}${r.rejected.map((i) => `<p>Row ${i.row}: ${esc(i.reason)}</p>`).join("")}${r.warnings.map((i) => `<p class="mini">Note, row ${i.row}: ${esc(i.reason)}</p>`).join("")}
       ${table(["App field", "Matched source column"], r.mappedColumns.map((m) => [m.field, m.sourceColumn]))}
       <p>Stock and unpaid snapshots must pass in full. Ambiguous columns are blocked. Raw file contents are not stored; dashboard figures remain synthetic.</p></div>`;
   }

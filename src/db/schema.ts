@@ -15,6 +15,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -143,6 +144,26 @@ export const importBatches = pgTable(
     uniqueIndex("import_batches_file_uniq").on(t.companyId, t.kind, t.fileSha256),
     index("import_batches_company_kind_idx").on(t.companyId, t.kind, t.createdAt),
   ],
+);
+
+/**
+ * Column names a company chose for headings the importer does not know: for a file type, a heading (normalised as the
+ * importer compares it) means one importer field. Shared by everyone in the company and every device, so a file is read
+ * the same way next time whoever uploads it.
+ */
+export const importColumnChoices = pgTable(
+  "import_column_choices",
+  {
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    kind: importKind("kind").notNull(),
+    heading: varchar("heading", { length: 255 }).notNull(),
+    fieldKey: varchar("field_key", { length: 64 }).notNull(),
+    updatedBy: uuid("updated_by").references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.companyId, t.kind, t.heading] })],
 );
 
 /**
