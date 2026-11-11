@@ -3,6 +3,7 @@ import { readUploadedFile } from "@/core/import/read-file";
 import { checkDemoImport, currentAppTemplate, demoProductReorders, demoReadiness, SNAPSHOT_BAD_SAMPLE, SNAPSHOT_SAMPLE } from "./prediction-demo";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { detectKind, IMPORT_ORDER, nearestKind } from "@/core/import/detect";
+import { applySmartMatch, smartFieldLabel, smartKind } from "@/core/import/smart-columns";
 import { DEMO_AS_OF } from "./dataset";
 
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -141,10 +142,21 @@ export function createCustomerPresentation(hooks: Hooks) {
   }
   /** Several files at once, each checked as the type its headings show, in the order the live app would load them. */
   function showChecks(files: { name: string; raw: string }[]) {
-    const typed = files.map((f) => { const found = detectKind(f.raw); const near = found.kind === null ? nearestKind(f.raw) : null; return { ...f, kind: found.kind ?? near ?? checkKind, recognised: found.kind !== null }; })
-      .sort((a, b) => IMPORT_ORDER.indexOf(a.kind) - IMPORT_ORDER.indexOf(b.kind));
-    checkResult = typed.map((f) => checkHtml(f.raw, f.kind, false,
-      `<p class="mini">${esc(f.name)} · ${esc(SPECS[f.kind].title)} (${f.recognised ? "type found from the column headings" : "the app does not know the type, so it is checked as the selected type"})</p>`)).join("");
+    // Same as the live app: names first, then the closest type, then smart column matching; matches are listed to check.
+    const typed = files.map((f) => {
+      const found = detectKind(f.raw);
+      const near = found.kind === null ? nearestKind(f.raw) : null;
+      const smart = found.kind === null && near === null ? smartKind(f.raw) : null;
+      const kind = found.kind ?? near ?? smart ?? checkKind;
+      const { csv, matched } = applySmartMatch(kind, f.raw);
+      return { ...f, raw: csv, matched, kind, recognised: found.kind !== null, guessed: !found.kind && Boolean(near ?? smart) };
+    }).sort((a, b) => IMPORT_ORDER.indexOf(a.kind) - IMPORT_ORDER.indexOf(b.kind));
+    checkResult = typed.map((f) => {
+      const how = f.recognised ? "type found from the column headings" : f.guessed ? "the closest type, found from the column headings: please confirm" : "the app does not know the type, so it is checked as the selected type";
+      const auto = Object.entries(f.matched).map(([k, h]) => `${esc(h)} → ${esc(smartFieldLabel(f.kind, k))}`).join(", ");
+      return checkHtml(f.raw, f.kind, false,
+        `<p class="mini">${esc(f.name)} · ${esc(SPECS[f.kind].title)} (${how})</p>${auto ? `<p class="mini">Matched automatically, please check: ${auto}</p>` : ""}`);
+    }).join("");
     const result = document.querySelector("#app-import-result"); if (result) result.innerHTML = checkResult;
   }
   function showCheck(raw: string, kind = checkKind, simulate = false) {
