@@ -169,6 +169,13 @@
       "when": 1794392986778,
       "tag": "0023_invoice_totals",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794422669902,
+      "tag": "0024_import_column_choices",
+      "breakpoints": true
     }
   ]
 }

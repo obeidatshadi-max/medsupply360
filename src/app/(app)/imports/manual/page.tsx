@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
-import { SmartUpload } from "@/components/smart-upload";
+import { SmartUploadWithChoices } from "@/components/smart-upload-loader";
 import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
 import { MachineDetailsForm } from "@/components/machine-details-form";
@@ -58,7 +58,7 @@ export default async function ManualChannelPage() {
           Sales force and targets
         </Link>
       </p>
-      <SmartUpload companyId={user.companyId} allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
+      <SmartUploadWithChoices companyId={user.companyId} allowed={kinds} noun="your installed-equipment list or your sales force and targets" />
       <TemplateDownloads kinds={kinds} />
       <MachineDetailsForm machines={machines} />
       <NewMachineForm customers={customerOptions} />

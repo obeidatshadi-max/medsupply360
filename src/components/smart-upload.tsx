@@ -1,12 +1,13 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { importAction, type ImportActionState } from "@/server/actions/imports";
 import { CHANNEL_INFO, channelOfKind } from "@/core/channels";
 import { applyMapping, columnReport, fieldLabel, headerOf, remember, rememberedMapping, suggestColumn, type ColumnReport, type Mapping, type Remembered } from "@/core/import/column-map";
 import { IMPORT_ORDER, nearestKind } from "@/core/import/detect";
 import { readUploadedFile } from "@/core/import/read-file";
 import { smartKind, smartMatch } from "@/core/import/smart-columns";
+import { saveColumnChoiceAction, takeOverBrowserChoicesAction } from "@/server/actions/column-choices";
 import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { ImportResult } from "@/components/import-result";
@@ -87,37 +88,45 @@ async function prepare(item: Item, remembered: Remembered, explicit: Mapping | n
   return { ...item, file, mapping, auto, raw };
 }
 
+/** Where an older version kept column choices in one browser. They are moved to the company once, then removed. */
 const storeKey = (companyId: string) => `sadaf-column-map:${companyId}`;
 
-export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly ImportKind[]; noun: string; companyId: string }) {
+export function SmartUpload({ allowed, noun, companyId, initialChoices = {} }: { allowed: readonly ImportKind[]; noun: string; companyId: string; initialChoices?: Remembered }) {
   const inputId = useId();
   const [items, setItems] = useState<Item[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [checked, setChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const saved = useRef<Remembered | null>(null);
+  // Column names chosen before are saved for the company on the server, so every device and uploader shares them.
+  const saved = useRef<Remembered>(initialChoices);
+  const remembered = (): Remembered => saved.current;
 
-  // Column names the person chose before stay in this browser, per company. Storage can be blocked: then nothing is remembered.
-  const remembered = (): Remembered => {
-    if (saved.current === null) {
-      try {
-        const parsed: unknown = JSON.parse(window.localStorage.getItem(storeKey(companyId)) ?? "{}");
-        saved.current = parsed !== null && typeof parsed === "object" ? (parsed as Remembered) : {};
-      } catch {
-        saved.current = {};
-      }
-    }
-    return saved.current;
-  };
-  const persist = (next: Remembered) => {
-    saved.current = next;
+  // Choices an older version kept in this browser: used at once, sent to the company, then removed from the browser.
+  useEffect(() => {
+    let local: Remembered = {};
     try {
-      window.localStorage.setItem(storeKey(companyId), JSON.stringify(next));
+      const parsed: unknown = JSON.parse(window.localStorage.getItem(storeKey(companyId)) ?? "null");
+      if (parsed === null || typeof parsed !== "object") return;
+      local = parsed as Remembered;
     } catch {
-      /* private window or blocked storage: the choice still applies to this upload */
+      return;
     }
-  };
+    const merged: Remembered = { ...local };
+    for (const [kind, forKind] of Object.entries(saved.current)) merged[kind as ImportKind] = { ...(local[kind as ImportKind] ?? {}), ...forKind };
+    saved.current = merged;
+    void takeOverBrowserChoicesAction(local)
+      .then(() => {
+        try {
+          window.localStorage.removeItem(storeKey(companyId));
+        } catch {
+          /* blocked storage: it is read again next time, and choices already saved win */
+        }
+      })
+      .catch(() => {
+        /* offline: tried again on the next visit */
+      });
+  }, [companyId]);
 
   const usable = items.filter((i) => i.skipped === null);
   const order = (list: Item[]) => [...list].sort((a, b) => IMPORT_ORDER.indexOf(a.kind as ImportKind) - IMPORT_ORDER.indexOf(b.kind as ImportKind));
@@ -189,7 +198,9 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
     const previous = mapping[fieldKey];
     if (heading === "") delete mapping[fieldKey];
     else mapping[fieldKey] = heading;
-    persist(remember(remembered(), item.kind, fieldKey, heading, previous));
+    saved.current = remember(remembered(), item.kind, fieldKey, heading, previous);
+    // Saved for the company in the background; if it fails the choice still applies to this upload.
+    void saveColumnChoiceAction({ kind: item.kind, fieldKey, heading, previous }).catch(() => undefined);
     const next = await Promise.all(items.map((i) => (i.id === id ? prepare(i, remembered(), mapping) : i)));
     setItems(next);
     setChecked(false);
@@ -401,8 +412,8 @@ function ColumnPicker({ item, onMap }: { item: Item; onMap: (fieldKey: string, h
         <>
           <p className="text-xs font-medium">
             {required.every((f) => item.mapping[f.key])
-              ? "Some columns in your file have different names. The app matched them; check each one, and change it if it is wrong. The app remembers a choice you make for next time."
-              : "The app could not find these columns by name. Choose the matching column from your file. The app remembers your choice for next time."}
+              ? "Some columns in your file have different names. The app matched them; check each one, and change it if it is wrong. The app remembers a choice you make for everyone in your company, on any device."
+              : "The app could not find these columns by name. Choose the matching column from your file. The app remembers your choice for everyone in your company, on any device."}
           </p>
           {required.map(row)}
         </>

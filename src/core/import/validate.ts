@@ -50,6 +50,41 @@ export const norm = (s: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9؀-ۿ]+/g, "");
 
+/**
+ * Fills the blank document details of a grouped report from the line above. Pure apart from writing into `rows`.
+ * Only a file that looks grouped is touched: a line counts as a continuation when every `fillDown` column in the file is
+ * blank and the line has other values, and the first line must be filled. A line with only some details blank is left
+ * as it is, so it is still rejected for the blank required cell.
+ */
+export function fillGroupedLines(spec: FileSpec, columnOf: Map<string, number>, rows: { row: number; cells: string[] }[]) {
+  const cols = (spec.fillDown ?? []).flatMap((key) => {
+    const col = columnOf.get(key);
+    return col === undefined ? [] : [{ key, col }];
+  });
+  const none = { lines: 0, firstRow: 0, labels: [] as string[] };
+  if (cols.length === 0 || rows.length < 2) return none;
+  const others = [...columnOf.values()].filter((col) => !cols.some((c) => c.col === col));
+  const blank = (cells: string[], col: number) => (cells[col] ?? "").trim() === "";
+  const isContinuation = (cells: string[]) => cols.every((c) => blank(cells, c.col)) && others.some((col) => !blank(cells, col));
+  if (isContinuation(rows[0]!.cells) || !rows.some((r) => isContinuation(r.cells))) return none;
+  let above = rows[0]!.cells;
+  let lines = 0;
+  let firstRow = 0;
+  for (const r of rows) {
+    if (!isContinuation(r.cells)) {
+      above = r.cells;
+      continue;
+    }
+    const cells = [...r.cells];
+    for (const c of cols) cells[c.col] = above[c.col] ?? "";
+    r.cells = cells;
+    lines++;
+    if (firstRow === 0) firstRow = r.row;
+  }
+  const labels = cols.filter((c) => rows.some((r) => !blank(r.cells, c.col))).map((c) => spec.fields.find((f) => f.key === c.key)?.aliases[0] ?? c.key);
+  return { lines, firstRow, labels };
+}
+
 const TOTAL_LABEL = /^(grand\s+|sub[\s-]*)?totals?(?![\p{L}\p{N}_])|^(المجموع|الإجمالي|الاجمالي|مجموع|إجمالي)/iu;
 const NUMBER_ONLY = /^[\s\d.,()+\-٠-٩۰-۹٫٬%]*$/;
 /** A line whose first filled cell says "Total" and whose other filled cells are only numbers. */
@@ -131,6 +166,9 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
     return [{ row: i + 2, cells }];
   });
 
+  // A grouped report prints the invoice (or receipt) details once and leaves them blank on the lines that follow.
+  const filled = fillGroupedLines(spec, columnOf, dataRows);
+
   // Some report tools write the labels into every record beside the values, so the column under a heading holds
   // the heading again on every line. One message for the file is clearer than "not a date" on every row.
   const repeated = [...columnOf.values()].filter((col) => {
@@ -162,6 +200,12 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
 
   const rejected: Issue[] = [];
   const warnings: Issue[] = [...totalLines];
+  if (filled.lines > 0) {
+    warnings.push({
+      row: filled.firstRow,
+      reason: `grouped report: on ${filled.lines} line${filled.lines > 1 ? "s" : ""} the ${filled.labels.join(", ")} ${filled.labels.length > 1 ? "were" : "was"} blank and copied from the line above. Check that each line belongs to the document above it`,
+    });
+  }
   const reject = (row: number, reason: string) => rejected.push({ row, reason });
 
   // Pass 1: read every cell.

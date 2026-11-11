@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
 import { DataTabs } from "@/components/data-tabs";
-import { SmartUpload } from "@/components/smart-upload";
+import { SmartUploadWithChoices } from "@/components/smart-upload-loader";
 import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
 import { CHANNEL_INFO } from "@/core/channels";
@@ -58,7 +58,7 @@ export default async function TenderChannelPage() {
           <a href="/tenders/prices/download?file=template" download className="underline">Empty template</a>
         </p>
       </section>
-      <SmartUpload companyId={user.companyId} allowed={kinds} noun="your tender list or tender results" />
+      <SmartUploadWithChoices companyId={user.companyId} allowed={kinds} noun="your tender list or tender results" />
       <TemplateDownloads kinds={kinds} />
       <RecentImports companyId={user.companyId} kinds={kinds} />
     </div>

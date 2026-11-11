@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeading } from "@/components/page-heading";
-import { SmartUpload } from "@/components/smart-upload";
+import { SmartUploadWithChoices } from "@/components/smart-upload-loader";
 import { TemplateDownloads } from "@/components/template-downloads";
 import { RecentImports } from "@/components/recent-imports";
 import { MachineDetailsForm } from "@/components/machine-details-form";
@@ -57,7 +57,7 @@ export default async function EquipmentUploadPage() {
           Service &amp; support
         </Link>
       </p>
-      <SmartUpload companyId={user.companyId} allowed={kinds} noun="your installed-equipment list" />
+      <SmartUploadWithChoices companyId={user.companyId} allowed={kinds} noun="your installed-equipment list" />
       <TemplateDownloads kinds={kinds} />
       <MachineDetailsForm machines={machines} />
       <NewMachineForm customers={customerOptions} />
