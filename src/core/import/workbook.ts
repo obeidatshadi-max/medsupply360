@@ -7,6 +7,7 @@
  */
 import { detectDelimiter, parseCsv, type Delimiter } from "./csv";
 import { detectKind } from "./detect";
+import { smartKind } from "./smart-columns";
 import { SPECS, type ImportKind } from "./specs";
 
 export type Cell = string | number | boolean | Date | null | undefined;
@@ -70,7 +71,21 @@ export function readSheetGrid({ sheet, data }: SheetGrid, allowed?: readonly Imp
     if (d.kind !== null) firstGuess ??= { index: i, candidates: [d.kind] };
     else if (d.candidates.length > 0) firstGuess ??= { index: i, candidates: d.candidates };
   }
-  const index = found?.index ?? firstGuess?.index ?? data.findIndex((r) => !isBlank(r));
+  // No row fits a type by name: the first row whose headings smart matching reads as a type in full. The type itself
+  // is left for the upload screen to offer as a guess; here only the header row is found, so the title lines above it
+  // (report name, date range) do not become the headings.
+  let smartIndex: number | null = null;
+  if (!found && !firstGuess) {
+    for (let i = 0; i < Math.min(data.length, HEADER_SEARCH_ROWS); i++) {
+      const row = data[i]!;
+      if (isBlank(row) || row.filter((c) => cellText(c) !== "").length < 3) continue;
+      if (smartKind(line(row), allowed) !== null) {
+        smartIndex = i;
+        break;
+      }
+    }
+  }
+  const index = found?.index ?? firstGuess?.index ?? smartIndex ?? data.findIndex((r) => !isBlank(r));
   const body = data.slice(index).filter((r) => !isBlank(r));
   const kind = found?.kind ?? null;
   return {

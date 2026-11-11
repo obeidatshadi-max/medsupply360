@@ -8,7 +8,7 @@
 import { isIsoDate } from "../calc";
 import { CsvError, parseCsv, type Delimiter } from "./csv";
 import { date, normalizeDigits } from "./parsers";
-import { SPECS, type FieldSpec, type FileSpec, type ImportKind, type RowRef, type Values } from "./specs";
+import { mustHaveColumn, SPECS, type FieldSpec, type FileSpec, type ImportKind, type RowRef, type Values } from "./specs";
 
 export interface Issue {
   row: number;
@@ -49,6 +49,35 @@ export const norm = (s: string) =>
     .normalize("NFKC")
     .toLowerCase()
     .replace(/[^a-z0-9؀-ۿ]+/g, "");
+
+/**
+ * Numbers lines within each document when the file has no column for `spec.autoNumber.field`: adds that column to the
+ * header and every line, in file order. Returns how many lines were numbered (0 when the file has the column).
+ */
+export function numberLines(spec: FileSpec, columnOf: Map<string, number>, header: string[], rows: { cells: string[] }[]): number {
+  const a = spec.autoNumber;
+  if (!a || columnOf.has(a.field)) return 0;
+  const within = columnOf.get(a.within);
+  if (within === undefined) return 0;
+  const col = header.length;
+  header.push(a.field);
+  columnOf.set(a.field, col);
+  const seen = new Map<string, number>();
+  let numbered = 0;
+  for (const r of rows) {
+    const doc = (r.cells[within] ?? "").trim();
+    const cells = [...r.cells];
+    while (cells.length < col) cells.push("");
+    if (doc !== "") {
+      const n = (seen.get(doc) ?? 0) + 1;
+      seen.set(doc, n);
+      cells[col] = String(n);
+      numbered++;
+    } else cells[col] = "";
+    r.cells = cells;
+  }
+  return numbered;
+}
 
 /**
  * Fills the blank document details of a grouped report from the line above. Pure apart from writing into `rows`.
@@ -149,7 +178,7 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
   const { columnOf, ignored, ambiguous } = mapColumns(spec, records[0]);
   if (ambiguous.length > 0) return empty(kind, `Ambiguous columns: ${ambiguous.join("; ")}. Keep one source column per field, then check the file again.`, delimiter);
   const mappedColumns = [...columnOf].map(([field, col]) => ({ field, sourceColumn: records[0][col] }));
-  const missing = spec.fields.filter((fld) => fld.required && !columnOf.has(fld.key));
+  const missing = spec.fields.filter((fld) => mustHaveColumn(spec, fld) && !columnOf.has(fld.key));
   if (missing.length > 0) {
     const names = missing.map((fld) => `${fld.aliases[0] ?? fld.key} (also accepted: ${fld.aliases.slice(1, 3).join(", ") || fld.key})`);
     return empty(kind, `Required column${missing.length > 1 ? "s" : ""} not found: ${names.join("; ")}. Found: ${records[0].map((h) => h.trim()).filter(Boolean).join(", ")}.`, delimiter);
@@ -168,6 +197,7 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
 
   // A grouped report prints the invoice (or receipt) details once and leaves them blank on the lines that follow.
   const filled = fillGroupedLines(spec, columnOf, dataRows);
+  const numbered = numberLines(spec, columnOf, records[0], dataRows);
 
   // Some report tools write the labels into every record beside the values, so the column under a heading holds
   // the heading again on every line. One message for the file is clearer than "not a date" on every row.
@@ -200,6 +230,14 @@ export function validateImport(kind: ImportKind, text: string, options: Validate
 
   const rejected: Issue[] = [];
   const warnings: Issue[] = [...totalLines];
+  if (numbered > 0) {
+    const a = spec.autoNumber!;
+    const label = (key: string) => spec.fields.find((f) => f.key === key)?.aliases[0] ?? key;
+    warnings.push({
+      row: dataRows[0]?.row ?? 2,
+      reason: `the file has no ${label(a.field)} column, so the app numbered the lines 1, 2, 3... within each ${label(a.within)}, in file order. Upload later versions of these documents in the same order, or with the column`,
+    });
+  }
   if (filled.lines > 0) {
     warnings.push({
       row: filled.firstRow,

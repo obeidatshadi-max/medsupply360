@@ -103,8 +103,22 @@ function readDecimal(raw: string): { negative: boolean; digits: string } | null 
 }
 
 /** JOD amount rounded to fils, as text so no float ever reaches the database. numeric(14,3) holds 11 integer digits. */
+/** Jordanian dinar written beside an amount: "JD 12.500", "12.500 JOD", "12.500 د.أ", "12.500 دينار". Taken off. */
+const JOD_MARK = /^(?:jd|jod|د\.?\s?ا|دينار(?:\s*اردني)?)\s*|\s*(?:jd|jod|د\.?\s?ا|دينار(?:\s*اردني)?)$/giu;
+/** Another currency beside an amount. Never converted or taken off silently: the app records Jordanian dinars. */
+const OTHER_CURRENCY = /(?:^|[\s\d])(?:usd|us\$|\$|eur|€|gbp|£|iqd|sar|aed|egp|د\.?\s?ع|ر\.?\s?س|د\.?\s?ا\.?\s?م|دولار|يورو)(?:$|[\s\d])/iu;
+
+/** The amount without a Jordanian dinar mark; null when it names another currency. */
+function withoutCurrency(raw: string): string | null {
+  const s = compact(raw).replace(/[أإآ]/g, "ا");
+  if (OTHER_CURRENCY.test(` ${s} `)) return null;
+  return s.replace(JOD_MARK, "").trim();
+}
+
 export const money: Parser = (raw) => {
-  const n = readDecimal(raw);
+  const plain = withoutCurrency(raw);
+  if (plain === null) return fail(`the amount is in another currency: "${raw}". The app records Jordanian dinars: convert it or export in JOD`);
+  const n = readDecimal(plain);
   if (!n) return fail(`not a number: "${raw}"`);
   const value = Number(n.digits);
   if (!Number.isFinite(value) || value >= 1e11) return fail(`number is too large: "${raw}"`);

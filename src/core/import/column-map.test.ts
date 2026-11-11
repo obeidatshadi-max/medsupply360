@@ -9,7 +9,9 @@ const sales = (head: string) => `${head}\nI1,1,2026-01-05,C1,P1,2,100,60`;
 describe("columnReport", () => {
   it("lists the required fields no heading matches and the headings nothing uses", () => {
     const r = columnReport("sales", ["Doc #", "Row", "Date", "Cust", "Item", "Qty", "Net", "Cost"]);
-    expect(r.missingRequired.map((f) => f.key)).toEqual(expect.arrayContaining(["invoiceNo", "lineNo", "customerCode", "netSales"]));
+    expect(r.missingRequired.map((f) => f.key)).toEqual(expect.arrayContaining(["invoiceNo", "customerCode", "netSales"]));
+    // The app numbers lines itself when the file has no line-number column, so it is offered, not demanded.
+    expect(r.missingOptional.map((f) => f.key)).toContain("lineNo");
     expect(r.unused).toEqual(expect.arrayContaining(["Doc #", "Row", "Cust", "Net"]));
     expect(r.ambiguous).toBe(false);
   });

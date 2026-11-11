@@ -38,6 +38,13 @@ function foldArabic(s: string): string {
 /** A word without the Arabic article, so "العميل" and "عميل" read the same. */
 const bare = (w: string) => (/^ال[؀-ۿ]{2,}$/.test(w) ? w.slice(2) : w);
 
+/**
+ * Arabic words ERP reports use for the same thing, read as one word: code (رقم / رمز / كود), item (صنف / مادة / منتج),
+ * customer (عميل / زبون), amount (قيمة / مبلغ). Compared after `foldArabic` and `bare`.
+ */
+const AR_SAME: Record<string, string> = { رمز: "رقم", كود: "رقم", ماده: "صنف", منتج: "صنف", زبون: "عميل", مبلغ: "قيمه" };
+const canon = (w: string) => AR_SAME[w] ?? w;
+
 /** Splits camelCase first, so "InvoiceDate", "invoice_date" and "Invoice Date" read the same. */
 export function words(heading: string): string[] {
   return foldArabic(
@@ -49,7 +56,8 @@ export function words(heading: string): string[] {
   )
     .split(/[^a-z0-9؀-ۿ]+/)
     .filter(Boolean)
-    .map(bare);
+    .map(bare)
+    .map(canon);
 }
 
 /** One edit away (insert, delete or swap/replace one letter). */

@@ -3,7 +3,7 @@
  * Pure. A guess is only made when one type clearly fits better than the rest; otherwise the person chooses.
  */
 import { detectDelimiter, parseCsv } from "./csv";
-import { SPECS, type ImportKind } from "./specs";
+import { mustHaveColumn, SPECS, type ImportKind } from "./specs";
 import { mapColumns, norm } from "./validate";
 
 /** True when the headings show the file is a fuller type than `kind` (see `FileSpec.notWith`). */
@@ -38,7 +38,7 @@ export function nearestKind(text: string, allowed?: readonly ImportKind[]): Impo
   const near = IMPORT_ORDER.flatMap((kind) => {
     if ((allowed && !allowed.includes(kind)) || ruledOut(kind, header)) return [];
     const { columnOf, ambiguous } = mapColumns(SPECS[kind], header);
-    const missing = SPECS[kind].fields.filter((f) => f.required && !columnOf.has(f.key));
+    const missing = SPECS[kind].fields.filter((f) => mustHaveColumn(SPECS[kind], f) && !columnOf.has(f.key));
     return ambiguous.length === 0 && missing.length === 1 && columnOf.size >= 3 ? [{ kind, matched: columnOf.size }] : [];
   });
   const best = Math.max(0, ...near.map((n) => n.matched));
@@ -58,7 +58,7 @@ export function detectKind(text: string): Detection {
     const spec = SPECS[kind];
     const { columnOf, ambiguous } = mapColumns(spec, header);
     if (ruledOut(kind, header)) return [];
-    if (ambiguous.length > 0 || spec.fields.some((f) => f.required && !columnOf.has(f.key))) return [];
+    if (ambiguous.length > 0 || spec.fields.some((f) => mustHaveColumn(spec, f) && !columnOf.has(f.key))) return [];
     return [{ kind, matched: columnOf.size, required: spec.fields.filter((f) => f.required).length }];
   });
   if (fits.length === 0) return { kind: null, certain: false, candidates: [] };
