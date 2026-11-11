@@ -70,7 +70,7 @@ describe("parsers", () => {
 
   it("refuses ambiguous or unreadable numbers instead of guessing", () => {
     expect(money("1234,5").ok).toBe(false);
-    expect(money("12 JOD").ok).toBe(false);
+    expect(money("12 USD").ok).toBe(false); // another currency is never read as dinars (a JOD mark is taken off)
     expect(money("abc").ok).toBe(false);
     expect(money("1e12").ok).toBe(false);
     expect(positiveDecimal("0").ok).toBe(false);

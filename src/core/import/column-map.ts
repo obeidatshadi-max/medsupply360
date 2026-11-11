@@ -4,7 +4,7 @@
  * of the CSV so the unchanged importer reads the file. Nothing is guessed: a suggestion is only a hint.
  */
 import { detectDelimiter, parseCsv, type Delimiter } from "./csv";
-import { SPECS, type FieldSpec, type ImportKind } from "./specs";
+import { mustHaveColumn, SPECS, type FieldSpec, type ImportKind } from "./specs";
 import { mapColumns, norm } from "./validate";
 
 /** Importer field key -> heading in the file that holds it. */
@@ -30,8 +30,8 @@ export function columnReport(kind: ImportKind, header: string[]): ColumnReport {
   const spec = SPECS[kind];
   const { columnOf, ignored, ambiguous } = mapColumns(spec, header);
   return {
-    missingRequired: spec.fields.filter((f) => f.required && !columnOf.has(f.key)),
-    missingOptional: spec.fields.filter((f) => !f.required && !columnOf.has(f.key)),
+    missingRequired: spec.fields.filter((f) => mustHaveColumn(spec, f) && !columnOf.has(f.key)),
+    missingOptional: spec.fields.filter((f) => !mustHaveColumn(spec, f) && !columnOf.has(f.key)),
     unused: ignored,
     ambiguous: ambiguous.length > 0,
   };

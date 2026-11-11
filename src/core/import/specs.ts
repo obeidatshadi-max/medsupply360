@@ -57,6 +57,11 @@ export interface FileSpec {
    * copied from the line above. Never an amount or a quantity.
    */
   fillDown?: string[];
+  /**
+   * A required field the app can number itself when the file has no column for it: lines 1, 2, 3... within each value of
+   * `within`, in file order (printed reports often have no line numbers). A file that has the column is read as it is.
+   */
+  autoNumber?: { field: string; within: string };
   /** Headings that mean the file is a different, fuller type: when one is present this type is never picked automatically. */
   notWith?: string[];
   /** Fills a value that can be worked out from the others. Runs before `check`. */
@@ -66,6 +71,9 @@ export interface FileSpec {
   /** Rule across rows. Returns a reason per rejected row number. */
   checkGroups?: (rows: RowRef[]) => Map<number, string>;
 }
+
+/** A field the file must have a column for: required, unless the app can number it itself (`autoNumber`). */
+export const mustHaveColumn = (spec: FileSpec, field: FieldSpec) => field.required && spec.autoNumber?.field !== field.key;
 
 const f = (key: string, aliases: string[], required: boolean, parse: Parser, fallback?: Value): FieldSpec => ({
   key,
@@ -269,6 +277,7 @@ export const SPECS: Record<ImportKind, FileSpec> = {
     key: (v) => k(v.invoiceNo, v.lineNo),
     notFuture: ["invoiceDate"],
     fillDown: ["invoiceNo", "invoiceDate", "dueDate", "docType", "customerCode", "accountOwner"],
+    autoNumber: { field: "lineNo", within: "invoiceNo" },
     fields: [
       f("invoiceNo", ["invoice no", "invoice number", "invoice id", "invoice", "inv no", "document no", "doc no", "رقم الفاتورة"], true, code(80)),
       f("lineNo", ["line no", "line id", "line number", "line", "row id", "رقم السطر", "السطر"], true, code(40)),
@@ -280,7 +289,7 @@ export const SPECS: Record<ImportKind, FileSpec> = {
       customerCode,
       productCode(true),
       f("quantity", ["quantity", "qty", "signed quantity", "signed qty", "الكمية"], true, quantity),
-      f("netSales", ["net sales", "net amount", "net sales jod", "net value", "sales", "amount", "المبيعات"], true, money),
+      f("netSales", ["net sales", "net amount", "net sales jod", "net value", "sales", "amount", "المبيعات", "صافي المبيعات", "صافي القيمة", "القيمة الصافية"], true, money),
       f("productCost", ["product cost", "cost", "cost jod", "total cost", "التكلفة"], false, money),
       f("projectRef", ["project", "project ref", "project no", "order ref", "order no", "project order"], false, code(80)),
       accountOwner,
