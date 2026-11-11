@@ -6,6 +6,7 @@ import { CHANNEL_INFO, channelOfKind } from "@/core/channels";
 import { applyMapping, columnReport, fieldLabel, headerOf, remember, rememberedMapping, suggestColumn, type ColumnReport, type Mapping, type Remembered } from "@/core/import/column-map";
 import { IMPORT_ORDER, nearestKind } from "@/core/import/detect";
 import { readUploadedFile } from "@/core/import/read-file";
+import { smartKind, smartMatch } from "@/core/import/smart-columns";
 import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { ImportResult } from "@/components/import-result";
@@ -34,8 +35,10 @@ type Item = {
   file: File;
   /** The file as it was read, before column naming. */
   original: File;
-  /** Importer field -> heading in the file, as chosen (or remembered) for this file. */
+  /** Importer field -> heading in the file, as chosen, remembered or matched automatically for this file. */
   mapping: Mapping;
+  /** Fields in `mapping` the app matched by itself (not chosen or remembered): shown so the person checks them. */
+  auto: string[];
   /** Which fields and headings the file has before any naming; null until a type is known. */
   raw: ColumnReport | null;
 };
@@ -59,14 +62,29 @@ async function announcedCodes(queue: Item[]): Promise<{ customers: string[]; pro
   return out;
 }
 
-/** Applies the chosen (or, when `explicit` is null, remembered) column names to a file whose type is known. */
+/**
+ * Applies column names to a file whose type is known: the person's choices (`explicit`), or else what was remembered
+ * for this company plus what smart matching finds for the rest. A remembered choice wins over a smart match.
+ */
 async function prepare(item: Item, remembered: Remembered, explicit: Mapping | null): Promise<Item> {
-  if (item.skipped !== null || item.kind === "") return { ...item, file: item.original, mapping: {}, raw: null };
+  if (item.skipped !== null || item.kind === "") return { ...item, file: item.original, mapping: {}, auto: [], raw: null };
   const text = await item.original.text();
   const raw = columnReport(item.kind, headerOf(text));
-  const mapping = explicit ?? rememberedMapping(item.kind, raw.unused, remembered);
+  let mapping: Mapping;
+  let auto: string[];
+  if (explicit !== null) {
+    mapping = explicit;
+    // A smart match stays marked until the person changes that field.
+    auto = item.auto.filter((k) => explicit[k] !== undefined && explicit[k] === item.mapping[k]);
+  } else {
+    const saved = rememberedMapping(item.kind, raw.unused, remembered);
+    const used = new Set(Object.values(saved));
+    const smart = Object.entries(smartMatch(item.kind, text)).filter(([k, h]) => !(k in saved) && !used.has(h));
+    mapping = { ...Object.fromEntries(smart), ...saved };
+    auto = smart.map(([k]) => k);
+  }
   const file = Object.keys(mapping).length === 0 ? item.original : new File([applyMapping(item.kind, text, mapping)], item.original.name, { type: "text/csv" });
-  return { ...item, file, mapping, raw };
+  return { ...item, file, mapping, auto, raw };
 }
 
 const storeKey = (companyId: string) => `sadaf-column-map:${companyId}`;
@@ -117,14 +135,16 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
           const hint = s.kind === null && s.candidates[0] ? s.candidates[0] : null;
           // No type fits fully: offer the closest one for the person to confirm. The missing column is then chosen by hand.
           const near = s.kind === null && hint === null ? nearestKind(s.csv, allowed) : null;
-          const kind = s.kind ?? near;
+          // Headings that fit no type by name: a type whose columns smart matching finds in full, to confirm.
+          const smart = s.kind === null && hint === null && near === null ? smartKind(s.csv, allowed) : null;
+          const kind = s.kind ?? near ?? smart;
           const csvFile = new File([s.csv], isWorkbook ? `${file.name.replace(/\.xlsx?$/i, "")} - ${s.sheet}.csv` : file.name, { type: "text/csv" });
           made.push({
             id: nextId++,
             source: file.name,
             sheet: isWorkbook ? s.sheet : null,
             kind: kind ?? "",
-            how: s.kind ? "recognised" : near ? "guessed" : "unknown",
+            how: s.kind ? "recognised" : near || smart ? "guessed" : "unknown",
             elsewhere: hint && !allowed.includes(hint) ? hint : null,
             rows: s.rows,
             headerRow: s.headerRow,
@@ -133,6 +153,7 @@ export function SmartUpload({ allowed, noun, companyId }: { allowed: readonly Im
             file: csvFile,
             original: csvFile,
             mapping: {},
+            auto: [],
             raw: null,
           });
         }
@@ -370,6 +391,7 @@ function ColumnPicker({ item, onMap }: { item: Item; onMap: (fieldKey: string, h
             Use “{hint}”?
           </button>
         ) : null}
+        {item.auto.includes(f.key) ? <span className="rounded border border-line bg-white px-1.5 py-0.5 text-[11px] text-gold">Matched automatically: please check</span> : null}
       </div>
     );
   };
@@ -377,13 +399,20 @@ function ColumnPicker({ item, onMap }: { item: Item; onMap: (fieldKey: string, h
     <div className="space-y-2 rounded-md border border-gold bg-surface px-3 py-2 md:col-span-3">
       {required.length > 0 ? (
         <>
-          <p className="text-xs font-medium">The app could not find these columns by name. Choose the matching column from your file. The app remembers your choice for next time.</p>
+          <p className="text-xs font-medium">
+            {required.every((f) => item.mapping[f.key])
+              ? "Some columns in your file have different names. The app matched them; check each one, and change it if it is wrong. The app remembers a choice you make for next time."
+              : "The app could not find these columns by name. Choose the matching column from your file. The app remembers your choice for next time."}
+          </p>
           {required.map(row)}
         </>
       ) : null}
       {optional.length > 0 ? (
         <details>
-          <summary className="cursor-pointer text-xs text-muted">Other columns we can read ({optional.length})</summary>
+          <summary className="cursor-pointer text-xs text-muted">
+            Other columns we can read ({optional.length})
+            {optional.some((f) => item.auto.includes(f.key)) ? ` · ${optional.filter((f) => item.auto.includes(f.key)).length} matched automatically` : ""}
+          </summary>
           <div className="mt-2 space-y-2">{optional.map(row)}</div>
         </details>
       ) : null}

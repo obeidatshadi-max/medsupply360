@@ -7,7 +7,7 @@ import { SPECS, type ImportKind } from "./specs";
 import { mapColumns, norm } from "./validate";
 
 /** True when the headings show the file is a fuller type than `kind` (see `FileSpec.notWith`). */
-function ruledOut(kind: ImportKind, header: string[]): boolean {
+export function ruledOut(kind: ImportKind, header: string[]): boolean {
   const not = new Set((SPECS[kind].notWith ?? []).map(norm));
   return not.size > 0 && header.some((h) => not.has(norm(h)));
 }
