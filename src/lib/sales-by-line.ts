@@ -17,14 +17,15 @@ export async function companySalesByLine(companyId: string, today: string) {
       count(*) filter (where s.product_cost is null)::int as without_cost
     from sales_lines s
     join invoices i on i.company_id = s.company_id and i.id = s.invoice_id
-    join products p on p.company_id = s.company_id and p.id = s.product_id
+    left join products p on p.company_id = s.company_id and p.id = s.product_id
     where s.company_id = ${companyId}
       and ((i.invoice_date >= ${yearStart}::date and i.invoice_date <= ${today}::date)
         or (i.invoice_date >= ${priorStart}::date and i.invoice_date <= ${priorEnd}::date))
     group by 1, 2
   `);
   const sums: LineSums[] = (r.rows as Record<string, string | number>[]).map((x) => ({
-    line: x.line as LineSums["line"],
+    // No product on the line: the invoice came from an invoice-totals file.
+    line: (x.line ?? null) as LineSums["line"],
     period: x.period as LineSums["period"],
     sales: Number(x.sales),
     costedSales: Number(x.costed_sales),

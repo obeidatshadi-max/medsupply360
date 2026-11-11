@@ -3,10 +3,10 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { isIsoDate } from "@/core/calc";
-import { CHANNEL_INFO } from "@/core/channels";
+import { ERP_PREDICTION_KINDS } from "@/core/channels";
 
 /** The file types the predictions read: the ERP exports and the installed equipment list. Tender lists and the sales force do not feed them. */
-const PREDICTION_SOURCES: ImportKind[] = [...CHANNEL_INFO.erp.kinds, "installed_units"];
+const PREDICTION_SOURCES: ImportKind[] = [...ERP_PREDICTION_KINDS, "installed_units"];
 
 interface Batch {
   kind: ImportKind;

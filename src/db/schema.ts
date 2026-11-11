@@ -113,6 +113,7 @@ export const importKind = pgEnum("import_kind", [
   "tenders", // tender department list
   "sales_people", // manual sales force and targets
   "tender_results", // award results from the authorities, plus our own bids
+  "invoice_totals", // sales invoices report: one line per invoice, no product lines
 ]);
 export const importStatus = pgEnum("import_status", ["accepted", "partial", "rejected"]);
 
@@ -279,7 +280,10 @@ export const invoices = pgTable(
   ],
 );
 
-/** E03 sales and returns, one row per invoice line. Returns carry negative quantity, sales and cost. */
+/**
+ * E03 sales and returns, one row per invoice line. Returns carry negative quantity, sales and cost.
+ * An invoice loaded from an invoice-totals file has a single row instead: line_no "TOTAL", no product, quantity 0.
+ */
 export const salesLines = pgTable(
   "sales_lines",
   {
@@ -290,7 +294,8 @@ export const salesLines = pgTable(
     invoiceId: uuid("invoice_id").notNull(),
     lineNo: varchar("line_no", { length: 40 }).notNull(),
     docType: docType("doc_type").notNull().default("invoice"),
-    productId: uuid("product_id").notNull(),
+    /** NULL = the whole invoice as one amount, from an invoice-totals file: counted in sales, never in product screens. */
+    productId: uuid("product_id"),
     quantity: numeric("quantity", { precision: 14, scale: 3 }).notNull(),
     /** Net of tax. */
     netSales: numeric("net_sales", { precision: 14, scale: 3 }).notNull(),

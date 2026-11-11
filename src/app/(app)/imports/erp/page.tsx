@@ -25,7 +25,7 @@ export default async function ErpChannelPage() {
       <PageHeading
         eyebrow={`${user.companyName} · Data channels`}
         title="ERP system"
-        sub="Upload the Alpha exports from your accountant, as Excel or CSV. You can upload one file or all of them at once. The app finds the type of each file from its column headings and loads them in the right order: products and customers first, then sales, receipts, unpaid invoices and stock. The preview shows totals. Compare them with Alpha."
+        sub="Upload the Alpha exports from your accountant, as Excel or CSV. You can upload one file or all of them at once. The app finds the type of each file from its column headings and loads them in the right order: products and customers first, then sales, receipts, unpaid invoices and stock. The preview shows totals. Compare them with Alpha. If Alpha gives a sales report with one line per invoice and no products, upload it as it is: the app reads it as Invoice totals, for sales by customer and by month."
       />
       <DataTabs current="imports" owner history />
       <p className="text-sm">

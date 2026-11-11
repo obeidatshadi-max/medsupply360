@@ -65,6 +65,25 @@ export function reconcile(kind: ImportKind, rows: RowRef[], snapshotDate: string
       lines.push({ label: "Invoices without a due date", value: count([...dueByInvoice.values()].filter((has) => !has).length) });
       break;
     }
+    case "invoice_totals": {
+      const sales = rows.filter((r) => r.values.docType !== "return");
+      const returns = rows.filter((r) => r.values.docType === "return");
+      const has = (k: string) => rows.filter((r) => r.values[k] != null);
+      lines.push({ label: "Invoices loaded", value: `${count(rows.length)} (${count(sales.length)} sales, ${count(returns.length)} returns)` });
+      lines.push({ label: "Dates", value: range(rows.map((r) => String(r.values.invoiceDate))) });
+      lines.push({ label: "Sales before tax", value: jod(sum(sales, "netSales")) });
+      lines.push({ label: "Returns before tax", value: jod(sum(returns, "netSales")) });
+      lines.push({ label: "Sales before tax, after returns", value: jod(sum(rows, "netSales")) });
+      if (has("tax").length > 0) lines.push({ label: "Tax (checked only, not saved)", value: jod(sum(has("tax"), "tax")) });
+      if (has("invoiceTotal").length > 0) lines.push({ label: "Invoice totals with tax (checked only, not saved)", value: jod(sum(has("invoiceTotal"), "invoiceTotal")) });
+      // Where a row gives all three amounts they must add up; a gap usually means a column was matched to the wrong heading.
+      const off = rows.filter((r) => r.values.tax != null && r.values.invoiceTotal != null && Math.abs(fils(r.values.netSales) + fils(r.values.tax) - fils(r.values.invoiceTotal)) > 5);
+      if (off.length > 0) lines.push({ label: "Invoices where before tax + tax is not the total", value: `${count(off.length)}: check the column choices` });
+      const added = new Set(rows.map((r) => str(r, "_newCustomer")).filter((c) => c !== null));
+      if (added.size > 0) lines.push({ label: "Customers added by name (not in the customer list)", value: count(added.size) });
+      lines.push({ label: "Not in this file", value: "products and quantities: product, stock and reorder screens need the line-by-line sales file" });
+      break;
+    }
     case "receipts": {
       const unapplied = rows.filter((r) => r.values.invoiceNo == null);
       lines.push({ label: "Allocation rows loaded", value: count(rows.length) });

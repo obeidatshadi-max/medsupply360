@@ -1,7 +1,7 @@
 import { buildProductReorders, type ProductOrder } from "@/core/product-reorders";
 import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
-import { CHANNEL_INFO } from "@/core/channels";
+import { ERP_PREDICTION_KINDS } from "@/core/channels";
 import { DEMO_AS_OF } from "./dataset";
 
 const days = ["2026-05-01", "2026-05-31", "2026-06-30", "2026-07-30"];
@@ -19,7 +19,7 @@ export function demoProductReorders() {
 
 export function demoReadiness() {
   // The predictions read the ERP exports and the installed equipment list; tender lists and the sales force are not inputs to them.
-  return ([...CHANNEL_INFO.erp.kinds, "installed_units"] as ImportKind[]).map((kind) => ({ kind, title: SPECS[kind].title,
+  return ([...ERP_PREDICTION_KINDS, "installed_units"] as ImportKind[]).map((kind) => ({ kind, title: SPECS[kind].title,
     loadedOn: ["products", "customers", "sales", "open_invoices", "stock_snapshot"].includes(kind) ? "2026-10-08" : null,
     snapshotDate: SPECS[kind].snapshot ? "2026-10-08" : null,
     load: kind === "sales" ? "Partial sample: 2 rejected rows" : ["products", "customers", "open_invoices", "stock_snapshot"].includes(kind) ? "Sample rows accepted" : "Missing in this scenario",
@@ -42,6 +42,7 @@ export function currentAppTemplate(kind: ImportKind) {
     products: { code: "DEMO-P1", name: "Example consumable", line: "Consumables", unit: "pack", active: "yes" },
     customers: { code: "DEMO-C1", name: "Demo private hospital", segment: "Private", city: "Amman", paymentTermsDays: "30" },
     sales: { invoiceNo: "DEMO-I1", lineNo: "1", invoiceDate: "2026-09-01", dueDate: "2026-10-01", docType: "invoice", customerCode: "DEMO-C1", productCode: "DEMO-P1", quantity: "10", netSales: "100", productCost: "60" },
+    invoice_totals: { invoiceNo: "DEMO-I2", invoiceDate: "2026-09-02", customerName: "Demo private hospital", netSales: "250", tax: "40", invoiceTotal: "290", docType: "invoice" },
     receipts: { receiptNo: "DEMO-R1", allocationRowId: "1", receiptDate: "2026-09-15", customerCode: "DEMO-C1", invoiceNo: "DEMO-I1", allocatedAmount: "40", receiptTotal: "40" },
     open_invoices: { snapshotDate: DEMO_AS_OF, invoiceNo: "DEMO-I1", customerCode: "DEMO-C1", invoiceDate: "2026-09-01", dueDate: "2026-10-01", remainingAmount: "60" },
     stock_snapshot: { snapshotDate: DEMO_AS_OF, productCode: "DEMO-P1", warehouse: "Demo main", batch: "DEMO-B1", quantity: "10", unitCost: "6", expiryDate: "2027-10-01", owned: "Owned" },

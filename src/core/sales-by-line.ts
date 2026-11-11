@@ -8,10 +8,13 @@ import { yoyGrowth } from "./accounts";
 
 export type Line = "Equipment" | "Devices" | "Consumables";
 export const LINES: Line[] = ["Equipment", "Devices", "Consumables"];
+/** Sales loaded as invoice totals: the amount is real, but no product says which line it belongs to. */
+export const UNSPLIT = "Not split by product";
 
 /** One line in one period, as summed in the database. Returns are already negative in the sums. */
 export interface LineSums {
-  line: Line;
+  /** null = sales with no product (invoice totals). */
+  line: Line | null;
   period: "current" | "prior";
   sales: number;
   /** Sales on lines that carry a cost. */
@@ -21,7 +24,7 @@ export interface LineSums {
 }
 
 export interface LineFigures {
-  line: Line | "Total";
+  line: Line | "Total" | typeof UNSPLIT;
   sales: number;
   priorSales: number;
   growth: number | Unavailable;
@@ -32,9 +35,9 @@ export interface LineFigures {
   linesWithoutCost: number;
 }
 
-const empty = (line: Line, period: "current" | "prior"): LineSums => ({ line, period, sales: 0, costedSales: 0, cost: 0, linesWithoutCost: 0 });
+const empty = (line: Line | null, period: "current" | "prior"): LineSums => ({ line, period, sales: 0, costedSales: 0, cost: 0, linesWithoutCost: 0 });
 
-function figures(line: Line | "Total", cur: LineSums, prior: LineSums): LineFigures {
+function figures(line: LineFigures["line"], cur: LineSums, prior: LineSums): LineFigures {
   const known = cur.costedSales !== 0 || cur.cost !== 0;
   const gp = roundJod(cur.costedSales - cur.cost);
   return {
@@ -50,10 +53,13 @@ function figures(line: Line | "Total", cur: LineSums, prior: LineSums): LineFigu
 }
 
 export function buildSalesByLine(sums: LineSums[]): { lines: LineFigures[]; total: LineFigures } {
-  const pick = (line: Line, period: "current" | "prior") => sums.find((s) => s.line === line && s.period === period) ?? empty(line, period);
+  const pick = (line: Line | null, period: "current" | "prior") => sums.find((s) => s.line === line && s.period === period) ?? empty(line, period);
   const lines = LINES.map((l) => figures(l, pick(l, "current"), pick(l, "prior")));
+  // Invoice totals carry no product: they get their own row, shown only when there are any, and count in the total.
+  const unsplit = figures(UNSPLIT, pick(null, "current"), pick(null, "prior"));
+  if (unsplit.sales !== 0 || unsplit.priorSales !== 0) lines.push(unsplit);
   const add = (period: "current" | "prior"): LineSums =>
-    LINES.map((l) => pick(l, period)).reduce(
+    [...LINES, null].map((l) => pick(l, period)).reduce(
       (a, s) => ({ ...a, sales: a.sales + s.sales, costedSales: a.costedSales + s.costedSales, cost: a.cost + s.cost, linesWithoutCost: a.linesWithoutCost + s.linesWithoutCost }),
       empty("Equipment", period),
     );

@@ -4,10 +4,16 @@
  */
 import { detectDelimiter, parseCsv } from "./csv";
 import { SPECS, type ImportKind } from "./specs";
-import { mapColumns } from "./validate";
+import { mapColumns, norm } from "./validate";
+
+/** True when the headings show the file is a fuller type than `kind` (see `FileSpec.notWith`). */
+function ruledOut(kind: ImportKind, header: string[]): boolean {
+  const not = new Set((SPECS[kind].notWith ?? []).map(norm));
+  return not.size > 0 && header.some((h) => not.has(norm(h)));
+}
 
 /** Master data first: sales, receipts and stock rows point at product and customer codes that must already exist. */
-export const IMPORT_ORDER: ImportKind[] = ["products", "customers", "sales", "receipts", "open_invoices", "stock_snapshot", "stock_transactions", "installed_units", "sales_people", "tenders", "tender_results"];
+export const IMPORT_ORDER: ImportKind[] = ["products", "customers", "sales", "invoice_totals", "receipts", "open_invoices", "stock_snapshot", "stock_transactions", "installed_units", "sales_people", "tenders", "tender_results"];
 
 export type Detection =
   | { kind: ImportKind; certain: true }
@@ -30,7 +36,7 @@ export function nearestKind(text: string, allowed?: readonly ImportKind[]): Impo
     return null;
   }
   const near = IMPORT_ORDER.flatMap((kind) => {
-    if (allowed && !allowed.includes(kind)) return [];
+    if ((allowed && !allowed.includes(kind)) || ruledOut(kind, header)) return [];
     const { columnOf, ambiguous } = mapColumns(SPECS[kind], header);
     const missing = SPECS[kind].fields.filter((f) => f.required && !columnOf.has(f.key));
     return ambiguous.length === 0 && missing.length === 1 && columnOf.size >= 3 ? [{ kind, matched: columnOf.size }] : [];
@@ -51,6 +57,7 @@ export function detectKind(text: string): Detection {
   const fits = IMPORT_ORDER.flatMap((kind) => {
     const spec = SPECS[kind];
     const { columnOf, ambiguous } = mapColumns(spec, header);
+    if (ruledOut(kind, header)) return [];
     if (ambiguous.length > 0 || spec.fields.some((f) => f.required && !columnOf.has(f.key))) return [];
     return [{ kind, matched: columnOf.size, required: spec.fields.filter((f) => f.required).length }];
   });
