@@ -206,6 +206,32 @@ describe("snapshots", () => {
     ]);
   });
 
+  it("warns when a list is much shorter than the saved one, and lets the full list be loaded again after it", async () => {
+    const company = (await q<{ id: string }>(`insert into companies (slug, name) values ('shrink', 'Shrink') returning id`))[0]!.id;
+    await imp(company, "products", PRODUCTS);
+    await imp(company, "customers", CUSTOMERS);
+    const header = "invoice no,customer code,invoice date,due date,remaining";
+    const full = [header, ...Array.from({ length: 12 }, (_, i) => `F${i},C1,2026-09-01,2026-09-30,${100 + i}`)].join("\n");
+    const part = [header, "F0,C1,2026-09-01,2026-09-30,100", "F1,C1,2026-09-01,2026-09-30,101"].join("\n");
+    const snapshotDate = "2026-10-08";
+    const total = async () => (await q<{ n: number }>(`select count(*)::int n from open_invoice_snapshots where company_id = $1`, [company]))[0]!.n;
+
+    expect(await imp(company, "open_invoices", full, { snapshotDate })).toMatchObject({ status: "accepted", message: null });
+    // The preview of a short list says so before anything is replaced.
+    const preview = await imp(company, "open_invoices", part, { snapshotDate, dryRun: true });
+    expect(preview.message).toMatch(/2 unpaid invoices.*has 12/);
+    expect(await total()).toBe(12);
+    await imp(company, "open_invoices", part, { snapshotDate });
+    expect(await total()).toBe(2);
+    // The full list from before can go back in: it is no longer the saved list, so it is not "already imported".
+    const back = await imp(company, "open_invoices", full, { snapshotDate });
+    expect(back).toMatchObject({ state: "done", status: "accepted", wrote: true });
+    expect(await total()).toBe(12);
+    // Now it is the saved list again, so the same file is refused, and the history keeps all three uploads.
+    expect(await imp(company, "open_invoices", full, { snapshotDate })).toMatchObject({ state: "already_imported" });
+    expect((await q<{ n: number }>(`select count(*)::int n from import_batches where company_id = $1 and kind = 'open_invoices'`, [company]))[0]!.n).toBe(3);
+  });
+
   it("states unknown ages instead of folding them into the aging buckets", async () => {
     const r = await imp(a, "open_invoices", OPEN.replace("110", "95"), { snapshotDate: "2026-10-08" });
     expect(r.summary).toContainEqual({ label: "1-30 days overdue", value: "95.000 JOD" });
