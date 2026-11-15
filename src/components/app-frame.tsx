@@ -105,7 +105,7 @@ export function AppFrame({
 
       <div className="min-w-0">
         {banner}
-        <header className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-3 md:px-8 md:py-[17px]">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-white px-4 py-3 md:px-8 md:py-[17px]">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -128,7 +128,8 @@ export function AppFrame({
             </p>
             <p className="text-sm font-semibold md:hidden">{crumb}</p>
           </div>
-          <div className="flex items-center gap-2">
+          {/* On a phone the tools wrap onto their own line instead of pushing the page sideways. */}
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <PageSearch />
             <ExportButton name={crumb} />
             <Link href="/how-it-works" className="hidden rounded-[7px] border border-line bg-white px-3 py-1.5 text-sm hover:border-brand hover:bg-[#f0f6f2] md:inline-block">

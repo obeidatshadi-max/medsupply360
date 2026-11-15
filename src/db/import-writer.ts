@@ -931,6 +931,29 @@ async function write(tx: Tx, companyId: string, batchId: string, userId: string 
   }
 }
 
+/** True while some rows of this point-in-time upload are still the saved list (no later upload replaced them). */
+async function snapshotStillInUse(tx: Tx, kind: ImportKind, batchId: string): Promise<boolean> {
+  const table = kind === "open_invoices" ? openInvoiceSnapshots : stockSnapshots;
+  const [row] = await tx.select({ n: sql<number>`count(*)::int` }).from(table).where(eq(table.importBatchId, batchId));
+  return (row?.n ?? 0) > 0;
+}
+
+/**
+ * A point-in-time list replaces the saved list of the same date. When the new list is much shorter than the saved one,
+ * it is often a partial or filtered export: say so before (and after) it replaces the full list.
+ */
+async function snapshotShrinkWarning(tx: Tx, companyId: string, kind: ImportKind, snapshotDate: string, newRows: number): Promise<string | null> {
+  const table = kind === "open_invoices" ? openInvoiceSnapshots : stockSnapshots;
+  const [row] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(table)
+    .where(and(eq(table.companyId, companyId), eq(table.snapshotDate, snapshotDate)));
+  const saved = row?.n ?? 0;
+  if (saved < 10 || newRows >= saved / 2) return null;
+  const what = kind === "open_invoices" ? "unpaid invoices" : "stock lines";
+  return `Check this file: it has ${newRows} ${what}, but the list already saved for ${snapshotDate} has ${saved}. Saving replaces the whole list for that date. If this file is only part of the list, export the full list from Alpha instead.`;
+}
+
 export async function runImport(db: Db, input: RunImportInput): Promise<ImportOutcome> {
   const validation = validateImport(input.kind, input.text, { today: input.today, snapshotDate: input.snapshotDate });
   if (validation.fatal !== null) return blank(input, "fatal", validation.fatal);
@@ -943,7 +966,10 @@ export async function runImport(db: Db, input: RunImportInput): Promise<ImportOu
       .from(importBatches)
       .where(and(eq(importBatches.companyId, input.companyId), eq(importBatches.kind, input.kind), eq(importBatches.fileSha256, sha)))
       .limit(1);
-    if (prior && prior.status !== "rejected") {
+    // A point-in-time list (unpaid invoices, stock) that a later upload has replaced may be loaded again: that is how
+    // an owner puts back the right list after a wrong or partial one. Only a list that is still in use is "already imported".
+    const priorReplaced = prior !== undefined && prior.status !== "rejected" && SPECS[input.kind].snapshot === true && !(await snapshotStillInUse(tx, input.kind, prior.id));
+    if (prior && prior.status !== "rejected" && !priorReplaced) {
       return blank(input, "already_imported", `This exact file was already imported on ${prior.createdAt.toISOString().slice(0, 10)}. Fix or re-export the file to import it again.`);
     }
 
@@ -960,9 +986,10 @@ export async function runImport(db: Db, input: RunImportInput): Promise<ImportOu
     const rowsAccepted = snapshotBlocked ? 0 : res.rows.length;
     const rowsRejected = rejections.length;
     const status = rowsAccepted === 0 ? "rejected" : rowsRejected === 0 ? "accepted" : "partial";
+    const shrink = !snapshotBlocked && rowsAccepted > 0 && SPECS[input.kind].snapshot === true && validation.snapshotDate ? await snapshotShrinkWarning(tx, input.companyId, input.kind, validation.snapshotDate, rowsAccepted) : null;
     const outcome: ImportOutcome = {
       state: "done",
-      message: snapshotBlocked ? "Snapshot blocked: fix all rejected rows and check the complete file again. Nothing was replaced; existing snapshot data and invoice details are unchanged." : null,
+      message: snapshotBlocked ? "Snapshot blocked: fix all rejected rows and check the complete file again. Nothing was replaced; existing snapshot data and invoice details are unchanged." : shrink,
       dryRun: input.dryRun,
       wrote: false,
       batchId: null,
@@ -981,7 +1008,14 @@ export async function runImport(db: Db, input: RunImportInput): Promise<ImportOu
 
     // An earlier attempt at this exact file was fully rejected and wrote no rows (for example the customer list was
     // missing). Drop its record so this attempt can be recorded under the same file hash.
-    if (prior) await tx.delete(importBatches).where(eq(importBatches.id, prior.id));
+    if (prior && !priorReplaced) await tx.delete(importBatches).where(eq(importBatches.id, prior.id));
+    // A replaced list keeps its place in the update history; only its file hash is moved aside so the new record can take it.
+    if (prior && priorReplaced) {
+      await tx
+        .update(importBatches)
+        .set({ fileSha256: createHash("sha256").update(`${sha}:replaced:${prior.id}`).digest("hex") })
+        .where(eq(importBatches.id, prior.id));
+    }
     const [batch] = await tx
       .insert(importBatches)
       .values({
