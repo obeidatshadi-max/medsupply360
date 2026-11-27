@@ -12,6 +12,7 @@ import { validateImport } from "@/core/import/validate";
 import { SPECS, type ImportKind } from "@/core/import/specs";
 import { ImportResult } from "@/components/import-result";
 import { SubmitterField } from "@/components/submitter-field";
+import { businessToday } from "@/lib/business-date";
 
 const field = "mt-1 block w-full rounded-md border border-line bg-white px-3 py-2 text-sm";
 
@@ -50,7 +51,8 @@ const label = (i: Item) => (i.sheet ? `${i.source} · ${i.sheet}` : i.source);
 
 /** The codes defined by the customer and product lists in an upload, taken from the rows that pass their own checks. */
 async function announcedCodes(queue: Item[]): Promise<{ customers: string[]; products: string[] }> {
-  const today = new Date().toISOString().slice(0, 10);
+  // The accountant's day, as the server uses: a UTC day here would disagree with the server between midnight and 03:00.
+  const today = businessToday();
   const out = { customers: [] as string[], products: [] as string[] };
   for (const item of queue) {
     if (item.kind !== "customers" && item.kind !== "products") continue;
