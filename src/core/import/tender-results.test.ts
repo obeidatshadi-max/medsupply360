@@ -24,6 +24,12 @@ describe("tender results file", () => {
     expect(r.accepted[1]!.values.unitPrice).toBeNull();
   });
 
+  it("keeps the unit price unknown when the quantity is zero, instead of an endless price", () => {
+    const r = run("authority,tender no,award date,item,bidder,quantity,line total\nMOH,T1,2025-03-01,Item A,Acme,0,5000");
+    expect(r.accepted.length + r.rejected.length).toBe(1);
+    for (const a of r.accepted) expect(a.values.unitPrice).toBeNull();
+  });
+
   it("keeps a winner-only notice: one row, no other bidders, no price needed", () => {
     const r = run(`${HEAD}\nMOH,T1,2025-03-01,Item A,Winner Ltd,no,,won`);
     expect(r.rejected).toEqual([]);

@@ -43,7 +43,7 @@ export default async function DealsPage() {
         sub="What each tender and private sale really earns after every cost of delivering it. The quoted, forecast and realized margins sit side by side. The numbers come only from the deals and costs entered or imported here."
       />
       <p className="mb-3 rounded-lg border border-line bg-white p-3 text-xs text-muted">
-        Profit here means sales minus the costs of delivering the deal. It is not the company's net profit: overheads and income tax are not taken off. Costs come in by file upload only; a live link to Alpha has not been tested.
+        Profit here means sales minus the costs of delivering the deal. It is not the company&apos;s net profit: overheads and income tax are not taken off. Costs come in by file upload only; a live link to Alpha has not been tested.
       </p>
       {analyses.length === 0 ? (
         <p className="rounded-lg border border-line bg-white p-4 text-sm text-muted">
